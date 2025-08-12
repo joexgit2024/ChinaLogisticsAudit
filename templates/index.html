@@ -108,28 +108,6 @@
     <div class="col-md-4 mb-4">
         <div class="card feature-card">
             <div class="card-body text-center">
-                <div class="feature-icon bg-danger text-white">
-                    <i class="fas fa-file-pdf fa-lg"></i>
-                </div>
-                <h5 class="card-title">AI-Powered PDF Processing</h5>
-                <p class="card-text">Advanced PDF invoice extraction with machine learning charge classification and intelligent data parsing.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-4">
-        <div class="card feature-card">
-            <div class="card-body text-center">
-                <div class="feature-icon bg-success text-white">
-                    <i class="fas fa-brain fa-lg"></i>
-                </div>
-                <h5 class="card-title">LLM Intelligence</h5>
-                <p class="card-text">Large Language Model powered invoice processing with natural language understanding and context-aware extraction.</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-4">
-        <div class="card feature-card">
-            <div class="card-body text-center">
                 <div class="feature-icon bg-warning text-white">
                     <i class="fas fa-search-dollar fa-lg"></i>
                 </div>
@@ -237,24 +215,6 @@
                 <h5><i class="fas fa-tachometer-alt text-primary me-2"></i>EDI Invoice Dashboard</h5>
                 <p class="card-text mb-3">Traditional EDI file processing with invoice summaries and audit statistics</p>
                 <a href="{{ url_for('core.edi_invoice_dashboard') }}" class="btn btn-primary nav-button">View Dashboard</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-file-pdf text-danger me-2"></i>PDF Processing Dashboard</h5>
-                <p class="card-text mb-3">AI-powered PDF invoice extraction with ML charge classification</p>
-                <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" class="btn btn-danger nav-button">PDF Dashboard</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-brain text-success me-2"></i>LLM Enhanced Processing</h5>
-                <p class="card-text mb-3">Large Language Model powered invoice processing with natural language understanding</p>
-                <a href="/llm-pdf" class="btn btn-success nav-button">LLM Dashboard</a>
             </div>
         </div>
     </div>
@@ -441,52 +401,6 @@
     </div>
 </div>
 
-<!-- LLM Processing Management Section -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-4">
-            <i class="fas fa-brain text-success me-2"></i>LLM Enhanced Processing
-        </h2>
-        <p class="text-center text-muted mb-4">Large Language Model powered invoice processing with natural language understanding</p>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-tachometer-alt me-2"></i>LLM Dashboard</h6>
-                <p class="small mb-3">Overview of LLM processing and AI analytics</p>
-                <a href="/llm-pdf" class="btn btn-outline-success nav-button">View Dashboard</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-chart-line me-2"></i>Processing Stats</h6>
-                <p class="small mb-3">LLM processing statistics and performance metrics</p>
-                <a href="/llm-pdf/stats" class="btn btn-outline-success nav-button">View Stats</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-chart-bar me-2"></i>Processing Results</h6>
-                <p class="small mb-3">Detailed LLM processing results and accuracy reports</p>
-                <a href="/llm-pdf/results" class="btn btn-outline-success nav-button">View Results</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-download me-2"></i>Export LLM Data</h6>
-                <p class="small mb-3">Export LLM processing data and analysis reports</p>
-                <a href="/llm-pdf/export" class="btn btn-outline-success nav-button">Export Data</a>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Technology Stack -->
 <div class="row">
     <div class="col-12">
@@ -496,27 +410,19 @@
                     <i class="fas fa-layer-group me-2"></i>Technology Stack
                 </h5>
                 <div class="row mt-3">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <i class="fab fa-python fa-2x text-primary mb-2"></i>
                         <p class="small mb-0"><strong>Python 3.12</strong><br>Flask Framework</p>
                     </div>
-                    <div class="col-md-2">
-                        <i class="fas fa-brain fa-2x text-success mb-2"></i>
-                        <p class="small mb-0"><strong>LLM AI</strong><br>Ollama Integration</p>
-                    </div>
-                    <div class="col-md-2">
-                        <i class="fas fa-robot fa-2x text-warning mb-2"></i>
-                        <p class="small mb-0"><strong>Machine Learning</strong><br>Charge Classification</p>
-                    </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <i class="fas fa-database fa-2x text-info mb-2"></i>
                         <p class="small mb-0"><strong>SQLite</strong><br>SQLAlchemy ORM</p>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <i class="fab fa-html5 fa-2x text-danger mb-2"></i>
                         <p class="small mb-0"><strong>Bootstrap 5</strong><br>Responsive UI</p>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <i class="fas fa-chart-bar fa-2x text-secondary mb-2"></i>
                         <p class="small mb-0"><strong>Pandas</strong><br>Data Analysis</p>
                     </div>
