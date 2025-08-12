@@ -1,18 +1,18 @@
 """
-DHL Invoice Audit Application - Main Flask App
+China Logistics Audit Application - Main Flask App
 
 Overall Purpose:
 ----------------
-This file is the main entry point for the DHL Invoice Audit Application. It
+This file is the main entry point for the China Logistics Audit Application. It
 configures the Flask app, sets up configuration, registers all blueprints for
 modular route handling, and provides all web and API endpoints for invoice
-auditing, uploads, dashboards, PDF/LLM processing, and more.
+auditing, uploads, dashboards, PDF/LLM processing, and more for Chinese logistics providers.
 
 Where This File is Used:
 ------------------------
 - Run directly (python app.py) to start the web server
 - Referenced by setup scripts and deployment tools
-- Used as the main entry for all web and API requests in the DHL audit system
+- Used as the main entry for all web and API requests in the China logistics audit system
 """
 
 import os
@@ -39,7 +39,7 @@ from app.utils.template_filters import register_filters
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['DATABASE'] = 'dhl_audit.db'
+app.config['DATABASE'] = 'china_logistics_audit.db'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable cache
 

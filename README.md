@@ -1,23 +1,23 @@
-# DHL Invoice Audit Application
+# China Logistics Audit Application
 
-A comprehensive Python Flask web application for auditing DHL shipping invoices with advanced zone-based pricing validation, LLM-enhanced PDF processing, and multi-modal audit capabilities.
+A comprehensive Python Flask web application for auditing China logistics and shipping invoices with advanced zone-based pricing validation, LLM-enhanced PDF processing, and multi-modal audit capabilities supporting major Chinese logistics providers.
 
 ## 🚀 Features
 
 ### Core Functionality
 - **Multi-Format Processing**: EDI files (X12 format), CSV invoice files, and PDF documents
 - **Invoice Data Extraction**: Extract shipping details, charges, and metadata from multiple sources
-- **Zone-Based Rate Validation**: Advanced DHL Express zone mapping with Import/Export/3rd Party rate cards
-- **AU Domestic Audit Engine**: Complete Australian domestic audit system with 11-zone coverage
+- **Zone-Based Rate Validation**: Advanced China logistics zone mapping with Import/Export/Domestic rate cards
+- **China Domestic Audit Engine**: Complete Chinese domestic audit system with province-level coverage
 - **LLM-Enhanced PDF Processing**: AI-powered PDF invoice extraction using local Ollama/DeepSeek-R1
 - **Detailed Audit Analysis**: Line-by-line charge comparison with variance analysis
 - **Multi-Modal Support**: Air freight and Ocean freight (FCL/LCL) auditing
 - **Fuzzy Matching**: Advanced city/port matching for rate card selection
 
-### DHL Express Audit System
-- **Zone-Based Pricing**: 9-zone worldwide export/import structure
-- **AU Domestic Engine**: Comprehensive 11-zone Australian domestic audit
-- **Rate Card Types**: Export, Import, 3rd Party, and AU Domestic rate validation
+### China Logistics Audit System
+- **Zone-Based Pricing**: Province-based domestic and international structure
+- **Domestic Engine**: Comprehensive China domestic audit covering all provinces
+- **Rate Card Types**: Export, Import, Domestic, and Cross-border rate validation
 - **Weight-Based Calculations**: Accurate weight tier and adder rate calculations
 - **Service Charge Validation**: Premium services and surcharge verification
 
@@ -26,14 +26,15 @@ A comprehensive Python Flask web application for auditing DHL shipping invoices 
 - **Batch Processing**: Multi-invoice batch audit with detailed reporting
 - **Sortable Tables**: Interactive invoice listings with column sorting
 - **Real-time Audit**: Live invoice validation with confidence scoring
-- **Authentication System**: Corporate email-based secure access (@andrew.com domain)
+- **Authentication System**: Corporate email-based secure access
 
 ### Transportation Modes
 - **Air Freight**: Weight-based pricing with handling fees and surcharges
 - **Ocean Freight**: Container-based pricing (20ft/40ft FCL) with detailed breakdown
 - **LCL (Less Container Load)**: Volume-based pricing with minimum charges
-- **DHL Express**: Zone-based worldwide express delivery audit
-- **AU Domestic**: Australia domestic shipment validation
+- **China Express**: Province-based domestic express delivery audit
+- **Cross-Border**: International shipment validation for China import/export
+- **Domestic**: China domestic shipment validation across all provinces
 
 ### Audit Intelligence
 - **Undercharge Logic**: Automatically passes invoices with favorable pricing
