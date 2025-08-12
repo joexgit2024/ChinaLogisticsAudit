@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice Reports - YTD Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-file-invoice"></i> Invoice Reports</h2>
+                <div class="btn-group">
+                    <a href="{{ url_for('ytd_reports.reports_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Reports
+                    </a>
+                    <a href="{{ url_for('ytd_reports.export_reports', type='invoice_details', **filters) }}" 
+                       class="btn btn-success">
+                        <i class="fas fa-download"></i> Export Current View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('ytd_reports.invoice_reports') }}">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <label for="month" class="form-label">Month</label>
+                                <select name="month" id="month" class="form-select">
+                                    <option value="">All Months</option>
+                                    {% for month in available_months %}
+                                    <option value="{{ month }}" {% if filters.month == month %}selected{% endif %}>
+                                        {{ month }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="transportation_mode" class="form-label">Transport Mode</label>
+                                <select name="transportation_mode" id="transportation_mode" class="form-select">
+                                    <option value="">All Modes</option>
+                                    {% for mode in transport_modes %}
+                                    <option value="{{ mode }}" {% if filters.transportation_mode == mode %}selected{% endif %}>
+                                        {{ mode }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="audit_status" class="form-label">Audit Status</label>
+                                <select name="audit_status" id="audit_status" class="form-select">
+                                    <option value="">All Statuses</option>
+                                    {% for status in audit_statuses %}
+                                    <option value="{{ status }}" {% if filters.audit_status == status %}selected{% endif %}>
+                                        {{ status }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="cw1_shipment_number" class="form-label">CW1 Shipment #</label>
+                                <input type="text" name="cw1_shipment_number" id="cw1_shipment_number" 
+                                       class="form-control" placeholder="e.g., S2502478798"
+                                       value="{{ filters.cw1_shipment_number or '' }}">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary me-2">
+                                    <i class="fas fa-search"></i> Apply Filters
+                                </button>
+                                <a href="{{ url_for('ytd_reports.invoice_reports') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    {% if invoices %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(invoices|length) }}</h3>
+                    <h6>Invoices Found</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>${{ "{:,.0f}".format(invoices|sum(attribute='total_charges_usd')) }}</h3>
+                    <h6>Total Value (USD)</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(invoices|selectattr('audit_status')|list|length) }}</h3>
+                    <h6>Audited Invoices</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ invoices|map(attribute='cw1_shipment_number')|unique|list|length }}</h3>
+                    <h6>Unique Shipments</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Invoices Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Invoice Details ({{ invoices|length }} invoices)</h5>
+                </div>
+                <div class="card-body">
+                    {% if invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="invoicesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>CW1 Shipment #</th>
+                                    <th>Date</th>
+                                    <th>Route</th>
+                                    <th>Mode</th>
+                                    <th>Shipper/Consignee</th>
+                                    <th>Amount (USD)</th>
+                                    <th>Audit Status</th>
+                                    <th>Variance</th>
+                                    <th>Rate Card</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ invoice.invoice_no }}</strong>
+                                        {% if invoice.invoice_currency and invoice.invoice_currency != 'USD' %}
+                                        <br><small class="text-muted">{{ invoice.invoice_currency }} {{ "{:,.2f}".format(invoice.total_original_currency) }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if invoice.cw1_shipment_number %}
+                                        <a href="{{ url_for('ytd_reports.invoice_reports', cw1_shipment_number=invoice.cw1_shipment_number) }}" 
+                                           class="text-decoration-none">
+                                            {{ invoice.cw1_shipment_number }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ invoice.invoice_creation_date or 'N/A' }}</small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>{{ invoice.origin or 'N/A' }}</strong><br>
+                                            <i class="fas fa-arrow-down"></i><br>
+                                            <strong>{{ invoice.destination or 'N/A' }}</strong>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if invoice.transportation_mode == 'Air' %}
+                                            <span class="badge bg-primary"><i class="fas fa-plane"></i> Air</span>
+                                        {% elif invoice.transportation_mode == 'Sea' %}
+                                            <span class="badge bg-info"><i class="fas fa-ship"></i> Sea</span>
+                                        {% elif invoice.transportation_mode == 'Road' %}
+                                            <span class="badge bg-success"><i class="fas fa-truck"></i> Road</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ invoice.transportation_mode or 'Unknown' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>From:</strong> {{ (invoice.shipper_name or 'N/A')[:20] }}{% if invoice.shipper_name and invoice.shipper_name|length > 20 %}...{% endif %}<br>
+                                            <strong>To:</strong> {{ (invoice.consignee_name or 'N/A')[:20] }}{% if invoice.consignee_name and invoice.consignee_name|length > 20 %}...{% endif %}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.2f}".format(invoice.total_charges_usd) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if invoice.audit_status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif invoice.audit_status == 'rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% elif invoice.audit_status == 'No Rate Card' %}
+                                            <span class="badge bg-warning">No Rate Card</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ invoice.audit_status or 'Not Audited' }}</span>
+                                        {% endif %}
+                                        {% if invoice.audit_date %}
+                                        <br><small class="text-muted">{{ invoice.audit_date[:10] }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if invoice.total_variance and invoice.total_variance != 0 %}
+                                            <span class="{% if invoice.total_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                ${{ "{:,.2f}".format(invoice.total_variance) }}
+                                            </span>
+                                            {% if invoice.variance_percent %}
+                                            <br>
+                                            <small class="{% if invoice.variance_percent > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                {{ "{:+.1f}%".format(invoice.variance_percent) }}
+                                            </small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if invoice.best_match_rate_card %}
+                                        <small class="text-success">{{ invoice.best_match_rate_card[:15] }}{% if invoice.best_match_rate_card|length > 15 %}...{% endif %}</small>
+                                        <br><small class="text-muted">{{ invoice.matching_lanes or 0 }} lanes</small>
+                                        {% elif invoice.rate_cards_checked and invoice.rate_cards_checked > 0 %}
+                                        <small class="text-warning">{{ invoice.rate_cards_checked }} checked</small>
+                                        <br><small class="text-muted">No match</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('dhl_ytd.view_ytd_invoice_detail', invoice_no=invoice.invoice_no) }}" 
+                                               class="btn btn-outline-primary" title="View Invoice Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if invoice.audit_status %}
+                                            <a href="{{ url_for('ytd_reports.audit_details', invoice_no=invoice.invoice_no) }}" 
+                                               class="btn btn-outline-info" title="Audit Details">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5>No invoices found</h5>
+                        <p class="text-muted">Try adjusting your filters or check if data has been uploaded.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize DataTable for sorting and pagination
+$(document).ready(function() {
+    if ($('#invoicesTable tbody tr').length > 0) {
+        $('#invoicesTable').DataTable({
+            pageLength: 25,
+            order: [[2, 'desc']], // Sort by date descending
+            columnDefs: [
+                { targets: [6, 8], type: 'num' }, // Numeric columns
+                { targets: [10], orderable: false } // Actions column not sortable
+            ]
+        });
+    }
+});
+</script>
+</script>
+
+<style>
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Make table more readable */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Compact display for mobile */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8em;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.7rem;
+    }
+}
+</style>
+{% endblock %}

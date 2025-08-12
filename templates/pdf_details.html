@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Details - {{ details.invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-file-pdf text-danger"></i> PDF Details - {{ details.invoice_no }}</h2>
+                <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+
+            <!-- Invoice Summary -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> Invoice Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                <dt class="col-sm-5">Invoice Number:</dt>
+                                <dd class="col-sm-7">{{ details.invoice_no }}</dd>
+                                
+                                <dt class="col-sm-5">Service Type:</dt>
+                                <dd class="col-sm-7">
+                                    <span class="badge badge-primary">{{ details.service_type or 'Unknown' }}</span>
+                                </dd>
+                                
+                                <dt class="col-sm-5">Total Amount:</dt>
+                                <dd class="col-sm-7">
+                                    <strong>{{ details.total_amount or 0 }} {{ details.currency or 'USD' }}</strong>
+                                </dd>
+                                
+                                <dt class="col-sm-5">Extraction Confidence:</dt>
+                                <dd class="col-sm-7">
+                                    {% set confidence = (details.extraction_confidence or 0) * 100 %}
+                                    <span class="badge {% if confidence >= 80 %}badge-success{% elif confidence >= 60 %}badge-warning{% else %}badge-danger{% endif %}">
+                                        {{ "%.1f"|format(confidence) }}%
+                                    </span>
+                                </dd>
+                                
+                                <dt class="col-sm-5">PDF File:</dt>
+                                <dd class="col-sm-7">{{ details.pdf_filename or 'N/A' }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Extraction Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <dl class="row">
+                                <dt class="col-sm-6">Extracted Charges:</dt>
+                                <dd class="col-sm-6">{{ details.extracted_charges|length if details.extracted_charges else 0 }}</dd>
+                                
+                                <dt class="col-sm-6">Charge Types:</dt>
+                                <dd class="col-sm-6">{{ details.charge_descriptions|length if details.charge_descriptions else 0 }}</dd>
+                                
+                                <dt class="col-sm-6">Shipment References:</dt>
+                                <dd class="col-sm-6">{{ details.shipment_references|length if details.shipment_references else 0 }}</dd>
+                                
+                                <dt class="col-sm-6">Manual Corrections:</dt>
+                                <dd class="col-sm-6">{{ details.manual_corrections|length if details.manual_corrections else 0 }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Charges Table -->
+            {% if details.comprehensive_data %}
+                {% set comp_data = details.comprehensive_data %}
+                {% if comp_data is string %}
+                    {% set comp_data = comp_data|from_json %}
+                {% endif %}
+                
+                {% if comp_data and comp_data.charges %}
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-dollar-sign"></i> Extracted Charges</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Description</th>
+                                        <th>Currency</th>
+                                        <th class="text-right">Amount</th>
+                                        <th class="text-right">Exchange Rate</th>
+                                        <th>GST</th>
+                                        <th class="text-right">AUD Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for charge in comp_data.charges %}
+                                    <tr>
+                                        <td>
+                                            <div class="charge-description">
+                                                {{ charge.description }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-info">{{ charge.currency or 'USD' }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <strong>{{ charge.amount }}</strong>
+                                        </td>
+                                        <td class="text-right">
+                                            {{ charge.exchange_rate }}
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-secondary">{{ charge.gst }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <strong class="text-success">{{ charge.aud_amount }}</strong>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if comp_data.charges|length == 1 %}
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Note:</strong> Only {{ comp_data.charges|length }} charge was successfully parsed from the invoice. 
+                            The enhanced extraction may need refinement to capture all charges.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>No Enhanced Charges Found:</strong> The comprehensive data doesn't contain structured charge information.
+                </div>
+                {% endif %}
+            {% endif %}
+
+            <!-- Legacy Extracted Charges (if no comprehensive data) -->
+            {% if details.extracted_charges and not (details.comprehensive_data and details.comprehensive_data.charges) %}
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Legacy Charge Extraction</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Charge Type</th>
+                                    <th class="text-right">Amount</th>
+                                    <th>Category</th>
+                                    <th>Auditable</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for charge_type, amount in details.extracted_charges.items() %}
+                                <tr>
+                                    <td>{{ charge_type.replace('_', ' ').title() }}</td>
+                                    <td class="text-right">
+                                        <strong>{{ amount }} {{ details.currency or 'USD' }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if charge_definitions.get(charge_type) %}
+                                            <span class="badge badge-info">{{ charge_definitions[charge_type].category }}</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if charge_definitions.get(charge_type) %}
+                                            {% if charge_definitions[charge_type].is_auditable %}
+                                                <span class="badge badge-success">Yes</span>
+                                            {% else %}
+                                                <span class="badge badge-warning">No</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge badge-secondary">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Charge Descriptions -->
+            {% if details.charge_descriptions %}
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Charge Descriptions</h5>
+                </div>
+                <div class="card-body">
+                    {% for charge_type, descriptions in details.charge_descriptions.items() %}
+                    <div class="mb-3">
+                        <h6 class="text-primary">{{ charge_type.replace('_', ' ').title() }}</h6>
+                        <ul class="list-unstyled ml-3">
+                            {% for desc in descriptions %}
+                            <li><i class="fas fa-angle-right text-muted"></i> {{ desc }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Shipment References -->
+            {% if details.shipment_references %}
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="fas fa-ship"></i> Shipment References</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for ref_type, ref_value in details.shipment_references.items() %}
+                        <div class="col-md-6 col-lg-4 mb-2">
+                            <strong>{{ ref_type.replace('_', ' ').title() }}:</strong> {{ ref_value }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- ML Predictions -->
+            {% if details.ml_predictions %}
+            <div class="card mb-4">
+                <div class="card-header bg-purple text-white">
+                    <h5 class="mb-0"><i class="fas fa-brain"></i> ML Classification Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Predicted Type</th>
+                                    <th>Confidence</th>
+                                    <th>Method</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for description, prediction in details.ml_predictions.items() %}
+                                <tr>
+                                    <td>{{ description[:50] }}{% if description|length > 50 %}...{% endif %}</td>
+                                    <td>{{ prediction.charge_type }}</td>
+                                    <td>
+                                        {% set conf = (prediction.confidence * 100) %}
+                                        <span class="badge {% if conf >= 80 %}badge-success{% elif conf >= 60 %}badge-warning{% else %}badge-danger{% endif %}">
+                                            {{ "%.1f"|format(conf) }}%
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-info">{{ prediction.method }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<style>
+.charge-description {
+    font-size: 0.9em;
+    line-height: 1.3;
+}
+
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+
+.table th {
+    border-top: none;
+}
+
+.card-header h5 {
+    margin-bottom: 0;
+}
+
+.badge {
+    font-size: 0.8em;
+}
+</style>
+{% endblock %}

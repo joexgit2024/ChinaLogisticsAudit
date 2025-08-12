@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block title %}Air Rate Cards Dashboard{% endblock %}
+
+{% block content %}
+
+        <div class="row mb-4">
+            <div class="col">
+                <h1><i class="fas fa-plane text-primary me-2"></i>Air Rate Cards Dashboard</h1>
+                <p class="text-muted">Manage DHL Air freight rate cards and search air freight rates</p>
+                
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="row mb-4">
+            <div class="col">
+                <a href="{{ url_for('rate_card.upload_rate_card') }}" class="btn btn-primary me-2">
+                    <i class="fas fa-upload me-1"></i>Upload Rate Card
+                </a>
+                <a href="{{ url_for('rate_card.list_rate_cards') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-1"></i>View All Rate Cards
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_rates }}</h4>
+                                <span>Total Rate Entries</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-list-alt fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_rate_cards }}</h4>
+                                <span>Rate Card Files</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-file-excel fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ total_lanes }}</h4>
+                                <span>Air Lanes</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-route fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ service_types|length }}</h4>
+                                <span>Service Types</span>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-shipping-fast fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Recent Rate Cards -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-clock me-2"></i>Recent Rate Cards</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_cards %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Card Name</th>
+                                            <th>Validity</th>
+                                            <th>Uploaded</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for card in recent_cards %}
+                                        <tr>
+                                            <td>
+                                                <a href="{{ url_for('rate_card.view_rate_card', rate_card_id=card[0]) }}" class="text-decoration-none">
+                                                    <strong>{{ card[1] }}</strong>
+                                                </a>
+                                            </td>
+                                            <td>
+                                                {% if card[2] and card[3] %}
+                                                    {{ card[2] }} to {{ card[3] }}
+                                                {% else %}
+                                                    <span class="text-muted">Not specified</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ card[4][:10] if card[4] else 'N/A' }}</small>
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('rate_card.view_rate_card', rate_card_id=card[0]) }}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-file-excel fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No rate cards uploaded yet</p>
+                                <a href="{{ url_for('rate_card.upload_rate_card') }}" class="btn btn-primary">
+                                    <i class="fas fa-upload me-1"></i>Upload First Rate Card
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Origins -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-globe-americas me-2"></i>Top Origin Countries</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if top_origins %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Country</th>
+                                            <th>Routes</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set max_count = top_origins[0][1] if top_origins else 0 %}
+                                        {% for origin in top_origins %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ origin[0] }}</strong>
+                                            </td>
+                                            <td>{{ origin[1] }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 15px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                                         style="width: {{ (origin[1] / max_count * 100) if max_count > 0 else 0 }}%">
+                                                        {{ "%.1f"|format((origin[1] / total_rates * 100) if total_rates > 0 else 0) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No origin data available</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <!-- Top Destinations -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-map-pin me-2"></i>Top Destination Countries</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if top_destinations %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Country</th>
+                                            <th>Routes</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set max_count = top_destinations[0][1] if top_destinations else 0 %}
+                                        {% for destination in top_destinations %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ destination[0] }}</strong>
+                                            </td>
+                                            <td>{{ destination[1] }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 15px;">
+                                                    <div class="progress-bar bg-success" role="progressbar" 
+                                                         style="width: {{ (destination[1] / max_count * 100) if max_count > 0 else 0 }}%">
+                                                        {{ "%.1f"|format((destination[1] / total_rates * 100) if total_rates > 0 else 0) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No destination data available</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Types -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-shipping-fast me-2"></i>Service Types</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if service_types %}
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Service</th>
+                                            <th>Routes</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set max_count = service_types[0][1] if service_types else 0 %}
+                                        {% for service in service_types %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-info">{{ service[0] }}</span>
+                                            </td>
+                                            <td>{{ service[1] }}</td>
+                                            <td>
+                                                <div class="progress" style="height: 15px;">
+                                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                                         style="width: {{ (service[1] / max_count * 100) if max_count > 0 else 0 }}%">
+                                                        {{ "%.1f"|format((service[1] / total_rates * 100) if total_rates > 0 else 0) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-shipping-fast fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No service data available</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add any custom JavaScript for the air rate dashboard here
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any interactive elements
+    console.log('Air Rate Dashboard loaded');
+});
+</script>
+{% endblock %}

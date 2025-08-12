@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DHL Invoice Audit - {% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body.theme-dark {
+            background: #181a1b !important;
+            color: #e0e0e0 !important;
+        }
+        .theme-dark .sidebar {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #e0e0e0;
+        }
+        .theme-dark .sidebar .nav-link,
+        .theme-dark .sidebar .dropdown-item {
+            color: #bdbdbd;
+        }
+        .theme-dark .sidebar .nav-link.active,
+        .theme-dark .sidebar .nav-link:hover,
+        .theme-dark .sidebar .dropdown-item.active,
+        .theme-dark .sidebar .dropdown-item:hover {
+            color: #fff;
+            background: #333a40;
+        }
+        .theme-dark .sidebar .dropdown-menu {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+        }
+        .theme-dark .main-content {
+            background: #232526;
+            color: #e0e0e0;
+        }
+        .theme-dark .card,
+        .theme-dark .card-header,
+        .theme-dark .card-body {
+            background: #232526;
+            color: #e0e0e0;
+        }
+        .theme-dark .table {
+            color: #e0e0e0;
+        }
+        .theme-dark .table-striped > tbody > tr:nth-of-type(odd) {
+            background-color: #232526;
+        }
+        .theme-dark .dropdown-menu-dark {
+            background: #232526;
+        }
+        .theme-dark .alert {
+            background: #333a40;
+            color: #e0e0e0;
+        }
+        .theme-dark .btn,
+        .theme-dark .btn-outline-primary {
+            background: #232526;
+            color: #e0e0e0;
+            border-color: #bdbdbd;
+        }
+        .theme-dark .btn:hover,
+        .theme-dark .btn-outline-primary:hover {
+            background: #333a40;
+            color: #fff;
+        }
+        .theme-dark .form-control {
+            background: #232526;
+            color: #e0e0e0;
+            border-color: #bdbdbd;
+        }
+        .theme-dark .sidebar-toggle {
+            color: #ffd700;
+        }
+        /* Theme toggle button */
+        .theme-toggle-btn {
+            position: absolute;
+            top: 18px;
+            right: 32px;
+            z-index: 1001;
+            background: none;
+            border: none;
+            color: #ffd700;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .theme-toggle-btn:hover {
+            color: #fff700;
+        }
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            transition: width 0.3s;
+            width: 240px;
+            min-width: 240px;
+            flex-shrink: 0;
+            overflow-x: hidden;
+        }
+        .sidebar.collapsed {
+            width: 60px;
+            min-width: 60px;
+            overflow-x: hidden;
+        }
+        .sidebar.collapsed .nav-link, .sidebar.collapsed .dropdown-toggle, .sidebar.collapsed .dropdown-menu, .sidebar.collapsed .dropdown-header, .sidebar.collapsed .dropdown-item {
+            text-align: center;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        .sidebar.collapsed .nav-link span,
+        .sidebar.collapsed .dropdown-header,
+        .sidebar.collapsed .dropdown-menu,
+        .sidebar.collapsed .dropdown-item span,
+        .sidebar.collapsed .dropdown-divider,
+        .sidebar.collapsed .dropdown-header {
+            display: none !important;
+        }
+        .sidebar.collapsed h4 {
+            font-size: 1.2rem;
+        }
+        .sidebar .sidebar-toggle {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            outline: none;
+            transition: color 0.2s;
+        }
+        .sidebar .sidebar-toggle:hover {
+            color: #ffd700;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            flex: 1;
+            overflow-x: auto;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            border-radius: 5px;
+            margin: 2px 0;
+        }
+        .sidebar .nav-link:hover {
+            color: white;
+            background-color: rgba(255,255,255,0.1);
+        }
+        .sidebar .nav-link.active {
+            color: white;
+            background-color: rgba(255,255,255,0.2);
+        }
+        .sidebar .dropdown-menu {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            opacity: 0;
+            position: static !important;
+            float: none !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-sizing: border-box;
+        }
+        .sidebar .dropdown.show .dropdown-menu {
+            display: block;
+            max-height: 500px;
+            opacity: 1;
+        }
+        .sidebar .dropdown {
+            position: relative;
+            width: 100%;
+        }
+        .sidebar .dropdown-toggle {
+            transition: all 0.3s ease;
+            position: relative;
+            width: 100%;
+            text-align: left;
+            padding-right: 40px !important;
+        }
+        .sidebar .dropdown-toggle::after {
+            content: '\f107';
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            border: none;
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%) rotate(0deg);
+            transition: transform 0.3s ease;
+        }
+        .sidebar .dropdown.show .dropdown-toggle::after {
+            transform: translateY(-50%) rotate(180deg);
+        }
+        .sidebar .dropdown:hover > .dropdown-toggle {
+            background-color: rgba(255,255,255,0.1);
+        }
+        /* Accessibility: Keep dropdown accessible via keyboard */
+        .sidebar .dropdown-toggle:focus-visible {
+            outline: 2px solid #ffd700;
+            outline-offset: 2px;
+        }
+        
+        /* Mobile responsive design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                min-width: 100%;
+                position: fixed;
+                top: 0;
+                left: -100%;
+                z-index: 1050;
+                transition: left 0.3s ease;
+            }
+            .sidebar.show {
+                left: 0;
+            }
+            .sidebar.collapsed {
+                left: -100%;
+            }
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+            .sidebar-toggle {
+                position: fixed;
+                top: 15px;
+                left: 15px;
+                z-index: 1051;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+        }
+        
+        /* Enhanced hover and focus states */
+        .sidebar .dropdown-item:focus {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            outline: 2px solid #ffd700;
+            outline-offset: -2px;
+        }
+        
+        /* Loading and transition states */
+        .sidebar .dropdown-menu.transitioning {
+            pointer-events: none;
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .sidebar .dropdown-toggle::after {
+                color: #fff;
+            }
+            .sidebar .nav-link {
+                border: 1px solid transparent;
+            }
+            .sidebar .nav-link:focus {
+                border-color: #fff;
+            }
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .sidebar .dropdown-menu,
+            .sidebar .dropdown-toggle::after {
+                transition: none;
+            }
+        }
+        
+        /* Hide PDF Processing and LLM Processing sections */
+        #pdfDropdownContainer,
+        #llmDropdownContainer {
+            display: none !important;
+        }
+        .sidebar .dropdown-item {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9em;
+            padding: 8px 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .sidebar .dropdown-item:hover {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .sidebar .dropdown-item.active {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+        }
+        .sidebar .dropdown-header {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 16px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .sidebar .dropdown-divider {
+            border-color: rgba(255,255,255,0.1);
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            flex: 1;
+            overflow-x: auto;
+        }
+        .card-stat {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .card-stat:hover {
+            transform: translateY(-2px);
+        }
+        .alert-custom {
+            border-radius: 10px;
+        }
+        .btn-custom {
+            border-radius: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div class="sidebar p-0 position-relative" id="sidebarNav">
+                <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle theme">
+                    <i class="fas fa-moon" id="themeToggleIcon"></i>
+                </button>
+                <div class="p-3">
+                    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h4 class="mb-4"><i class="fas fa-truck"></i> <span class="sidebar-title-text">DHL Audit</span></h4>
+                    
+                    <!-- User Info Section -->
+                    {% if user_data %}
+                    <div class="mb-4 p-3" style="background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-user-circle fa-2x me-2" style="color: rgba(255,255,255,0.8);"></i>
+                            <div>
+                                <div style="color: white; font-weight: 500; font-size: 0.9rem;">{{ user_data.email.split('@')[0].title() }}</div>
+                                <div style="color: rgba(255,255,255,0.7); font-size: 0.75rem;">{{ user_data.email }}</div>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light w-100">
+                            <i class="fas fa-sign-out-alt me-1"></i> <span>Sign Out</span>
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <nav class="nav flex-column">
+                        <a class="nav-link {% if request.endpoint == 'core.index' %}active{% endif %}" href="{{ url_for('core.index') }}">>
+                            <i class="fas fa-home me-2"></i> <span>Home</span>
+                        </a>
+                        
+                        <!-- Invoice Management Dropdown -->
+                        <div class="dropdown" id="invoiceDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['core.edi_invoice_dashboard', 'core.upload_file', 'invoice.invoices', 'validation.validation_dashboard', 'validation.validation_detail'] or (request.endpoint and request.endpoint.startswith('enhanced_audit.')) %}active{% endif %}"
+                               href="#" role="button" id="invoiceDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="Invoice Management Menu">
+                                <i class="fas fa-file-invoice-dollar me-2"></i> <span>Invoice Management</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="invoiceDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'core.edi_invoice_dashboard' %}active{% endif %}" href="{{ url_for('core.edi_invoice_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>EDI Invoice Dashboard</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Input</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'core.upload_file' %}active{% endif %}" href="{{ url_for('core.upload_file') }}" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload EDI</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-search me-1"></i> <span>Review & Analysis</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'invoice.invoices' %}active{% endif %}" href="{{ url_for('invoice.invoices') }}" role="menuitem">
+                                    <i class="fas fa-file-invoice me-2"></i> <span>Invoices</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'validation.validation_dashboard' or request.endpoint == 'validation.validation_detail' %}active{% endif %}" href="{{ url_for('validation.validation_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-check-circle me-2"></i> <span>Validation</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('enhanced_audit.') %}active{% endif %}" href="{{ url_for('enhanced_audit.enhanced_audit_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-search-dollar me-2"></i> <span>Enhanced Audit</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Rate Management Dropdown -->
+                        <div class="dropdown" id="rateDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('rate_card.') or request.endpoint.startswith('ocean_rate.')) %}active{% endif %}"
+                               href="#" role="button" id="rateDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="Rate Management Menu">
+                                <i class="fas fa-dollar-sign me-2"></i> <span>Rate Management</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="rateDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-plane me-1"></i> <span>Air Freight</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('rate_card.') %}active{% endif %}" href="{{ url_for('rate_card.air_rates') }}" role="menuitem">
+                                    <i class="fas fa-plane me-2"></i> <span>Air Rate Management</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-ship me-1"></i> <span>Ocean Freight</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('ocean_rate.') %}active{% endif %}" href="{{ url_for('ocean_rate.dashboard') }}" role="menuitem">
+                                    <i class="fas fa-ship me-2"></i> <span>Ocean Rate Management</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- YTD Management Dropdown -->
+                        <div class="dropdown" id="ytdDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('ytd_audit.') or request.endpoint.startswith('ytd_batch_audit.') or request.endpoint.startswith('dhl_ytd.')) %}active{% endif %}"
+                               href="#" role="button" id="ytdDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="YTD Management Menu">
+                                <i class="fas fa-calendar-check me-2"></i> <span>YTD Management</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="ytdDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'dhl_ytd.upload_ytd_file' %}active{% endif %}" href="{{ url_for('dhl_ytd.upload_ytd_file') }}" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload YTD Files</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'dhl_ytd.view_ytd_data' %}active{% endif %}" href="{{ url_for('dhl_ytd.view_ytd_data') }}" role="menuitem">
+                                    <i class="fas fa-database me-2"></i> <span>View YTD Data</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'ytd_audit.dashboard' %}active{% endif %}" href="{{ url_for('ytd_audit.dashboard') }}" role="menuitem">
+                                    <i class="fas fa-balance-scale me-2"></i> <span>Single Invoice Audit</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'ytd_batch_audit.ytd_batch_audit_dashboard' %}active{% endif %}" href="{{ url_for('ytd_batch_audit.ytd_batch_audit_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-chart-line me-2"></i> <span>Batch Audit Process</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-chart-bar me-1"></i> <span>Reports & Analytics</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'dhl_ytd.ytd_statistics' %}active{% endif %}" href="{{ url_for('dhl_ytd.ytd_statistics') }}" role="menuitem">
+                                    <i class="fas fa-chart-pie me-2"></i> <span>YTD Statistics</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('ytd_reports.') %}active{% endif %}" href="{{ url_for('ytd_reports.reports_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>Advanced Reports</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- PDF Processing Dropdown -->
+                        <div class="dropdown" id="pdfDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('advanced_pdf.') %}active{% endif %}"
+                               href="#" role="button" id="pdfDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="PDF Processing Menu">
+                                <i class="fas fa-file-pdf me-2"></i> <span>PDF Processing</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="pdfDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'advanced_pdf.advanced_pdf_dashboard' %}active{% endif %}" href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>PDF Dashboard</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>File Upload</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'advanced_pdf.upload_pdf' %}active{% endif %}" href="{{ url_for('advanced_pdf.upload_pdf') }}" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload PDFs</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-brain me-1"></i> <span>AI Processing</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'advanced_pdf.process_uploads' %}active{% endif %}" href="{{ url_for('advanced_pdf.process_uploads') }}" role="menuitem">
+                                    <i class="fas fa-magic me-2"></i> <span>Process Uploaded PDFs</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint == 'advanced_pdf.advanced_pdf_dashboard' %}active{% endif %}" href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}#unknown-charges" role="menuitem">
+                                    <i class="fas fa-question-circle me-2"></i> <span>Review Unknown Charges</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-balance-scale me-1"></i> <span>Audit Comparison</span></h6></li>
+                                <li><a class="dropdown-item" href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}#audit-comparison" role="menuitem">
+                                    <i class="fas fa-search-dollar me-2"></i> <span>Compare with Audit Results</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- Invoice Images -->
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('images.') %}active{% endif %}" href="{{ url_for('images.invoice_images_dashboard') }}">
+                            <i class="fas fa-images me-2"></i> <span>Invoice Images</span>
+                        </a>
+                        
+                        <!-- DHL Express Dropdown -->
+                        <div class="dropdown" id="dhlExpressDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if '/dhl-express' in request.path %}active{% endif %}"
+                               href="#" role="button" id="dhlExpressDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="DHL Express Menu">
+                                <i class="fas fa-shipping-fast me-2"></i> <span>DHL Express</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dhlExpressDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dhl-express' %}active{% endif %}" href="/dhl-express" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>DHL Express Dashboard</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dhl-express/upload' %}active{% endif %}" href="/dhl-express/upload" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload Files</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dhl-express/rate-cards' %}active{% endif %}" href="/dhl-express/rate-cards" role="menuitem">
+                                    <i class="fas fa-table me-2"></i> <span>Rate Cards</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-file-invoice me-1"></i> <span>Invoice Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dhl-express/invoices' %}active{% endif %}" href="/dhl-express/invoices" role="menuitem">
+                                    <i class="fas fa-file-invoice me-2"></i> <span>View Invoices</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dhl-express/audit-summary' %}active{% endif %}" href="/dhl-express/audit-summary" role="menuitem">
+                                    <i class="fas fa-chart-line me-2"></i> <span>Audit Summary</span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="/dhl-express/invoices" role="menuitem">
+                                    <i class="fas fa-balance-scale me-2"></i> <span>Run Invoice Audit</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
+                        <!-- LLM Processing Dropdown -->
+                        <div class="dropdown" id="llmDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.path.startswith('/llm-pdf') %}active{% endif %}"
+                               href="#" role="button" id="llmDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="LLM Processing Menu">
+                                <i class="fas fa-brain me-2"></i> <span>LLM Processing</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="llmDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/llm-pdf' %}active{% endif %}" href="/llm-pdf" role="menuitem">
+                                    <i class="fas fa-robot me-2"></i> <span>LLM Dashboard</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-cogs me-1"></i> <span>Processing Functions</span></h6></li>
+                                <li><a class="dropdown-item" href="/llm-pdf" onclick="setTimeout(() => { const btn = document.getElementById('process-all-btn') || document.getElementById('process-all-btn-alt'); if(btn) btn.click(); }, 500); return true;" role="menuitem">
+                                    <i class="fas fa-magic me-2"></i> <span>Process All PDFs</span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="/llm-pdf" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>View Results</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-microchip me-1"></i> <span>Performance & Testing</span></h6></li>
+                                <li><a class="dropdown-item" href="/llm-pdf/test-gpu" role="menuitem">
+                                    <i class="fas fa-microchip me-2"></i> <span>GPU & Model Test</span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="/llm-pdf/performance" role="menuitem">
+                                    <i class="fas fa-tachometer-alt me-2"></i> <span>Performance Analysis</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/llm-pdf/model-comparison' %}active{% endif %}" href="/llm-pdf/model-comparison" role="menuitem">
+                                    <i class="fas fa-balance-scale me-2"></i> <span>Model Comparison</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                    
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Main content -->
+            <div class="main-content p-4" id="mainContent">
+                <!-- Flash messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-custom alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                {% block content %}{% endblock %}
+            </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Theme toggle logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const themeBtn = document.getElementById('themeToggleBtn');
+            const themeIcon = document.getElementById('themeToggleIcon');
+            function setTheme(theme) {
+                if (theme === 'dark') {
+                    document.body.classList.add('theme-dark');
+                    themeIcon.classList.remove('fa-sun');
+                    themeIcon.classList.add('fa-moon');
+                } else {
+                    document.body.classList.remove('theme-dark');
+                    themeIcon.classList.remove('fa-moon');
+                    themeIcon.classList.add('fa-sun');
+                }
+            }
+            // Load theme from localStorage
+            let theme = localStorage.getItem('themeMode') || 'light';
+            setTheme(theme);
+            themeBtn.addEventListener('click', function() {
+                theme = (theme === 'dark') ? 'light' : 'dark';
+                setTheme(theme);
+                localStorage.setItem('themeMode', theme);
+            });
+        });
+        
+        // Enhanced Sidebar Dropdown Management
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdowns = [
+                'invoiceDropdownContainer',
+                'rateDropdownContainer', 
+                'ytdDropdownContainer',
+                'pdfDropdownContainer',
+                'dhlExpressDropdownContainer',
+                'llmDropdownContainer'
+            ];
+            
+            // Initialize dropdown states
+            dropdowns.forEach(dropdownId => {
+                const container = document.getElementById(dropdownId);
+                const toggle = container.querySelector('.dropdown-toggle');
+                
+                if (!container || !toggle) return;
+                
+                // Set initial state
+                toggle.setAttribute('aria-expanded', 'false');
+                container.classList.remove('show');
+                
+                // Click handler for single-item interaction
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const isCurrentlyOpen = container.classList.contains('show');
+                    
+                    // Close all other dropdowns first
+                    dropdowns.forEach(otherId => {
+                        if (otherId !== dropdownId) {
+                            const otherContainer = document.getElementById(otherId);
+                            const otherToggle = otherContainer.querySelector('.dropdown-toggle');
+                            if (otherContainer && otherToggle) {
+                                otherContainer.classList.remove('show');
+                                otherToggle.setAttribute('aria-expanded', 'false');
+                            }
+                        }
+                    });
+                    
+                    // Toggle current dropdown
+                    if (isCurrentlyOpen) {
+                        container.classList.remove('show');
+                        toggle.setAttribute('aria-expanded', 'false');
+                    } else {
+                        container.classList.add('show');
+                        toggle.setAttribute('aria-expanded', 'true');
+                    }
+                });
+                
+                // Keyboard accessibility
+                toggle.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle.click();
+                    } else if (e.key === 'Escape') {
+                        container.classList.remove('show');
+                        toggle.setAttribute('aria-expanded', 'false');
+                        toggle.focus();
+                    } else if (e.key === 'ArrowDown' && container.classList.contains('show')) {
+                        e.preventDefault();
+                        const firstMenuItem = container.querySelector('.dropdown-item');
+                        if (firstMenuItem) firstMenuItem.focus();
+                    }
+                });
+                
+                // Menu item navigation
+                const menuItems = container.querySelectorAll('.dropdown-item');
+                menuItems.forEach((item, index) => {
+                    item.addEventListener('keydown', function(e) {
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const nextItem = menuItems[index + 1] || menuItems[0];
+                            nextItem.focus();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const prevItem = menuItems[index - 1] || menuItems[menuItems.length - 1];
+                            prevItem.focus();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            container.classList.remove('show');
+                            toggle.setAttribute('aria-expanded', 'false');
+                            toggle.focus();
+                        } else if (e.key === 'Tab') {
+                            // Allow natural tab navigation
+                            container.classList.remove('show');
+                            toggle.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                });
+            });
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(e) {
+                dropdowns.forEach(dropdownId => {
+                    const container = document.getElementById(dropdownId);
+                    const toggle = container.querySelector('.dropdown-toggle');
+                    
+                    if (container && !container.contains(e.target)) {
+                        container.classList.remove('show');
+                        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            });
+            
+            // Auto-expand dropdown if current page is within that section
+            dropdowns.forEach(dropdownId => {
+                const container = document.getElementById(dropdownId);
+                const toggle = container.querySelector('.dropdown-toggle');
+                
+                if (container && toggle && toggle.classList.contains('active')) {
+                    container.classList.add('show');
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+
+        function auditInvoice(invoiceId) {
+            fetch(`/api/audit/${invoiceId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                } else {
+                    alert('Audit completed. Status: ' + data.status);
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                alert('Error performing audit: ' + error);
+            });
+        }
+
+        // Sidebar toggle logic with mobile support
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebarNav');
+            const toggleBtn = document.getElementById('sidebarToggle');
+            const isMobile = window.innerWidth <= 768;
+            
+            // Restore state from localStorage (desktop only)
+            if (!isMobile && localStorage.getItem('sidebarCollapsed') === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+            
+            toggleBtn.addEventListener('click', function() {
+                if (isMobile) {
+                    // Mobile: toggle show/hide
+                    sidebar.classList.toggle('show');
+                } else {
+                    // Desktop: toggle collapsed
+                    sidebar.classList.toggle('collapsed');
+                    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const nowMobile = window.innerWidth <= 768;
+                if (nowMobile !== isMobile) {
+                    // Mode changed, reset classes
+                    sidebar.classList.remove('show', 'collapsed');
+                    if (!nowMobile && localStorage.getItem('sidebarCollapsed') === 'true') {
+                        sidebar.classList.add('collapsed');
+                    }
+                }
+            });
+            
+            // Mobile: close sidebar when clicking outside
+            if (isMobile) {
+                document.addEventListener('click', function(e) {
+                    if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+                        sidebar.classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

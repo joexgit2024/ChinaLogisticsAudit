@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}DHL YTD Invoice Detail - {{ invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-file-invoice"></i> YTD Invoice Detail: {{ invoice_no }}</h2>
+                <div>
+                    <a href="{{ url_for('dhl_ytd.view_ytd_data') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                    {% if has_invoice_image %}
+                        <a href="{{ url_for('images.view_invoice_image', invoice_type='DGF', invoice_number=invoice_no) }}" 
+                           class="btn btn-outline-info">
+                            <i class="fas fa-file-image"></i> View PDF Invoice Image
+                        </a>
+                    {% endif %}
+                    <a href="/improved_ytd_audit/audit/{{ invoice_no }}" class="btn btn-outline-primary">
+                        <i class="fas fa-chart-line"></i> View Audit Result
+                    </a>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Invoice Information -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> Invoice Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Invoice Number:</th>
+                                    <td><strong>{{ invoice_data.invoice_no }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th>Invoice Type:</th>
+                                    <td>{{ invoice_data.invoice_type or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Payment Terms:</th>
+                                    <td>{{ invoice_data.payment_terms or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Incoterms:</th>
+                                    <td>{{ invoice_data.incoterms_code or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Currency:</th>
+                                    <td><span class="badge bg-primary">{{ invoice_data.invoice_currency or 'N/A' }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Creation Date:</th>
+                                    <td>{{ invoice_data.invoice_creation_date or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Transportation Mode:</th>
+                                    <td><span class="badge bg-info">{{ invoice_data.transportation_mode or 'N/A' }}</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Shipment Information -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-shipping-fast"></i> Shipment Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="40%">Master Bill:</th>
+                                    <td>{{ invoice_data.masterbill or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>House Bill:</th>
+                                    <td>{{ invoice_data.housebill or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>CW1 Shipment #:</th>
+                                    <td>{{ invoice_data.cw1_shipment_number or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Movement Type:</th>
+                                    <td>{{ invoice_data.movement_type or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Product:</th>
+                                    <td>{{ invoice_data.product_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Commodity:</th>
+                                    <td>{{ invoice_data.commodity or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Shipment Date:</th>
+                                    <td>{{ invoice_data.shipment_creation_date or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Location Information -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-map-marker-alt"></i> Origin & Destination</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <h6>Origin</h6>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <th>Location:</th>
+                                            <td>{{ invoice_data.origin or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Country:</th>
+                                            <td>{{ invoice_data.origin_port_country_code or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Port/Terminal:</th>
+                                            <td>{{ invoice_data.port_terminal_loading or 'N/A' }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-6">
+                                    <h6>Destination</h6>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <th>Location:</th>
+                                            <td>{{ invoice_data.destination or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Country:</th>
+                                            <td>{{ invoice_data.destination_port_country_code or 'N/A' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Port Discharge:</th>
+                                            <td>{{ invoice_data.port_discharge or 'N/A' }}</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Shipment Metrics -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-weight-hanging"></i> Shipment Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="50%">Weight (kg):</th>
+                                    <td>{{ "%.2f"|format(invoice_data.shipment_weight_kg) if invoice_data.shipment_weight_kg else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Chargeable Weight (kg):</th>
+                                    <td>{{ "%.2f"|format(invoice_data.total_shipment_chargeable_weight_kg) if invoice_data.total_shipment_chargeable_weight_kg else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Volume (m³):</th>
+                                    <td>{{ "%.2f"|format(invoice_data.total_shipment_volume_m3) if invoice_data.total_shipment_volume_m3 else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Chargeable Volume (m³):</th>
+                                    <td>{{ "%.2f"|format(invoice_data.total_shipment_chargeable_volume_m3) if invoice_data.total_shipment_chargeable_volume_m3 else 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Total Pieces:</th>
+                                    <td>{{ invoice_data.total_pieces or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>FCL/LCL:</th>
+                                    <td>{{ invoice_data.fcl_lcl or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>TEUs:</th>
+                                    <td>{{ invoice_data.number_of_teus or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Party Information -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-credit-card"></i> Bill To</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Account:</th>
+                                    <td>{{ invoice_data.bill_to_account or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ invoice_data.bill_to_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>City:</th>
+                                    <td>{{ invoice_data.bill_to_city or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Country:</th>
+                                    <td>{{ invoice_data.bill_to_country_code or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-truck-loading"></i> Shipper</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Account:</th>
+                                    <td>{{ invoice_data.shipper_account or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ invoice_data.shipper_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>City:</th>
+                                    <td>{{ invoice_data.shipper_city or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Country:</th>
+                                    <td>{{ invoice_data.shipper_country_code or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-warehouse"></i> Consignee</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Account:</th>
+                                    <td>{{ invoice_data.consignee_account or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ invoice_data.consignee_name or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>City:</th>
+                                    <td>{{ invoice_data.consignee_city or 'N/A' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Country:</th>
+                                    <td>{{ invoice_data.consignee_country_code or 'N/A' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Charges Breakdown -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-money-bill-wave"></i> Charges Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Original Currency -->
+                                <div class="col-md-4">
+                                    <h6>Original Currency ({{ invoice_data.invoice_currency }})</h6>
+                                    <table class="table table-sm table-striped">
+                                        <tr>
+                                            <th>Pickup:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.pickup_charges) if invoice_data.pickup_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Origin Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.origin_handling_charges) if invoice_data.origin_handling_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Freight:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.freight_charges) if invoice_data.freight_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Fuel Surcharge:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.fuel_surcharge) if invoice_data.fuel_surcharge else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dest. Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.destination_handling_charges) if invoice_data.destination_handling_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delivery:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.delivery_charges) if invoice_data.delivery_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Other:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.other_charges) if invoice_data.other_charges else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Duties/Taxes:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.duties_and_taxes) if invoice_data.duties_and_taxes else '-' }}</td>
+                                        </tr>
+                                        <tr class="table-dark">
+                                            <th>Total with Tax:</th>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(invoice_data.total_charges_with_duty_tax) if invoice_data.total_charges_with_duty_tax else '-' }}</strong></td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                
+                                <!-- EUR Currency -->
+                                <div class="col-md-4">
+                                    <h6>EUR Currency</h6>
+                                    <table class="table table-sm table-striped">
+                                        <tr>
+                                            <th>Pickup:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.pickup_charges_eur) if invoice_data.pickup_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Origin Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.origin_handling_charges_eur) if invoice_data.origin_handling_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Freight:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.freight_charges_eur) if invoice_data.freight_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Fuel Surcharge:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.fuel_surcharges_eur) if invoice_data.fuel_surcharges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dest. Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.destination_handling_charges_eur) if invoice_data.destination_handling_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delivery:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.delivery_charges_eur) if invoice_data.delivery_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Other:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.other_charges_eur) if invoice_data.other_charges_eur else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Duties/Taxes:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.duties_and_taxes_eur) if invoice_data.duties_and_taxes_eur else '-' }}</td>
+                                        </tr>
+                                        <tr class="table-dark">
+                                            <th>Total with Tax:</th>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(invoice_data.total_charges_with_duty_tax_eur) if invoice_data.total_charges_with_duty_tax_eur else '-' }}</strong></td>
+                                        </tr>
+                                    </table>
+                                    <p><small>Exchange Rate: {{ "%.4f"|format(invoice_data.exchange_rate_eur) if invoice_data.exchange_rate_eur else 'N/A' }}</small></p>
+                                </div>
+                                
+                                <!-- USD Currency -->
+                                <div class="col-md-4">
+                                    <h6>USD Currency</h6>
+                                    <table class="table table-sm table-striped">
+                                        <tr>
+                                            <th>Pickup:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.pickup_charges_usd) if invoice_data.pickup_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Origin Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.origin_handling_charges_usd) if invoice_data.origin_handling_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Freight:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.freight_charges_usd) if invoice_data.freight_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Fuel Surcharge:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.fuel_surcharges_usd) if invoice_data.fuel_surcharges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Dest. Handling:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.destination_handling_charges_usd) if invoice_data.destination_handling_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Delivery:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.delivery_charges_usd) if invoice_data.delivery_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Other:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.other_charges_usd) if invoice_data.other_charges_usd else '-' }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Duties/Taxes:</th>
+                                            <td class="text-end">{{ "%.2f"|format(invoice_data.duties_and_taxes_usd) if invoice_data.duties_and_taxes_usd else '-' }}</td>
+                                        </tr>
+                                        <tr class="table-dark">
+                                            <th>Total with Tax:</th>
+                                            <td class="text-end"><strong>${{ "%.2f"|format(invoice_data.total_charges_with_duty_tax_usd) if invoice_data.total_charges_with_duty_tax_usd else '-' }}</strong></td>
+                                        </tr>
+                                    </table>
+                                    <p><small>Exchange Rate: {{ "%.4f"|format(invoice_data.exchange_rate_usd) if invoice_data.exchange_rate_usd else 'N/A' }}</small></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Processing Metadata -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-cogs"></i> Processing Information</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Upload Batch:</strong> <code>{{ invoice_data.upload_batch_id or 'N/A' }}</code>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Processed:</strong> {{ invoice_data.processed_date or 'N/A' }}
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Created:</strong> {{ invoice_data.created_at or 'N/A' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

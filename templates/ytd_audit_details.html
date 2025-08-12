@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Details - {{ invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-search"></i> Audit Details: {{ invoice_no }}</h2>
+                <div class="btn-group">
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                    <a href="{{ url_for('dhl_ytd.view_ytd_invoice_detail', invoice_no=invoice_no) }}" 
+                       class="btn btn-outline-primary">
+                        <i class="fas fa-file-invoice"></i> Invoice Details
+                    </a>
+                    {% if invoice_data.audit_status %}
+                    <a href="{{ url_for('improved_ytd_audit.audit_invoice', invoice_no=invoice_no) }}" 
+                       class="btn btn-outline-success">
+                        <i class="fas fa-redo"></i> Re-audit
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Status Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clipboard-check"></i> Audit Status Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <h6>Audit Status</h6>
+                            {% if invoice_data.audit_status == 'approved' %}
+                                <span class="badge bg-success fs-6">Approved</span>
+                            {% elif invoice_data.audit_status == 'rejected' %}
+                                <span class="badge bg-danger fs-6">Rejected</span>
+                            {% elif invoice_data.audit_status == 'No Rate Card' %}
+                                <span class="badge bg-warning fs-6">No Rate Card</span>
+                            {% else %}
+                                <span class="badge bg-secondary fs-6">{{ invoice_data.audit_status or 'Not Audited' }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Audit Date</h6>
+                            <p>{{ invoice_data.created_at[:19] if invoice_data.created_at else 'N/A' }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Processing Time</h6>
+                            <p>{{ invoice_data.processing_time_ms or 'N/A' }}{% if invoice_data.processing_time_ms %} ms{% endif %}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Audit Version</h6>
+                            <p>{{ invoice_data.audit_version or 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-dollar-sign"></i> Invoice Amount</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3>${{ "{:,.2f}".format(invoice_data.total_invoice_amount or 0) }}</h3>
+                    {% if invoice_data.invoice_currency and invoice_data.invoice_currency != 'USD' %}
+                    <p class="text-muted">
+                        {{ invoice_data.invoice_currency }} {{ "{:,.2f}".format(invoice_data.total_charges_with_duty_tax or 0) }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-calculator"></i> Expected Amount</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3>${{ "{:,.2f}".format(invoice_data.total_expected_amount or 0) }}</h3>
+                    {% if invoice_data.best_match_rate_card %}
+                    <p class="text-muted">Based on: {{ invoice_data.best_match_rate_card[:30] }}{% if invoice_data.best_match_rate_card|length > 30 %}...{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header {% if (invoice_data.total_variance or 0) > 0 %}bg-danger{% elif (invoice_data.total_variance or 0) < 0 %}bg-info{% else %}bg-secondary{% endif %} text-white">
+                    <h5><i class="fas fa-chart-line"></i> Variance</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3 class="{% if (invoice_data.total_variance or 0) > 0 %}text-danger{% elif (invoice_data.total_variance or 0) < 0 %}text-success{% else %}text-muted{% endif %}">
+                        {% if invoice_data.total_variance %}
+                            {{ "{:+,.2f}".format(invoice_data.total_variance) }}
+                        {% else %}
+                            $0.00
+                        {% endif %}
+                    </h3>
+                    {% if invoice_data.variance_percent %}
+                    <p class="{% if invoice_data.variance_percent > 0 %}text-danger{% elif invoice_data.variance_percent < 0 %}text-success{% else %}text-muted{% endif %}">
+                        {{ "{:+.1f}%".format(invoice_data.variance_percent) }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Card Analysis -->
+    {% if invoice_data.audit_status %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Rate Card Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Rate Cards Checked:</strong>
+                        </div>
+                        <div class="col-6">
+                            {{ invoice_data.rate_cards_checked or 0 }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Matching Lanes:</strong>
+                        </div>
+                        <div class="col-6">
+                            {{ invoice_data.matching_lanes or 0 }}
+                        </div>
+                    </div>
+                    {% if invoice_data.best_match_rate_card %}
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Best Match:</strong>
+                        </div>
+                        <div class="col-6">
+                            <span class="text-success">{{ invoice_data.best_match_rate_card }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-route"></i> Shipment Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Transportation Mode:</strong>
+                        </div>
+                        <div class="col-6">
+                            {% if invoice_data.transportation_mode == 'Air' %}
+                                <span class="badge bg-primary"><i class="fas fa-plane"></i> Air</span>
+                            {% elif invoice_data.transportation_mode == 'Sea' %}
+                                <span class="badge bg-info"><i class="fas fa-ship"></i> Sea</span>
+                            {% elif invoice_data.transportation_mode == 'Road' %}
+                                <span class="badge bg-success"><i class="fas fa-truck"></i> Road</span>
+                            {% else %}
+                                {{ invoice_data.transportation_mode or 'N/A' }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Origin:</strong>
+                        </div>
+                        <div class="col-6">
+                            {{ invoice_data.origin or 'N/A' }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>Destination:</strong>
+                        </div>
+                        <div class="col-6">
+                            {{ invoice_data.destination or 'N/A' }}
+                        </div>
+                    </div>
+                    {% if invoice_data.cw1_shipment_number %}
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <strong>CW1 Shipment:</strong>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('ytd_reports.invoice_reports', cw1_shipment_number=invoice_data.cw1_shipment_number) }}" 
+                               class="text-decoration-none">
+                                {{ invoice_data.cw1_shipment_number }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Audit Results -->
+    {% if invoice_data.audit_details %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list-alt"></i> Detailed Audit Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="bg-light border rounded p-3">
+                        <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.9em; margin: 0;">{{ invoice_data.audit_details }}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recommended Actions -->
+    {% if invoice_data.audit_status and invoice_data.audit_status != 'approved' %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-lightbulb"></i> Recommended Actions</h5>
+                </div>
+                <div class="card-body">
+                    {% if invoice_data.audit_status == 'No Rate Card' %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> No Rate Card Found</h6>
+                        <ul class="mb-0">
+                            <li>Verify that rate cards are loaded for the {{ invoice_data.transportation_mode or 'transportation mode' }} route from {{ invoice_data.origin or 'origin' }} to {{ invoice_data.destination or 'destination' }}</li>
+                            <li>Check if origin and destination codes are correctly mapped</li>
+                            <li>Consider adding a new rate card for this specific lane</li>
+                            <li>Review alternative routing options that might have rate cards available</li>
+                            {% if invoice_data.rate_cards_checked and invoice_data.rate_cards_checked > 0 %}
+                            <li>{{ invoice_data.rate_cards_checked }} rate cards were checked but no matches found</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% elif invoice_data.audit_status == 'rejected' %}
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-times-circle"></i> Audit Rejected</h6>
+                        <ul class="mb-0">
+                            <li>Invoice amount significantly exceeds expected charges</li>
+                            <li>Review the invoice for potential overcharges or billing errors</li>
+                            <li>Verify weight, dimensions, and service level details</li>
+                            <li>Contact the carrier for explanation of charges</li>
+                            {% if invoice_data.total_variance and invoice_data.total_variance > 0 %}
+                            <li>Variance of ${{ "{:,.2f}".format(invoice_data.total_variance) }} needs investigation</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Status: {{ invoice_data.audit_status }}</h6>
+                        <p class="mb-0">This invoice requires manual review. Please check the audit details above for specific information.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Invoice Summary Information -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-building"></i> Shipper Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ invoice_data.shipper_name or 'N/A' }}</p>
+                    <p><strong>Account:</strong> {{ invoice_data.shipper_account or 'N/A' }}</p>
+                    {% if invoice_data.shipper_address %}
+                    <p><strong>Address:</strong> {{ invoice_data.shipper_address }}</p>
+                    {% endif %}
+                    {% if invoice_data.shipper_city or invoice_data.shipper_country_code %}
+                    <p><strong>Location:</strong> {{ invoice_data.shipper_city or '' }}{% if invoice_data.shipper_city and invoice_data.shipper_country_code %}, {% endif %}{{ invoice_data.shipper_country_code or '' }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-warehouse"></i> Consignee Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> {{ invoice_data.consignee_name or 'N/A' }}</p>
+                    <p><strong>Account:</strong> {{ invoice_data.consignee_account or 'N/A' }}</p>
+                    {% if invoice_data.consignee_address %}
+                    <p><strong>Address:</strong> {{ invoice_data.consignee_address }}</p>
+                    {% endif %}
+                    {% if invoice_data.consignee_city or invoice_data.consignee_country_code %}
+                    <p><strong>Location:</strong> {{ invoice_data.consignee_city or '' }}{% if invoice_data.consignee_city and invoice_data.consignee_country_code %}, {% endif %}{{ invoice_data.consignee_country_code or '' }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.badge.fs-6 {
+    font-size: 1rem !important;
+}
+
+pre {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.alert h6 {
+    margin-bottom: 0.5rem;
+}
+</style>
+{% endblock %}

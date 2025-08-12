@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}DHL Express Batch Audit System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-chart-line text-primary"></i>
+                DHL Express Batch Audit System
+            </h1>
+            
+            <!-- Audit Status Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.total_invoices }}</h4>
+                                    <p class="card-text">Total Invoices</p>
+                                    <small class="text-light">In System</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-file-invoice fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.audited_invoices }}</h4>
+                                    <p class="card-text">Audited</p>
+                                    <small class="text-light">{{ "%.1f"|format((summary.audited_invoices / summary.total_invoices * 100) if summary.total_invoices > 0 else 0) }}% Complete</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clipboard-check fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.unaudited_invoices }}</h4>
+                                    <p class="card-text">Pending Audit</p>
+                                    <small class="text-light">Ready to Process</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.recent_audits_24h }}</h4>
+                                    <p class="card-text">Recent Activity</p>
+                                    <small class="text-light">Last 24 Hours</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-history fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Audit Results Breakdown -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-chart-pie"></i> Audit Results Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded mb-2 bg-success text-white">
+                                        <h4>{{ summary.audit_status_breakdown.PASS }}</h4>
+                                        <small>PASSED</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded mb-2 bg-warning text-white">
+                                        <h4>{{ summary.audit_status_breakdown.REVIEW }}</h4>
+                                        <small>REVIEW</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded mb-2 bg-danger text-white">
+                                        <h4>{{ summary.audit_status_breakdown.FAIL }}</h4>
+                                        <small>FAILED</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-center p-3 border rounded mb-2 bg-dark text-white">
+                                        <h4>{{ summary.audit_status_breakdown.ERROR }}</h4>
+                                        <small>ERRORS</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Batch Actions -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-play-circle"></i> Batch Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if unaudited_count > 0 %}
+                            <div class="alert alert-info">
+                                <strong>{{ unaudited_count }}</strong> invoices are ready for audit.
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary btn-lg btn-block mb-3" onclick="runBatchAudit()">
+                                <i class="fas fa-play"></i> Run Batch Audit
+                                <span class="badge badge-light">{{ unaudited_count }}</span>
+                            </button>
+                            {% else %}
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> All invoices have been audited!
+                            </div>
+                            {% endif %}
+                            
+                            <div class="btn-group btn-block" role="group">
+                                <a href="{{ url_for('dhl_express.batch_audit_results') }}" class="btn btn-outline-info">
+                                    <i class="fas fa-table"></i> View Results
+                                </a>
+                                <a href="{{ url_for('dhl_express.export_batch_audit_results') }}" class="btn btn-outline-success">
+                                    <i class="fas fa-download"></i> Export Summary
+                                </a>
+                                <a href="{{ url_for('dhl_express.export_detailed_batch_audit_results') }}" 
+                                   class="btn btn-primary"
+                                   title="Download detailed Excel report for finance review with line-by-line analysis">
+                                    <i class="fas fa-file-excel"></i> Finance Report
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress Display -->
+            <div id="audit-progress" class="card mb-4" style="display: none;">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-spinner fa-spin"></i> Batch Audit in Progress</h5>
+                </div>
+                <div class="card-body">
+                    <div class="progress mb-3">
+                        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div id="progress-text">Initializing batch audit...</div>
+                </div>
+            </div>
+            
+            <!-- Sample Unaudited Invoices -->
+            {% if unaudited_invoices %}
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-list"></i> Sample Unaudited Invoices (First 10)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Invoice Number</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice_no in unaudited_invoices %}
+                                <tr>
+                                    <td>{{ invoice_no }}</td>
+                                    <td>
+                                        <a href="{{ url_for('dhl_express.audit_dhl_express_invoice', invoice_no=invoice_no) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-search"></i> Audit Individual
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if unaudited_count > 10 %}
+                    <p class="text-muted">... and {{ unaudited_count - 10 }} more invoices</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function runBatchAudit() {
+    // Show progress card
+    document.getElementById('audit-progress').style.display = 'block';
+    
+    // Disable the button
+    event.target.disabled = true;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running...';
+    
+    // Start the batch audit
+    fetch('{{ url_for("dhl_express.run_batch_audit") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            'audit_type': 'all_unaudited'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update progress
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('progress-text').innerHTML = 
+                `Batch audit completed! Processed ${data.batch_result.total_invoices} invoices.`;
+            
+            // Show success message
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            // Show error
+            document.getElementById('progress-text').innerHTML = `Error: ${data.error}`;
+            document.getElementById('progress-bar').classList.add('bg-danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('progress-text').innerHTML = `Error: ${error.message}`;
+        document.getElementById('progress-bar').classList.add('bg-danger');
+    });
+}
+
+// Auto-refresh status every 30 seconds
+setInterval(() => {
+    if (document.getElementById('audit-progress').style.display === 'none') {
+        fetch('{{ url_for("dhl_express.get_batch_audit_status") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update status cards if needed
+                console.log('Status updated:', data.summary);
+            }
+        })
+        .catch(error => console.error('Error refreshing status:', error));
+    }
+}, 30000);
+</script>
+
+{% endblock %}

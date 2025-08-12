@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}View Invoice Image - {{ invoice_number }}{% endblock %}
+
+{% block content %}
+<style>
+    .image-container {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+        min-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .invoice-image {
+        max-width: 100%;
+        max-height: 70vh;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 8px;
+    }
+    .pdf-viewer {
+        width: 100%;
+        height: 70vh;
+        border: none;
+        border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .info-card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .action-buttons {
+            position: sticky;
+            top: 20px;
+        z-index: 1000;
+    }
+    .file-icon {
+        font-size: 5rem;
+        color: #6c757d;
+        margin-bottom: 20px;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">
+        <i class="fas fa-file-image me-2"></i>Invoice Image: {{ invoice_number }}
+    </h1>
+    <div>
+        <a href="{{ url_for('images.upload_invoice_image') }}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-upload me-1"></i>Upload New
+        </a>
+        {% if invoice_type == 'DGF' %}
+            <a href="/ytd-batch-audit/invoice-detail/{{ invoice_number }}" class="btn btn-outline-warning me-2">
+                <i class="fas fa-tasks me-1"></i>Back to Batch Audit Detail
+            </a>
+            <a href="/improved_ytd_audit/audit/{{ invoice_number }}" class="btn btn-outline-success me-2">
+                <i class="fas fa-chart-line me-1"></i>Back to Audit Results
+            </a>
+            <a href="/dhl-ytd-invoice/{{ invoice_number }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-file-invoice me-1"></i>Back to Invoice Details
+            </a>
+        {% elif invoice_type == 'DHL_EXPRESS' %}
+            <a href="/dhl-express/audit/{{ invoice_number }}" class="btn btn-outline-warning me-2">
+                <i class="fas fa-chart-line me-1"></i>Back to DHL Express Audit
+            </a>
+            <a href="/dhl-express/invoice/{{ invoice_number }}" class="btn btn-outline-danger me-2">
+                <i class="fas fa-file-invoice me-1"></i>Back to DHL Express Invoice
+            </a>
+        {% endif %}
+        <a href="{{ url_for('images.invoice_images_dashboard') }}" class="btn btn-outline-primary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Image Display -->
+            <div class="col-lg-8">
+                <div class="info-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h3 class="mb-1">{{ invoice_number }}</h3>
+                            {% if invoice_type == 'DHL_EXPRESS' %}
+                                <span class="badge bg-success">DHL Express</span>
+                            {% else %}
+                                <span class="badge bg-info">DGF Invoice</span>
+                            {% endif %}
+                            {% if not image.is_active %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group">
+                            <a href="{{ url_for('images.download_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                               class="btn btn-outline-success">
+                                <i class="fas fa-download me-1"></i>Download
+                            </a>
+                            <button class="btn btn-outline-primary" onclick="openFullscreen()">
+                                <i class="fas fa-expand me-1"></i>Fullscreen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="image-container">
+                        {% set is_image = image.image_filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')) %}
+                        {% set is_pdf = image.image_filename.lower().endswith('.pdf') %}
+                        
+                        {% if is_image %}
+                            <img id="invoiceImage" 
+                                 src="{{ url_for('images.display_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                                 class="invoice-image" 
+                                 alt="Invoice {{ invoice_number }}"
+                                 onerror="showErrorMessage()">
+                        {% elif is_pdf %}
+                            <iframe id="pdfViewer"
+                                    src="{{ url_for('images.display_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}"
+                                    class="pdf-viewer"
+                                    title="Invoice {{ invoice_number }} PDF">
+                            </iframe>
+                        {% else %}
+                            <div class="text-center">
+                                <i class="fas fa-file file-icon"></i>
+                                <h4>{{ image.image_filename.split('.')[-1].upper() }} File</h4>
+                                <p class="text-muted">Preview not available for this file type</p>
+                                <a href="{{ url_for('images.download_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-download me-2"></i>Download to View
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Information Panel -->
+            <div class="col-lg-4">
+                <div class="action-buttons">
+                    <!-- Quick Actions -->
+                    <div class="info-card">
+                        <h5><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('images.download_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                               class="btn btn-success">
+                                <i class="fas fa-download me-2"></i>Download Image
+                            </a>
+                            {% if invoice_type == 'DHL_EXPRESS' %}
+                                <a href="/dhl-express/audit/{{ invoice_number }}" 
+                                   class="btn btn-outline-warning">
+                                    <i class="fas fa-chart-line me-2"></i>View DHL Express Audit
+                                </a>
+                                <a href="/dhl-express/invoice/{{ invoice_number }}" 
+                                   class="btn btn-outline-danger">
+                                    <i class="fas fa-file-invoice me-2"></i>View DHL Express Invoice
+                                </a>
+                            {% else %}
+                                <a href="/ytd-batch-audit/invoice-detail/{{ invoice_number }}" 
+                                   class="btn btn-outline-warning">
+                                    <i class="fas fa-tasks me-2"></i>View Batch Audit Detail
+                                </a>
+                                <a href="/improved_ytd_audit/audit/{{ invoice_number }}" 
+                                   class="btn btn-outline-success">
+                                    <i class="fas fa-chart-line me-2"></i>View Audit Results
+                                </a>
+                                <a href="/dhl-ytd-invoice/{{ invoice_number }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="fas fa-file-invoice me-2"></i>View YTD Invoice Details
+                                </a>
+                            {% endif %}
+                            <button class="btn btn-outline-secondary" onclick="copyToClipboard('{{ invoice_number }}')">
+                                <i class="fas fa-copy me-2"></i>Copy Invoice Number
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- File Information -->
+                    <div class="info-card">
+                        <h5><i class="fas fa-info-circle me-2"></i>File Information</h5>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Original Name:</strong></td>
+                                <td>{{ image.original_filename or image.image_filename }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>File Size:</strong></td>
+                                <td>{{ "%.1f"|format(image.file_size / 1024) }} KB</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Upload Date:</strong></td>
+                                <td>{{ image.upload_date[:19] if image.upload_date else 'Unknown' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Uploaded By:</strong></td>
+                                <td>{{ image.uploaded_by or 'Unknown' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Status:</strong></td>
+                                <td>
+                                    {% if image.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Description -->
+                    {% if image.description %}
+                        <div class="info-card">
+                            <h5><i class="fas fa-comment me-2"></i>Description</h5>
+                            <p class="mb-0">{{ image.description }}</p>
+                        </div>
+                    {% endif %}
+
+                    <!-- Related Invoices -->
+                    <div class="info-card">
+                        <h5><i class="fas fa-link me-2"></i>Related</h5>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('images.invoice_images_dashboard') }}?search={{ invoice_number }}" 
+                               class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-search me-1"></i>Find Similar
+                            </a>
+                            <a href="{{ url_for('images.upload_invoice_image') }}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>Upload Another
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Modal -->
+    <div class="modal fade" id="fullscreenModal" tabindex="-1">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ invoice_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="d-flex justify-content-center align-items-center h-100">
+                        {% if is_image %}
+                            <img src="{{ url_for('images.display_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                                 class="img-fluid" 
+                                 alt="Invoice {{ invoice_number }}"
+                                 style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                        {% elif is_pdf %}
+                            <iframe src="{{ url_for('images.display_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}"
+                                    style="width: 100%; height: 100%; border: none;"
+                                    title="Invoice {{ invoice_number }} PDF">
+                            </iframe>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openFullscreen() {
+            const modal = new bootstrap.Modal(document.getElementById('fullscreenModal'));
+            modal.show();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show toast or alert
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                alertDiv.style.top = '20px';
+                alertDiv.style.right = '20px';
+                alertDiv.style.zIndex = '9999';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check me-2"></i>Invoice number copied to clipboard!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    alertDiv.remove();
+                }, 3000);
+            });
+        }
+
+        function showErrorMessage() {
+            const container = document.querySelector('.image-container');
+            container.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle file-icon text-warning"></i>
+                    <h4>Unable to Display Image</h4>
+                    <p class="text-muted">The image file may be corrupted or in an unsupported format</p>
+                    <a href="{{ url_for('images.download_invoice_image', invoice_type=invoice_type, invoice_number=invoice_number) }}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-download me-2"></i>Download File
+                    </a>
+                </div>
+            `;
+        }
+    </script>
+{% endblock %}

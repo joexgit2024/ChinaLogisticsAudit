@@ -1,0 +1,697 @@
+{% extends "base.html" %}
+{% block title %}Upload Monitoring{% endblock %}
+
+{% block content %}
+<style>
+    .status-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    }
+    .history-item {
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+    .history-item:hover {
+        background-color: #f8f9fa;
+    }
+    .btn-dhl {
+        background-color: #D70018;
+        border-color: #D70018;
+        color: white;
+    }
+    .btn-dhl:hover {
+        background-color: #B80015;
+        border-color: #B80015;
+        color: white;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 30px;
+        margin-bottom: 20px;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: #D70018;
+    }
+    .timeline-item::after {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 20px;
+        width: 2px;
+        height: calc(100% + 10px);
+        background-color: #e9ecef;
+    }
+    .timeline-item:last-child::after {
+        display: none;
+    }
+</style>
+
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-monitor-waveform text-danger"></i> Upload Monitoring</h1>
+                    <p class="text-muted">Monitor upload status and view complete upload history</p>
+                </div>
+                <div>
+                    <button class="btn btn-outline-primary" onclick="refreshDashboard()" title="Refresh Monitoring">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <a href="/dhl-express/upload" class="btn btn-dhl">
+                        <i class="fas fa-upload"></i> New Upload
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Status Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card status-card" id="currentStatusCard">
+                <div class="card-header bg-gradient d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Current Upload Status</h5>
+                    <div>
+                        <span class="badge fs-6" id="currentStatusBadge">No Status</span>
+                        <button class="btn btn-sm btn-outline-light ms-2" onclick="clearCurrentStatus()" id="clearCurrentBtn" style="display: none;">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" id="currentStatusContent">
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-clock fa-2x mb-3"></i>
+                        <h6>No current upload status</h6>
+                        <p class="mb-0">Upload some files to see status information here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="row mb-4" id="statsRow">
+        <div class="col-md-3">
+            <div class="card text-center status-card border-primary">
+                <div class="card-body">
+                    <i class="fas fa-upload fa-2x text-primary mb-2"></i>
+                    <h4 class="mb-1" id="totalUploads">0</h4>
+                    <small class="text-muted">Total Uploads</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center status-card border-success">
+                <div class="card-body">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h4 class="mb-1" id="successfulUploads">0</h4>
+                    <small class="text-muted">Successful</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center status-card border-warning">
+                <div class="card-body">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                    <h4 class="mb-1" id="partialUploads">0</h4>
+                    <small class="text-muted">Partial</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center status-card border-danger">
+                <div class="card-body">
+                    <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                    <h4 class="mb-1" id="failedUploads">0</h4>
+                    <small class="text-muted">Failed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload History Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card status-card">
+                <div class="card-header bg-gradient d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Upload History</h5>
+                    <div class="d-flex gap-2">
+                        <select class="form-select form-select-sm" id="statusFilter" onchange="filterHistory()">
+                            <option value="all">All Status</option>
+                            <option value="success">Success Only</option>
+                            <option value="partial">Partial Only</option>
+                            <option value="failed">Failed Only</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline-light" onclick="loadUploadHistory()">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="uploadHistoryContent">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+                            <h6>Loading upload history...</h6>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Session Details Modal -->
+<div class="modal fade" id="sessionDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Session Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="sessionDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let allHistory = [];
+    let currentFilter = 'all';
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCurrentStatus();
+        loadUploadHistory();
+    });
+
+    function refreshDashboard() {
+        showToast('Refreshing dashboard...', 'info');
+        loadCurrentStatus();
+        loadUploadHistory();
+    }
+
+    function loadCurrentStatus() {
+        console.log('Loading current status...');
+        fetch('/dhl-express/api/upload-status', {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('Status response:', response.status);
+            if (response.status === 401 || response.status === 403) {
+                console.log('Authentication required for status');
+                displayNoCurrentStatus();
+                return null;
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Status data received:', data);
+            if (data && data.success && data.has_status && data.status) {
+                displayCurrentStatus(data.status);
+            } else {
+                console.log('No current status or invalid data:', data);
+                displayNoCurrentStatus();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading current status:', error);
+            displayNoCurrentStatus();
+        });
+    }
+
+    function displayCurrentStatus(statusData) {
+        const statusCard = document.getElementById('currentStatusCard');
+        const statusContent = document.getElementById('currentStatusContent');
+        const statusBadge = document.getElementById('currentStatusBadge');
+        const clearBtn = document.getElementById('clearCurrentBtn');
+
+        // Update header styling and badge
+        const cardHeader = statusCard.querySelector('.card-header');
+        clearBtn.style.display = 'inline-block';
+
+        if (statusData.status === 'success') {
+            cardHeader.className = 'card-header bg-success text-white d-flex justify-content-between align-items-center';
+            statusBadge.className = 'badge bg-light text-success fs-6';
+            statusBadge.textContent = '✅ SUCCESS';
+        } else if (statusData.status === 'partial') {
+            cardHeader.className = 'card-header bg-warning text-white d-flex justify-content-between align-items-center';
+            statusBadge.className = 'badge bg-light text-warning fs-6';
+            statusBadge.textContent = '⚠️ PARTIAL';
+        } else {
+            cardHeader.className = 'card-header bg-danger text-white d-flex justify-content-between align-items-center';
+            statusBadge.className = 'badge bg-light text-danger fs-6';
+            statusBadge.textContent = '❌ FAILED';
+        }
+
+        // Generate detailed status content
+        let statusHtml = `
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <h6><i class="fas fa-calendar-alt"></i> Upload Time</h6>
+                    <p class="mb-0">${new Date(statusData.timestamp).toLocaleString()}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="fas fa-file-alt"></i> Files Processed</h6>
+                    <p class="mb-0">${statusData.files_processed ? statusData.files_processed.length : 0} file(s)</p>
+                </div>
+            </div>
+        `;
+
+        if (statusData.overall_result && statusData.overall_result.error) {
+            statusHtml += `
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Error Details</h6>
+                    <p class="mb-0">${statusData.overall_result.error}</p>
+                </div>
+            `;
+        }
+
+        if (statusData.files_processed && statusData.files_processed.length > 0) {
+            statusHtml += '<h6 class="mt-3"><i class="fas fa-list"></i> File Processing Results:</h6>';
+            statusHtml += '<div class="row">';
+            
+            statusData.files_processed.forEach((file, index) => {
+                const isSuccess = file.status === 'success';
+                const iconClass = isSuccess ? 'fa-check-circle text-success' : 'fa-exclamation-triangle text-danger';
+                const recordsText = file.result && file.result.records_processed ? `${file.result.records_processed} records` : 'No records info';
+                
+                statusHtml += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100 ${isSuccess ? 'border-success' : 'border-danger'}">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas ${iconClass} me-2"></i>
+                                    ${file.filename}
+                                </h6>
+                                <p class="card-text">
+                                    <span class="badge ${isSuccess ? 'bg-success' : 'bg-danger'}">${file.type}</span>
+                                    <br><small class="text-muted">${recordsText}</small>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            statusHtml += '</div>';
+        }
+
+        statusContent.innerHTML = statusHtml;
+    }
+
+    function displayNoCurrentStatus() {
+        const statusCard = document.getElementById('currentStatusCard');
+        const statusContent = document.getElementById('currentStatusContent');
+        const statusBadge = document.getElementById('currentStatusBadge');
+        const clearBtn = document.getElementById('clearCurrentBtn');
+
+        // Reset header styling
+        const cardHeader = statusCard.querySelector('.card-header');
+        cardHeader.className = 'card-header bg-light d-flex justify-content-between align-items-center';
+        statusBadge.className = 'badge bg-secondary fs-6';
+        statusBadge.textContent = 'No Status';
+        clearBtn.style.display = 'none';
+
+        statusContent.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-clock fa-2x mb-3"></i>
+                <h6>No current upload status</h6>
+                <p class="mb-0">Upload some files to see status information here</p>
+                <a href="/dhl-express/upload" class="btn btn-dhl mt-3">
+                    <i class="fas fa-upload"></i> Start New Upload
+                </a>
+            </div>
+        `;
+    }
+
+    function loadUploadHistory() {
+        console.log('Loading upload history...');
+        fetch('/dhl-express/api/upload-history', {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('History response:', response.status);
+            if (response.status === 401 || response.status === 403) {
+                console.log('Authentication required for history');
+                return { success: false, history: [] };
+            }
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('History data received:', data);
+            if (data.success && data.history) {
+                allHistory = data.history;
+                updateStatistics(allHistory);
+                filterHistory();
+            } else {
+                console.log('No history data or error:', data.error);
+                displayNoHistory();
+            }
+        })
+        .catch(error => {
+            console.error('Error loading upload history:', error);
+            displayNoHistory();
+        });
+    }
+
+    function updateStatistics(history) {
+        const total = history.length;
+        const successful = history.filter(h => h.status === 'success').length;
+        const partial = history.filter(h => h.status === 'partial').length;
+        const failed = history.filter(h => h.status === 'failed').length;
+
+        document.getElementById('totalUploads').textContent = total;
+        document.getElementById('successfulUploads').textContent = successful;
+        document.getElementById('partialUploads').textContent = partial;
+        document.getElementById('failedUploads').textContent = failed;
+    }
+
+    function filterHistory() {
+        const filter = document.getElementById('statusFilter').value;
+        currentFilter = filter;
+        
+        let filteredHistory = allHistory;
+        if (filter !== 'all') {
+            filteredHistory = allHistory.filter(h => h.status === filter);
+        }
+        
+        displayUploadHistory(filteredHistory);
+    }
+
+    function displayUploadHistory(history) {
+        const historyContent = document.getElementById('uploadHistoryContent');
+        
+        if (!history || history.length === 0) {
+            if (currentFilter === 'all') {
+                historyContent.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-history fa-2x mb-3"></i>
+                        <h6>No upload history found</h6>
+                        <p class="mb-0">Start uploading files to see history here</p>
+                        <a href="/dhl-express/upload" class="btn btn-dhl mt-3">
+                            <i class="fas fa-upload"></i> Start First Upload
+                        </a>
+                    </div>
+                `;
+            } else {
+                historyContent.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-filter fa-2x mb-3"></i>
+                        <h6>No uploads found with "${currentFilter}" status</h6>
+                        <p class="mb-0">Try changing the filter or upload more files</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        let historyHtml = '<div class="timeline">';
+        
+        history.forEach((upload, index) => {
+            const timestamp = new Date(upload.timestamp);
+            const isRecent = (new Date() - timestamp) < (24 * 60 * 60 * 1000); // Within 24 hours
+            
+            let statusBadge = '';
+            let statusColor = '';
+            if (upload.status === 'success') {
+                statusBadge = '<span class="badge bg-success">Success</span>';
+                statusColor = 'success';
+            } else if (upload.status === 'partial') {
+                statusBadge = '<span class="badge bg-warning">Partial</span>';
+                statusColor = 'warning';
+            } else {
+                statusBadge = '<span class="badge bg-danger">Failed</span>';
+                statusColor = 'danger';
+            }
+
+            // Create files summary
+            const filesSummary = upload.files.map(f => {
+                const icon = f.type === 'invoice_csv' ? 'fa-file-csv' : 'fa-file-excel';
+                const statusIcon = f.status === 'success' ? 'fa-check text-success' : 'fa-times text-danger';
+                return `
+                    <div class="d-flex align-items-center mb-1">
+                        <i class="fas ${icon} me-2"></i>
+                        <span class="me-auto">${f.filename}</span>
+                        <i class="fas ${statusIcon} ms-2"></i>
+                    </div>
+                `;
+            }).join('');
+
+            historyHtml += `
+                <div class="timeline-item history-item border rounded p-3 mb-3" style="border-color: var(--bs-${statusColor})!important;">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 class="mb-1">
+                                ${timestamp.toLocaleDateString()} at ${timestamp.toLocaleTimeString()}
+                                ${isRecent ? '<span class="badge bg-info ms-2">Recent</span>' : ''}
+                            </h6>
+                            ${statusBadge}
+                        </div>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewSessionDetails('${upload.session_id}')" title="View Details">
+                            <i class="fas fa-eye"></i> Details
+                        </button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="files-summary">
+                                ${filesSummary}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="upload-stats">
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-file-alt"></i> ${upload.total_files} file(s)
+                                </small>
+                                <small class="text-success d-block">
+                                    <i class="fas fa-check"></i> ${upload.successful_files} successful
+                                </small>
+                                ${upload.failed_files > 0 ? `
+                                    <small class="text-danger d-block">
+                                        <i class="fas fa-times"></i> ${upload.failed_files} failed
+                                    </small>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        historyHtml += '</div>';
+        historyContent.innerHTML = historyHtml;
+    }
+
+    function displayNoHistory() {
+        document.getElementById('uploadHistoryContent').innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                <h6>Unable to load upload history</h6>
+                <p class="mb-0">Please check your connection and try again</p>
+                <button class="btn btn-outline-primary mt-3" onclick="loadUploadHistory()">
+                    <i class="fas fa-retry"></i> Retry
+                </button>
+            </div>
+        `;
+        
+        // Reset statistics
+        updateStatistics([]);
+    }
+
+    function viewSessionDetails(sessionId) {
+        fetch(`/dhl-express/api/session-details/${sessionId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.details) {
+                showSessionDetailsModal(data.details);
+            } else {
+                showToast('Error loading session details: ' + (data.error || 'Unknown error'), 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Error loading session details: ' + error.message, 'error');
+        });
+    }
+
+    function showSessionDetailsModal(details) {
+        const modalContent = document.getElementById('sessionDetailsContent');
+        
+        const filesTable = details.files.map(file => `
+            <tr>
+                <td>
+                    <i class="fas ${file.file_type === 'invoice_csv' ? 'fa-file-csv' : 'fa-file-excel'} me-2"></i>
+                    ${file.filename}
+                </td>
+                <td><span class="badge bg-info">${file.file_type}</span></td>
+                <td>${formatFileSize(file.file_size)}</td>
+                <td>
+                    <span class="badge bg-${file.status === 'success' ? 'success' : 'danger'}">
+                        ${file.status}
+                    </span>
+                </td>
+                <td>${file.records_processed || 0}</td>
+                <td>
+                    ${file.error_message ? `<small class="text-danger">${file.error_message}</small>` : '-'}
+                </td>
+            </tr>
+        `).join('');
+
+        modalContent.innerHTML = `
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <h6>Session Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Session ID:</strong></td><td><code>${details.session_id}</code></td></tr>
+                        <tr><td><strong>Upload Time:</strong></td><td>${new Date(details.upload_timestamp).toLocaleString()}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td>
+                            <span class="badge bg-${details.status === 'success' ? 'success' : details.status === 'partial' ? 'warning' : 'danger'}">
+                                ${details.status.toUpperCase()}
+                            </span>
+                        </td></tr>
+                        <tr><td><strong>Total Size:</strong></td><td>${formatFileSize(details.total_size)}</td></tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h6>Upload Summary</h6>
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h4 class="text-primary">${details.total_files}</h4>
+                                <small>Total</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h4 class="text-success">${details.successful_files}</h4>
+                                <small>Success</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border rounded p-2">
+                                <h4 class="text-danger">${details.failed_files}</h4>
+                                <small>Failed</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h6>File Details</h6>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Type</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                            <th>Records</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filesTable}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('sessionDetailsModal'));
+        modal.show();
+    }
+
+    function clearCurrentStatus() {
+        if (confirm('Are you sure you want to clear the current upload status?')) {
+            fetch('/dhl-express/api/clear-status', {
+                method: 'POST',
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayNoCurrentStatus();
+                    showToast('Current upload status cleared successfully', 'success');
+                } else {
+                    showToast('Error clearing status: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error clearing status: ' + error.message, 'error');
+            });
+        }
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toastContainer';
+            toastContainer.className = 'position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '1055';
+            document.body.appendChild(toastContainer);
+        }
+
+        // Create toast element
+        const toastId = 'toast_' + Date.now();
+        const bgClass = type === 'success' ? 'bg-success' : type === 'warning' ? 'bg-warning' : type === 'error' ? 'bg-danger' : 'bg-info';
+        
+        const toastHtml = `
+            <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'success' ? 'check' : type === 'warning' ? 'exclamation-triangle' : type === 'error' ? 'times' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        
+        // Show toast
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: 4000 });
+        toast.show();
+        
+        // Remove toast element after it's hidden
+        toastElement.addEventListener('hidden.bs.toast', function() {
+            toastElement.remove();
+        });
+    }
+</script>
+
+{% endblock %}

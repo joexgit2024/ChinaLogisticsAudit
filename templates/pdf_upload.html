@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Invoice Upload{% endblock %}
+
+{% block extra_css %}
+<style>
+.upload-zone {
+    border: 2px dashed #007bff;
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+.upload-zone:hover {
+    border-color: #0056b3;
+    background-color: #e3f2fd;
+}
+.upload-zone.dragover {
+    border-color: #28a745;
+    background-color: #d4edda;
+}
+.confidence-bar {
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.confidence-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-primary">
+                <i class="fas fa-file-pdf me-2"></i>PDF Invoice Upload & Processing
+            </h2>
+            <p class="text-muted">Upload PDF invoices to extract detailed charge breakdown and link to audit results</p>
+        </div>
+    </div>
+
+    <!-- Upload Section -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload PDF Invoice</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('pdf_upload.upload_pdf') }}" method="post" enctype="multipart/form-data" id="uploadForm">
+                        <!-- Invoice Number Input -->
+                        <div class="mb-3">
+                            <label for="invoice_no" class="form-label">Invoice Number (Optional)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="invoice_no" name="invoice_no" 
+                                       placeholder="Enter invoice number or leave blank for auto-detection">
+                                <button type="button" class="btn btn-outline-secondary" id="checkInvoice">
+                                    <i class="fas fa-search"></i> Check
+                                </button>
+                            </div>
+                            <div class="form-text">If provided, this will override auto-detection from PDF</div>
+                            <div id="invoiceStatus" class="mt-2"></div>
+                        </div>
+
+                        <!-- File Upload Zone -->
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                            <h5>Drag & Drop PDF File Here</h5>
+                            <p class="text-muted">or click to browse</p>
+                            <input type="file" class="form-control" id="pdf_file" name="pdf_file" 
+                                   accept=".pdf" style="display: none;">
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('pdf_file').click()">
+                                <i class="fas fa-folder-open me-2"></i>Browse Files
+                            </button>
+                        </div>
+
+                        <!-- Selected File Info -->
+                        <div id="fileInfo" class="mt-3" style="display: none;">
+                            <div class="alert alert-info">
+                                <i class="fas fa-file-pdf me-2"></i>
+                                <strong>Selected File:</strong> <span id="fileName"></span>
+                                <br>
+                                <small>Size: <span id="fileSize"></span></small>
+                            </div>
+                        </div>
+
+                        <!-- Upload Button -->
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-success btn-lg" id="uploadBtn" disabled>
+                                <i class="fas fa-upload me-2"></i>Upload & Process PDF
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('pdf_upload.process_uploads') }}" class="btn btn-warning">
+                            <i class="fas fa-sync me-2"></i>Process All Uploads
+                        </a>
+                        <a href="{{ url_for('dhl_ytd.search_invoices') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-search me-2"></i>Search Invoices
+                        </a>
+                        <a href="{{ url_for('ytd_batch_audit.batch_audit_page') }}" class="btn btn-outline-success">
+                            <i class="fas fa-chart-line me-2"></i>Batch Audit
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Uploads -->
+    {% if recent_pdfs %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent PDF Uploads</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice No</th>
+                                    <th>Filename</th>
+                                    <th>Service Type</th>
+                                    <th>Total Amount</th>
+                                    <th>Confidence</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pdf in recent_pdfs %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ pdf.invoice_no }}</strong>
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-file-pdf text-danger me-1"></i>
+                                        {{ pdf.filename }}
+                                    </td>
+                                    <td>
+                                        {% if pdf.service_type == 'FREIGHT' %}
+                                            <span class="badge bg-primary">{{ pdf.service_type }}</span>
+                                        {% elif pdf.service_type == 'SERVICE' %}
+                                            <span class="badge bg-warning">{{ pdf.service_type }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ pdf.service_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ pdf.currency }} ${{ "%.2f"|format(pdf.total_amount) }}
+                                    </td>
+                                    <td>
+                                        <div class="confidence-bar">
+                                            <div class="confidence-fill {% if pdf.confidence >= 0.7 %}bg-success{% elif pdf.confidence >= 0.4 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ (pdf.confidence * 100)|round }}%"></div>
+                                        </div>
+                                        <small>{{ (pdf.confidence * 100)|round }}%</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ pdf.timestamp[:19] }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('pdf_upload.view_pdf_details', invoice_no=pdf.invoice_no) }}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('improved_ytd_audit.audit_invoice', invoice_no=pdf.invoice_no) }}" 
+                                               class="btn btn-outline-success" title="View Audit">
+                                                <i class="fas fa-chart-line"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('pdf_file');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const checkInvoiceBtn = document.getElementById('checkInvoice');
+    const invoiceInput = document.getElementById('invoice_no');
+    const invoiceStatus = document.getElementById('invoiceStatus');
+
+    // Drag and drop functionality
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type === 'application/pdf') {
+            fileInput.files = files;
+            showFileInfo(files[0]);
+        }
+    });
+
+    // File input change
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            showFileInfo(this.files[0]);
+        }
+    });
+
+    // Check invoice existence
+    checkInvoiceBtn.addEventListener('click', function() {
+        const invoiceNo = invoiceInput.value.trim();
+        if (!invoiceNo) {
+            invoiceStatus.innerHTML = '<div class="alert alert-warning alert-sm">Please enter an invoice number</div>';
+            return;
+        }
+
+        fetch(`{{ url_for('pdf_upload.search_invoice_api', invoice_no='PLACEHOLDER') }}`.replace('PLACEHOLDER', invoiceNo))
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    invoiceStatus.innerHTML = '<div class="alert alert-success alert-sm"><i class="fas fa-check me-1"></i>Invoice found in database</div>';
+                } else {
+                    invoiceStatus.innerHTML = '<div class="alert alert-info alert-sm"><i class="fas fa-info me-1"></i>Invoice not found - will create new entry</div>';
+                }
+            })
+            .catch(error => {
+                invoiceStatus.innerHTML = '<div class="alert alert-danger alert-sm"><i class="fas fa-times me-1"></i>Error checking invoice</div>';
+            });
+    });
+
+    function showFileInfo(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.style.display = 'block';
+        uploadBtn.disabled = false;
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

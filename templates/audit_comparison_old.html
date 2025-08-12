@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+{% block title %}Audit Comparison - {{ invoice_no }}{% endblock %}
+
+{% block head %}
+<style>
+    .comparison-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .summary-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    
+    .amount-display {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .pdf-amount { color: #2563eb; }
+    .audit-amount { color: #dc2626; }
+    .variance-amount { color: #059669; }
+    .negative-variance { color: #dc2626; }
+    .positive-variance { color: #059669; }
+    
+    .charge-breakdown {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+    }
+    
+    .charge-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        margin: 5px 0;
+        background: white;
+        border-radius: 6px;
+        border-left: 4px solid #e5e7eb;
+    }
+    
+    .charge-match { border-left-color: #10b981; }
+    .charge-missing { border-left-color: #f59e0b; }
+    .charge-different { border-left-color: #ef4444; }
+    
+    .status-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-match { background: #d1fae5; color: #065f46; }
+    .badge-missing { background: #fef3c7; color: #92400e; }
+    .badge-different { background: #fee2e2; color: #991b1b; }
+    
+    .progress-bar-custom {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        transition: width 0.3s ease;
+        border-radius: 4px;
+    }
+    
+    .visual-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin: 20px 0;
+    }
+    
+    @media (max-width: 768px) {
+        .visual-comparison {
+            grid-template-columns: 1fr;
+        }
+        .amount-display {
+            font-size: 1.5rem;
+        }
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+    
+    .details-section {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="comparison-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-2">📊 Invoice Audit Comparison</h1>
+            <h3 class="mb-0">{{ invoice_no }}</h3>
+        </div>
+        <div class="btn-toolbar">
+            <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" class="btn btn-light me-2">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+            {% if pdf_details %}
+            <a href="{{ url_for('advanced_pdf.pdf_details', invoice_no=invoice_no) }}" class="btn btn-outline-light">
+                <i class="fas fa-file-pdf"></i> PDF Details
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Visual Summary Cards -->
+<div class="row">
+    <div class="col-md-4">
+        <div class="summary-card text-center">
+            <h5 class="text-muted mb-2">📄 PDF Invoice Amount</h5>
+            <div class="amount-display pdf-amount">
+                ${{ "%.2f"|format(pdf_details.total_amount if pdf_details else 0) }}
+            </div>
+            <small class="text-muted">{{ pdf_details.currency if pdf_details else 'USD' }}</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card text-center">
+            <h5 class="text-muted mb-2">🎯 Expected Amount</h5>
+            <div class="amount-display audit-amount">
+                ${{ "%.2f"|format(audit_results.expected_amount if audit_results else 0) }}
+            </div>
+            <small class="text-muted">Based on rate cards</small>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="summary-card text-center">
+            <h5 class="text-muted mb-2">📈 Variance</h5>
+            <div class="amount-display {% if comparison.total_variance < 0 %}negative-variance{% else %}positive-variance{% endif %}">
+                {% if comparison.total_variance > 0 %}+{% endif %}${{ "%.2f"|format(comparison.total_variance if comparison else 0) }}
+            </div>
+            <small class="text-muted">
+                {% if audit_results and audit_results.expected_amount > 0 %}
+                    ({{ "%.1f"|format((comparison.total_variance / audit_results.expected_amount * 100) if comparison else 0) }}%)
+                {% endif %}
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Visual Charge Comparison -->
+<div class="details-section">
+    <h4 class="mb-4">📋 Charge Breakdown Comparison</h4>
+    
+    <div class="visual-comparison">
+        <!-- PDF Charges -->
+        <div class="charge-breakdown">
+            <h5 class="text-primary mb-3">📄 PDF Extracted Charges</h5>
+            {% if pdf_details and pdf_details.extracted_charges %}
+                {% for charge_type, amount in pdf_details.extracted_charges.items() %}
+                <div class="charge-item">
+                    <div>
+                        <strong>{{ charge_type.replace('_', ' ').title() }}</strong>
+                    </div>
+                    <div class="pdf-amount">${{ "%.2f"|format(amount) }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-muted text-center py-3">
+                    <i class="fas fa-info-circle"></i> No charges extracted from PDF
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Audit Expected Charges -->
+        <div class="charge-breakdown">
+            <h5 class="text-danger mb-3">🎯 Expected Charges</h5>
+            {% if audit_results and audit_results.audit_details.audit_results %}
+                {% set first_result = audit_results.audit_details.audit_results[0] %}
+                {% if first_result.charge_breakdown %}
+                    {% for charge_type, details in first_result.charge_breakdown.items() %}
+                    <div class="charge-item">
+                        <div>
+                            <strong>{{ charge_type.replace('_', ' ').title() }}</strong>
+                            <br><small class="text-muted">{{ details.audit_type }}</small>
+                        </div>
+                        <div class="audit-amount">${{ "%.2f"|format(details.rate_card_amount_usd) }}</div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% else %}
+                <div class="text-muted text-center py-3">
+                    <i class="fas fa-info-circle"></i> No audit data available
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Match Analysis -->
+<div class="details-section">
+    <h4 class="mb-4">🔍 Charge Match Analysis</h4>
+    
+    <!-- Match Percentage -->
+    <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span><strong>Overall Match Score</strong></span>
+            <span class="h5 mb-0">{{ "%.1f"|format(comparison.match_percentage if comparison else 0) }}%</span>
+        </div>
+        <div class="progress-bar-custom">
+            <div class="progress-fill" style="width: {{ comparison.match_percentage if comparison else 0 }}%; background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);"></div>
+        </div>
+    </div>
+    
+    <!-- Detailed Matches -->
+    {% if comparison and comparison.charge_matches %}
+        {% for charge_type, match_info in comparison.charge_matches.items() %}
+        <div class="charge-item charge-{{ match_info.status }}">
+            <div>
+                <strong>{{ charge_type.replace('_', ' ').title() }}</strong>
+                {% if match_info.get('pdf_amount') and match_info.get('audit_amount') %}
+                    <br><small class="text-muted">PDF: ${{ "%.2f"|format(match_info.pdf_amount) }} | Expected: ${{ "%.2f"|format(match_info.audit_amount) }}</small>
+                {% endif %}
+            </div>
+            <div>
+                <span class="status-badge badge-{{ match_info.status }}">{{ match_info.status }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+
+<!-- Visual Chart -->
+<div class="details-section">
+    <h4 class="mb-4">📊 Amount Comparison Chart</h4>
+    <div class="chart-container">
+        <canvas id="comparisonChart"></canvas>
+    </div>
+</div>
+
+<!-- Detailed Analysis -->
+{% if audit_results and audit_results.audit_details.detailed_analysis %}
+<div class="details-section">
+    <h4 class="mb-4">📈 Detailed Analysis</h4>
+    
+    {% set analysis = audit_results.audit_details.detailed_analysis %}
+    {% if analysis.variance_analysis %}
+    <div class="row">
+        <div class="col-md-6">
+            <h6>Variance Analysis</h6>
+            <ul class="list-unstyled">
+                <li><strong>Concern Level:</strong> 
+                    <span class="badge bg-{% if analysis.variance_analysis.concern_level == 'high' %}danger{% elif analysis.variance_analysis.concern_level == 'medium' %}warning{% else %}success{% endif %}">
+                        {{ analysis.variance_analysis.concern_level.title() }}
+                    </span>
+                </li>
+                <li><strong>Variance Direction:</strong> {{ analysis.variance_analysis.variance_direction.title() }}</li>
+                <li><strong>Investigation Required:</strong> 
+                    {% if analysis.variance_analysis.investigation_required %}
+                        <span class="text-danger">Yes</span>
+                    {% else %}
+                        <span class="text-success">No</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            {% if analysis.recommendations %}
+            <h6>Recommendations</h6>
+            <ul>
+                {% for rec in analysis.recommendations %}
+                <li>{{ rec }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+// Create comparison chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    
+    const pdfAmount = {{ pdf_details.total_amount if pdf_details else 0 }};
+    const expectedAmount = {{ audit_results.expected_amount if audit_results else 0 }};
+    const variance = {{ comparison.total_variance if comparison else 0 }};
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['PDF Amount', 'Expected Amount', 'Variance'],
+            datasets: [{
+                label: 'Amount (USD)',
+                data: [pdfAmount, expectedAmount, Math.abs(variance)],
+                backgroundColor: [
+                    '#2563eb',
+                    '#dc2626', 
+                    variance < 0 ? '#dc2626' : '#059669'
+                ],
+                borderColor: [
+                    '#1d4ed8',
+                    '#b91c1c',
+                    variance < 0 ? '#b91c1c' : '#047857'
+                ],
+                borderWidth: 2,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += '$' + context.parsed.y.toFixed(2);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %}>
+                <h5 class="card-title text-info">Audit Total</h5>
+                <h3>${{ "%.2f"|format(audit_results.total_amount if audit_results else 0) }}</h3>
+                <small class="text-muted">Audited Amount</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title {% if comparison.total_variance > 0 %}text-success{% elif comparison.total_variance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                    Variance
+                </h5>
+                <h3 class="{% if comparison.total_variance > 0 %}positive-variance{% elif comparison.total_variance < 0 %}negative-variance{% endif %}">
+                    ${{ "%.2f"|format(comparison.total_variance if comparison else 0) }}
+                </h3>
+                <small class="text-muted">Difference</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning">Match Rate</h5>
+                <h3>{{ "%.1f"|format(comparison.match_percentage if comparison else 0) }}%</h3>
+                <small class="text-muted">Charge Matching</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charge Comparison -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-file-pdf"></i> PDF Extracted Charges</h5>
+            </div>
+            <div class="card-body">
+                {% if pdf_details and pdf_details.extracted_charges %}
+                    {% for charge_type, amount in pdf_details.extracted_charges.items() %}
+                    <div class="charge-comparison">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ charge_type.replace('_', ' ').title() }}</strong>
+                                {% if pdf_details.charge_descriptions and pdf_details.charge_descriptions[charge_type] %}
+                                <br><small class="text-muted">{{ pdf_details.charge_descriptions[charge_type][:3] | join(', ') }}{% if pdf_details.charge_descriptions[charge_type]|length > 3 %}...{% endif %}</small>
+                                {% endif %}
+                            </div>
+                            <div class="text-end">
+                                <strong>${{ "%.2f"|format(amount) }}</strong>
+                                {% if comparison and comparison.charge_matches and comparison.charge_matches[charge_type] %}
+                                <br><span class="match-status match-{{ comparison.charge_matches[charge_type].status }}">
+                                    {{ comparison.charge_matches[charge_type].status.title() }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted">No PDF charges found or PDF not processed yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-search-dollar"></i> Audit Results</h5>
+            </div>
+            <div class="card-body">
+                {% if audit_results and audit_results.charge_breakdown %}
+                    {% for charge_type, amount in audit_results.charge_breakdown.items() %}
+                    <div class="charge-comparison">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ charge_type.replace('_', ' ').title() }}</strong>
+                                <br><small class="text-muted">Audited charge</small>
+                            </div>
+                            <div class="text-end">
+                                <strong>${{ "%.2f"|format(amount) }}</strong>
+                                {% if comparison and comparison.charge_matches and comparison.charge_matches[charge_type] %}
+                                <br><span class="match-status match-{{ comparison.charge_matches[charge_type].status }}">
+                                    {{ comparison.charge_matches[charge_type].status.title() }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted">No audit results found for this invoice.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Variance Analysis -->
+{% if comparison and comparison.variances %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Variance Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Charge Type</th>
+                                <th>PDF Amount</th>
+                                <th>Audit Amount</th>
+                                <th>Variance</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for variance in comparison.variances %}
+                            <tr>
+                                <td>{{ variance.charge_type.replace('_', ' ').title() }}</td>
+                                <td>${{ "%.2f"|format(variance.pdf_amount) }}</td>
+                                <td>${{ "%.2f"|format(variance.audit_amount) }}</td>
+                                <td class="variance-amount {% if variance.amount > 0 %}positive-variance{% elif variance.amount < 0 %}negative-variance{% endif %}">
+                                    ${{ "%.2f"|format(variance.amount) }}
+                                </td>
+                                <td><span class="match-status match-{{ variance.status }}">{{ variance.status.title() }}</span></td>
+                                <td>{{ variance.notes or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" class="btn btn-secondary me-2">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        {% if pdf_details %}
+        <a href="{{ url_for('advanced_pdf.pdf_details', invoice_no=invoice_no) }}" class="btn btn-info me-2">
+            <i class="fas fa-file-pdf"></i> View PDF Details
+        </a>
+        {% endif %}
+        <button class="btn btn-warning" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+    </div>
+</div>
+{% endblock %}

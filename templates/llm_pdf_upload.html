@@ -1,0 +1,578 @@
+{% extends "base.html" %}
+
+{% block title %}LLM PDF Upload & Processing{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-upload text-primary"></i>
+                LLM PDF Upload & Processing
+            </h1>
+            
+            <!-- Back to Dashboard -->
+            <div class="mb-3">
+                <a href="{{ url_for('llm_pdf.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            
+            <!-- Model Status Alert -->
+            <div id="model-status-alert" class="alert alert-info" role="alert">
+                <i class="fas fa-spinner fa-spin"></i> Checking DeepSeek-R1 model status...
+            </div>
+            
+            <!-- Upload Form -->
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-file-upload"></i> Upload DHL Invoice PDF</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="upload-form" enctype="multipart/form-data">
+                                <div class="mb-3">
+                                    <label for="pdf-file" class="form-label">Select PDF File</label>
+                                    <input type="file" class="form-control" id="pdf-file" name="pdf_file" 
+                                           accept=".pdf" required>
+                                    <div class="form-text">
+                                        Upload a DHL Express invoice PDF for LLM-enhanced processing
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="detailed-extraction" 
+                                               name="detailed_extraction" checked>
+                                        <label class="form-check-label" for="detailed-extraction">
+                                            Enable detailed line item extraction
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="save-to-db" 
+                                               name="save_to_db" checked>
+                                        <label class="form-check-label" for="save-to-db">
+                                            Save results to database
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="use-schema-extraction" 
+                                               name="use_schema_extraction" checked>
+                                        <label class="form-check-label" for="use-schema-extraction">
+                                            <strong>Use Schema-Driven Extraction</strong> 
+                                            <small class="text-primary">(Recommended - Better accuracy)</small>
+                                        </label>
+                                        <div class="form-text">
+                                            Uses predefined database schema for precise field classification and validation
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Model Selection -->
+                                    <div class="mb-3">
+                                        <label for="model-selection" class="form-label">
+                                            <strong><i class="fas fa-robot"></i> AI Model Selection</strong>
+                                        </label>
+                                        <select class="form-select" id="model-selection" name="selected_model">
+                                            <!-- Options will be loaded via JavaScript -->
+                                        </select>
+                                        <div class="form-text" id="model-info">
+                                            Loading available models...
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary btn-lg" id="process-btn">
+                                    <i class="fas fa-brain"></i> Process with DeepSeek-R1
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Processing Info -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> Processing Info</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6><i class="fas fa-robot"></i> DeepSeek-R1 Model</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Reasoning-optimized</li>
+                                <li><i class="fas fa-check text-success"></i> 4.7GB parameter size</li>
+                                <li><i class="fas fa-check text-success"></i> GPU acceleration</li>
+                                <li><i class="fas fa-check text-success"></i> Local processing</li>
+                            </ul>
+                            
+                            <h6 class="mt-3"><i class="fas fa-extract"></i> Extraction Features</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Invoice details</li>
+                                <li><i class="fas fa-check text-success"></i> Line item breakdown</li>
+                                <li><i class="fas fa-check text-success"></i> GST calculations</li>
+                                <li><i class="fas fa-check text-success"></i> Service categorization</li>
+                                <li><i class="fas fa-check text-success"></i> Confidence scoring</li>
+                            </ul>
+                            
+                            <div class="mt-3">
+                                <small class="text-muted">
+                                    Processing typically takes 10-30 seconds depending on PDF complexity
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Processing Progress -->
+            <div id="processing-section" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cog fa-spin"></i> Processing PDF with LLM...</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="progress-bar"></div>
+                        </div>
+                        <div id="processing-status">Starting PDF processing...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div id="results-section" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-check-circle text-success"></i> Processing Results</h5>
+                    </div>
+                    <div class="card-body" id="results-content">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Section -->
+            <div id="error-section" class="mt-4" style="display: none;">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Processing Error</h5>
+                    </div>
+                    <div class="card-body" id="error-content">
+                        <!-- Error details will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Check model status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkModelStatus();
+});
+
+function checkModelStatus() {
+    fetch('/llm-pdf/api/model-status')
+        .then(response => response.json())
+        .then(data => {
+            const alertElement = document.getElementById('model-status-alert');
+            const processBtn = document.getElementById('process-btn');
+            
+            if (data.available) {
+                alertElement.className = 'alert alert-success';
+                alertElement.innerHTML = '<i class="fas fa-check-circle"></i> DeepSeek-R1 model is available and ready for processing';
+                processBtn.disabled = false;
+            } else {
+                alertElement.className = 'alert alert-danger';
+                alertElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> DeepSeek-R1 model is not available. Please ensure Ollama is running with the deepseek-r1:latest model.';
+                processBtn.disabled = true;
+            }
+        })
+        .catch(error => {
+            const alertElement = document.getElementById('model-status-alert');
+            alertElement.className = 'alert alert-warning';
+            alertElement.innerHTML = '<i class="fas fa-question-circle"></i> Unable to check model status. Please verify your connection.';
+        });
+}
+
+// Load available models
+function loadAvailableModels() {
+    fetch('/llm-pdf/api/models')
+        .then(response => response.json())
+        .then(data => {
+            const modelSelect = document.getElementById('model-selection');
+            const modelInfo = document.getElementById('model-info');
+            
+            if (data.success && data.models) {
+                // Clear existing options
+                modelSelect.innerHTML = '';
+                
+                // Add model options
+                Object.keys(data.models).forEach(modelKey => {
+                    const model = data.models[modelKey];
+                    const option = document.createElement('option');
+                    option.value = modelKey;
+                    option.textContent = `${model.name} (${model.size}) - ${model.speed}`;
+                    
+                    // Set llama3.2 as default
+                    if (modelKey === 'llama3.2:latest') {
+                        option.selected = true;
+                    }
+                    
+                    modelSelect.appendChild(option);
+                });
+                
+                // Add change handler to show model info
+                modelSelect.addEventListener('change', function() {
+                    const selectedKey = this.value;
+                    const selectedModel = data.models[selectedKey];
+                    if (selectedModel) {
+                        modelInfo.innerHTML = `
+                            <i class="fas fa-info-circle text-info"></i>
+                            <strong>Speed:</strong> ${selectedModel.speed} | 
+                            <strong>Accuracy:</strong> ${selectedModel.accuracy} | 
+                            <strong>Best for:</strong> ${selectedModel.best_for}
+                        `;
+                        
+                        // Add speed-based color coding
+                        if (selectedModel.speed === 'Very Fast') {
+                            modelInfo.className = 'form-text text-success';
+                        } else if (selectedModel.speed === 'Fast') {
+                            modelInfo.className = 'form-text text-info';
+                        } else if (selectedModel.speed === 'Medium') {
+                            modelInfo.className = 'form-text text-warning';
+                        } else {
+                            modelInfo.className = 'form-text text-danger';
+                        }
+                    }
+                });
+                
+                // Trigger change event to show default model info
+                modelSelect.dispatchEvent(new Event('change'));
+                
+            } else {
+                modelSelect.innerHTML = '<option value="llama3.2:latest">Llama 3.2 (Default)</option>';
+                modelInfo.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> Unable to load model list. Using default.';
+            }
+        })
+        .catch(error => {
+            const modelSelect = document.getElementById('model-selection');
+            const modelInfo = document.getElementById('model-info');
+            modelSelect.innerHTML = '<option value="llama3.2:latest">Llama 3.2 (Default)</option>';
+            modelInfo.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> Error loading models. Using default.';
+        });
+}
+
+// Handle form submission
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('pdf-file');
+    console.log('File input:', fileInput);
+    console.log('Files:', fileInput.files);
+    
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Please select a PDF file');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    console.log('Selected file:', file);
+    console.log('File name:', file.name);
+    console.log('File size:', file.size);
+    console.log('File type:', file.type);
+    
+    if (!file || file.size === 0) {
+        alert('Invalid file selected');
+        return;
+    }
+    
+    // Show processing section
+    document.getElementById('processing-section').style.display = 'block';
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('error-section').style.display = 'none';
+    
+    // Disable form
+    document.getElementById('process-btn').disabled = true;
+    
+    // Create form data properly
+    const formData = new FormData();
+    formData.append('pdf_file', file, file.name);  // Explicitly add filename
+    formData.append('detailed_extraction', document.getElementById('detailed-extraction').checked);
+    formData.append('save_to_db', document.getElementById('save-to-db').checked);
+    formData.append('use_schema_extraction', document.getElementById('use-schema-extraction').checked);
+    formData.append('selected_model', document.getElementById('model-selection').value);
+    
+    // Debug FormData contents
+    console.log('FormData contents:');
+    for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+    }
+    
+    // Start processing
+    processWithProgress(formData);
+});
+
+function processWithProgress(formData) {
+    const progressBar = document.getElementById('progress-bar');
+    const statusDiv = document.getElementById('processing-status');
+    
+    // Realistic progress tracking based on actual LLM processing stages
+    let progress = 0;
+    let currentStep = 0;
+    const steps = [
+        { text: 'Uploading PDF file...', duration: 1000, progress: 5 },
+        { text: 'Extracting text from PDF...', duration: 3000, progress: 15 },
+        { text: 'Connecting to DeepSeek-R1 model...', duration: 2000, progress: 20 },
+        { text: 'Querying LLM for invoice analysis...', duration: 15000, progress: 40 },
+        { text: 'Processing LLM response (this takes time)...', duration: 45000, progress: 85 },
+        { text: 'Calculating confidence scores...', duration: 2000, progress: 92 },
+        { text: 'Saving results to database...', duration: 2000, progress: 98 }
+    ];
+    
+    let progressInterval;
+    let stepTimeout;
+    
+    function updateProgress() {
+        if (currentStep < steps.length) {
+            const step = steps[currentStep];
+            statusDiv.textContent = step.text;
+            
+            // Add helpful hints for longer steps
+            if (step.text.includes('LLM response')) {
+                statusDiv.innerHTML = step.text + '<br><small class="text-muted">DeepSeek-R1 is analyzing the invoice structure and extracting details...</small>';
+            }
+            
+            // Gradually increase progress to step target
+            const targetProgress = step.progress;
+            const stepDuration = step.duration;
+            const updateInterval = 200; // Update every 200ms
+            const progressPerUpdate = (targetProgress - progress) / (stepDuration / updateInterval);
+            
+            progressInterval = setInterval(() => {
+                progress += progressPerUpdate;
+                if (progress >= targetProgress) {
+                    progress = targetProgress;
+                    clearInterval(progressInterval);
+                    currentStep++;
+                    if (currentStep < steps.length) {
+                        stepTimeout = setTimeout(updateProgress, 100);
+                    }
+                }
+                progressBar.style.width = Math.min(progress, 98) + '%';
+            }, updateInterval);
+        }
+    }
+    
+    // Function to stop progress simulation when actual request completes
+    function stopProgressSimulation() {
+        if (progressInterval) clearInterval(progressInterval);
+        if (stepTimeout) clearTimeout(stepTimeout);
+    }
+    
+    // Start progress updates
+    updateProgress();
+    
+    // Make the actual request with extended timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+        controller.abort();
+        stopProgressSimulation();
+        showError('Processing timeout - LLM took longer than 5 minutes. This may indicate the model is overloaded or there\'s an issue with the PDF. Please try again or check if the model is running properly.');
+        document.getElementById('process-btn').disabled = false;
+    }, 300000); // 5 minute timeout (increased from 2 minutes)
+    
+    fetch('/llm-pdf/process-single', {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+    })
+    .then(response => {
+        clearTimeout(timeoutId);
+        stopProgressSimulation();
+        return response.json();
+    })
+    .then(data => {
+        // Complete progress
+        progress = 100;
+        progressBar.style.width = '100%';
+        statusDiv.textContent = 'Processing complete!';
+        
+        // Re-enable form
+        document.getElementById('process-btn').disabled = false;
+        
+        // Debug logging
+        console.log('LLM Processing Response:', data);
+        
+        if (data.success) {
+            showResults(data);
+        } else {
+            showError(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        clearTimeout(timeoutId);
+        stopProgressSimulation();
+        document.getElementById('process-btn').disabled = false;
+        if (error.name === 'AbortError') {
+            showError('Processing timeout - please try again');
+        } else {
+            showError('Network error: ' + error.message);
+        }
+    });
+}
+
+function showResults(data) {
+    document.getElementById('processing-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'block';
+    
+    const resultsContent = document.getElementById('results-content');
+    
+    // Handle different response structures
+    const invoiceData = data.extracted_data || data.invoice_data || {};
+    const invoiceDetails = invoiceData.invoice_details || {};
+    const billingBreakdown = invoiceData.billing_breakdown || {};
+    
+    // Check if we have valid data
+    if (!invoiceData || Object.keys(invoiceData).length === 0) {
+        resultsContent.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Processing completed but no invoice data was extracted.</strong>
+                <p>The LLM may not have been able to parse this PDF format. Please try a different file or check the PDF quality.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="fas fa-info-circle"></i> Invoice Details</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Invoice Number:</strong></td><td>${invoiceDetails.invoice_number || invoiceDetails.invoice_no || data.invoice_no || 'N/A'}</td></tr>
+                    <tr><td><strong>Date:</strong></td><td>${invoiceDetails.invoice_date || 'N/A'}</td></tr>
+                    <tr><td><strong>Customer:</strong></td><td>${invoiceDetails.customer_name || 'N/A'}</td></tr>
+                    <tr><td><strong>Service Type:</strong></td><td>${invoiceDetails.service_type || 'N/A'}</td></tr>
+                    <tr><td><strong>Currency:</strong></td><td>${invoiceDetails.currency || invoiceData.currency || 'N/A'}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="fas fa-chart-bar"></i> Processing Stats</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Processing Time:</strong></td><td>${data.processing_time ? data.processing_time.toFixed(2) + ' seconds' : 'N/A'}</td></tr>
+                    <tr><td><strong>Model Used:</strong></td><td>${data.llm_model || data.model_used || 'DeepSeek-R1'}</td></tr>
+                    <tr><td><strong>Confidence Score:</strong></td><td>${data.confidence ? (data.confidence * 100).toFixed(1) + '%' : (invoiceData.confidence_score ? (invoiceData.confidence_score * 100).toFixed(1) + '%' : 'N/A')}</td></tr>
+                    <tr><td><strong>Line Items Found:</strong></td><td>${billingBreakdown.line_items ? billingBreakdown.line_items.length : (invoiceData.charges ? invoiceData.charges.length : 0)}</td></tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6><i class="fas fa-money-bill"></i> Billing Summary</h6>
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <strong>Subtotal:</strong> ${invoiceDetails.currency || billingBreakdown.currency || invoiceData.currency || '$'}${billingBreakdown.subtotal ? billingBreakdown.subtotal.toFixed(2) : (invoiceData.subtotal ? invoiceData.subtotal.toFixed(2) : '0.00')}
+                            </div>
+                            <div class="col-md-4">
+                                <strong>GST:</strong> ${invoiceDetails.currency || billingBreakdown.currency || invoiceData.currency || '$'}${billingBreakdown.gst_amount ? billingBreakdown.gst_amount.toFixed(2) : (invoiceData.gst_total ? invoiceData.gst_total.toFixed(2) : '0.00')}
+                            </div>
+                            <div class="col-md-4">
+                                <strong>Total:</strong> <span class="h5 text-primary">${invoiceDetails.currency || billingBreakdown.currency || invoiceData.currency || '$'}${billingBreakdown.total_amount ? billingBreakdown.total_amount.toFixed(2) : (invoiceData.final_total ? invoiceData.final_total.toFixed(2) : '0.00')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add line items if available
+    const lineItems = billingBreakdown.line_items || invoiceData.charges || [];
+    if (lineItems && lineItems.length > 0) {
+        html += `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6><i class="fas fa-list"></i> Line Items</h6>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th>GST</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        lineItems.forEach(item => {
+            const currency = invoiceDetails.currency || billingBreakdown.currency || invoiceData.currency || '$';
+            html += `
+                <tr>
+                    <td>${item.description || 'N/A'}</td>
+                    <td><span class="badge bg-secondary">${item.category || 'N/A'}</span></td>
+                    <td>${currency}${(item.amount || 0).toFixed(2)}</td>
+                    <td>${currency}${(item.gst_amount || item.gst || 0).toFixed(2)}</td>
+                    <td>${currency}${(item.total || (item.amount || 0) + (item.gst_amount || item.gst || 0)).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add action buttons
+    html += `
+        <div class="row mt-3">
+            <div class="col-12">
+                <a href="/llm-pdf" class="btn btn-primary">
+                    <i class="fas fa-tachometer-alt"></i> View Dashboard
+                </a>
+                <button class="btn btn-success" onclick="window.location.reload()">
+                    <i class="fas fa-plus"></i> Process Another PDF
+                </button>
+            </div>
+        </div>
+    `;
+    
+    resultsContent.innerHTML = html;
+}
+
+function showError(errorMessage) {
+    document.getElementById('processing-section').style.display = 'none';
+    document.getElementById('error-section').style.display = 'block';
+    
+    const errorContent = document.getElementById('error-content');
+    errorContent.innerHTML = `
+        <p><strong>Error:</strong> ${errorMessage}</p>
+        <div class="mt-3">
+            <button class="btn btn-warning" onclick="checkModelStatus()">
+                <i class="fas fa-sync"></i> Check Model Status
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.reload()">
+                <i class="fas fa-refresh"></i> Try Again
+            </button>
+        </div>
+    `;
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableModels();
+});
+</script>
+{% endblock %}

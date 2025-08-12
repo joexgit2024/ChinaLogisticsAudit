@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block title %}Validation Details - {{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">Validation Details</h1>
+        <p class="text-muted mb-0">Invoice: <strong>{{ invoice.invoice_number }}</strong></p>
+    </div>
+    <div>
+        <a href="{{ url_for('invoice.invoice_detail_by_number', invoice_number=invoice.invoice_number) }}" 
+           class="btn btn-outline-primary me-2">
+            <i class="fas fa-file-invoice me-2"></i>View Invoice
+        </a>
+        <a href="{{ url_for('validation.validation_dashboard') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Validation Summary -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card border-{{ validation_result.status_class }}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-3 text-center">
+                        {% if validation_result.is_valid %}
+                            <i class="fas fa-check-circle fa-4x text-success mb-2"></i>
+                            <h5 class="text-success">VALID</h5>
+                        {% else %}
+                            <i class="fas fa-exclamation-triangle fa-4x text-danger mb-2"></i>
+                            <h5 class="text-danger">INVALID</h5>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-9">
+                        <div class="row">
+                            <div class="col-6">
+                                <h6>Validation Score</h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="progress me-2" style="width: 120px; height: 12px;">
+                                        <div class="progress-bar 
+                                            {% if validation_result.score >= 80 %}bg-success
+                                            {% elif validation_result.score >= 60 %}bg-warning
+                                            {% else %}bg-danger{% endif %}" 
+                                             style="width: {{ validation_result.score }}%">
+                                        </div>
+                                    </div>
+                                    <span class="fw-bold">{{ "%.0f"|format(validation_result.score) }}/100</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <h6>Issue Summary</h6>
+                                <div class="d-flex">
+                                    <span class="badge bg-danger me-2">
+                                        {{ validation_result.error_count }} Errors
+                                    </span>
+                                    <span class="badge bg-warning">
+                                        {{ validation_result.warning_count }} Warnings
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">
+                    <i class="fas fa-info-circle me-2"></i>Invoice Info
+                </h6>
+                <p><strong>Shipper:</strong> {{ invoice.shipper_name or 'N/A' }}</p>
+                <p><strong>Consignee:</strong> {{ invoice.consignee_name or 'N/A' }}</p>
+                <p><strong>Route:</strong> 
+                    {% if invoice.origin_port and invoice.destination_port %}
+                        {{ invoice.origin_port }} → {{ invoice.destination_port }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </p>
+                <p class="mb-0"><strong>Amount:</strong> 
+                    {% if invoice.currency %}{{ invoice.currency }}{% endif %}
+                    ${{ "%.2f"|format(invoice.total_charges or 0) }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Validation Issues -->
+{% if validation_result.issues %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list-check me-2"></i>Validation Issues 
+            <span class="badge bg-secondary ms-2">{{ validation_result.issues|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="accordion" id="issuesAccordion">
+            <!-- Group issues by severity -->
+            {% set errors = validation_result.issues | selectattr('severity.value', 'equalto', 'error') | list %}
+            {% set warnings = validation_result.issues | selectattr('severity.value', 'equalto', 'warning') | list %}
+            {% set infos = validation_result.issues | selectattr('severity.value', 'equalto', 'info') | list %}
+            
+            {% if errors %}
+            <div class="accordion-item border-danger">
+                <h2 class="accordion-header" id="errorsHeader">
+                    <button class="accordion-button collapsed" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#errorsCollapse"
+                            aria-expanded="false" aria-controls="errorsCollapse">
+                        <i class="fas fa-times-circle text-danger me-2"></i>
+                        <strong>Errors ({{ errors|length }})</strong>
+                        <span class="ms-2 text-muted">- Critical issues that must be fixed</span>
+                    </button>
+                </h2>
+                <div id="errorsCollapse" class="accordion-collapse collapse show" 
+                     aria-labelledby="errorsHeader" data-bs-parent="#issuesAccordion">
+                    <div class="accordion-body">
+                        {% for issue in errors %}
+                        <div class="row mb-3 p-3 bg-danger bg-opacity-10 border-start border-4 border-danger">
+                            <div class="col-md-3">
+                                <strong>{{ issue.field }}</strong>
+                                {% if issue.current_value is not none %}
+                                    <br><small class="text-muted">Current: {{ issue.current_value }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ issue.message }}
+                                {% if issue.expected_format %}
+                                    <br><small class="text-muted">Expected: {{ issue.expected_format }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="badge bg-danger">ERROR</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if warnings %}
+            <div class="accordion-item border-warning">
+                <h2 class="accordion-header" id="warningsHeader">
+                    <button class="accordion-button collapsed" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#warningsCollapse"
+                            aria-expanded="false" aria-controls="warningsCollapse">
+                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        <strong>Warnings ({{ warnings|length }})</strong>
+                        <span class="ms-2 text-muted">- Important issues that should be reviewed</span>
+                    </button>
+                </h2>
+                <div id="warningsCollapse" class="accordion-collapse collapse" 
+                     aria-labelledby="warningsHeader" data-bs-parent="#issuesAccordion">
+                    <div class="accordion-body">
+                        {% for issue in warnings %}
+                        <div class="row mb-3 p-3 bg-warning bg-opacity-10 border-start border-4 border-warning">
+                            <div class="col-md-3">
+                                <strong>{{ issue.field }}</strong>
+                                {% if issue.current_value is not none %}
+                                    <br><small class="text-muted">Current: {{ issue.current_value }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ issue.message }}
+                                {% if issue.expected_format %}
+                                    <br><small class="text-muted">Expected: {{ issue.expected_format }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="badge bg-warning">WARNING</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if infos %}
+            <div class="accordion-item border-info">
+                <h2 class="accordion-header" id="infosHeader">
+                    <button class="accordion-button collapsed" type="button" 
+                            data-bs-toggle="collapse" data-bs-target="#infosCollapse"
+                            aria-expanded="false" aria-controls="infosCollapse">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        <strong>Information ({{ infos|length }})</strong>
+                        <span class="ms-2 text-muted">- Additional observations</span>
+                    </button>
+                </h2>
+                <div id="infosCollapse" class="accordion-collapse collapse" 
+                     aria-labelledby="infosHeader" data-bs-parent="#issuesAccordion">
+                    <div class="accordion-body">
+                        {% for issue in infos %}
+                        <div class="row mb-3 p-3 bg-info bg-opacity-10 border-start border-4 border-info">
+                            <div class="col-md-3">
+                                <strong>{{ issue.field }}</strong>
+                                {% if issue.current_value is not none %}
+                                    <br><small class="text-muted">Current: {{ issue.current_value }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ issue.message }}
+                                {% if issue.expected_format %}
+                                    <br><small class="text-muted">Expected: {{ issue.expected_format }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3 text-end">
+                                <span class="badge bg-info">INFO</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- No Issues Found -->
+<div class="card border-success">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+        <h4 class="text-success">Perfect Validation!</h4>
+        <p class="text-muted">This invoice has passed all validation checks with no issues found.</p>
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-6">
+                <div class="list-group">
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-3"></i>
+                        All required fields are present
+                    </div>
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-3"></i>
+                        Field formats are valid
+                    </div>
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-3"></i>
+                        Business rules are satisfied
+                    </div>
+                    <div class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check text-success me-3"></i>
+                        Data integrity is maintained
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Field Summary -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-table me-2"></i>Field Summary
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Required Fields</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Status</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set required_fields = {
+                                'invoice_number': 'Invoice Number',
+                                'shipper_name': 'Shipper Name',
+                                'consignee_name': 'Consignee Name',
+                                'origin_port': 'Origin Location',
+                                'destination_port': 'Destination Location',
+                                'total_charges': 'Total Charges',
+                                'currency': 'Currency',
+                                'service_date': 'Service Date'
+                            } %}
+                            {% for field_key, field_name in required_fields.items() %}
+                            {% set field_value = invoice[field_key] %}
+                            <tr>
+                                <td>{{ field_name }}</td>
+                                <td>
+                                    {% if field_value %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-danger"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code>{{ field_value or 'Missing' }}</code>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <h6>Additional Fields</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Status</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set optional_fields = {
+                                'weight': 'Weight',
+                                'pieces': 'Pieces',
+                                'tracking_number': 'Tracking Number',
+                                'exchange_rate': 'Exchange Rate',
+                                'reference_number': 'Reference Number'
+                            } %}
+                            {% for field_key, field_name in optional_fields.items() %}
+                            {% set field_value = invoice[field_key] %}
+                            <tr>
+                                <td>{{ field_name }}</td>
+                                <td>
+                                    {% if field_value %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-minus-circle text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code>{{ field_value or 'Not provided' }}</code>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

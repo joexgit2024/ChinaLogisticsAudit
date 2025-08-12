@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}YTD Reports & Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-chart-bar"></i> YTD Reports & Analytics</h2>
+                <div class="btn-group">
+                    <a href="{{ url_for('dhl_ytd.ytd_statistics') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to YTD
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(summary.totals.total_shipments) }}</h3>
+                    <h5>Total Shipments</h5>
+                    <p><small>Unique CW1 Shipment Numbers</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(summary.totals.total_invoices) }}</h3>
+                    <h5>Total Invoices</h5>
+                    <p><small>Individual invoice records</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>${{ "{:,.0f}".format(summary.totals.total_value_usd) }}</h3>
+                    <h5>Total Value (USD)</h5>
+                    <p><small>Combined invoice value</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ available_months|length }}</h3>
+                    <h5>Available Months</h5>
+                    <p><small>Historical data range</small></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4><i class="fas fa-download"></i> Report Categories</h4>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Shipment Reports -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5><i class="fas fa-ship"></i> Shipment Reports</h5>
+                </div>
+                <div class="card-body">
+                    <p>Grouped by CW1 Shipment Number with multiple invoices consolidated per shipment.</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Invoice count per shipment</li>
+                        <li><i class="fas fa-check text-success"></i> Total charges by shipment</li>
+                        <li><i class="fas fa-check text-success"></i> Audit status summary</li>
+                        <li><i class="fas fa-check text-success"></i> Origin/destination tracking</li>
+                    </ul>
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100">
+                        <a href="{{ url_for('ytd_reports.shipment_reports') }}" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <a href="{{ url_for('ytd_reports.export_reports', type='shipment_summary') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-download"></i> Export
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Details -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-file-invoice"></i> Invoice Details</h5>
+                </div>
+                <div class="card-body">
+                    <p>Detailed invoice-by-invoice reporting with audit results and financial data.</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Individual invoice details</li>
+                        <li><i class="fas fa-check text-success"></i> Audit results and variances</li>
+                        <li><i class="fas fa-check text-success"></i> Rate card matching info</li>
+                        <li><i class="fas fa-check text-success"></i> Shipper/consignee data</li>
+                    </ul>
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100">
+                        <a href="{{ url_for('ytd_reports.invoice_reports') }}" class="btn btn-success">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <a href="{{ url_for('ytd_reports.export_reports', type='invoice_details') }}" class="btn btn-outline-success">
+                            <i class="fas fa-download"></i> Export
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Exceptions -->
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-white">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Audit Exceptions</h5>
+                </div>
+                <div class="card-body">
+                    <p>Focus on invoices requiring attention: no rate cards, review required, etc.</p>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-times text-danger"></i> No rate card found</li>
+                        <li><i class="fas fa-question text-warning"></i> Review required</li>
+                        <li><i class="fas fa-bug text-danger"></i> Audit errors</li>
+                        <li><i class="fas fa-ban text-danger"></i> Failed audits</li>
+                    </ul>
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100">
+                        <a href="{{ url_for('ytd_reports.exception_reports') }}" class="btn btn-warning">
+                            <i class="fas fa-eye"></i> View
+                        </a>
+                        <a href="{{ url_for('ytd_reports.export_reports', type='exceptions') }}" class="btn btn-outline-warning">
+                            <i class="fas fa-download"></i> Export
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Status Breakdown -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Audit Status Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Count</th>
+                                    <th>Value (USD)</th>
+                                    <th>%</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set total_count = summary.audit_status|sum(attribute='count') %}
+                                {% for status in summary.audit_status %}
+                                <tr>
+                                    <td>
+                                        {% if status.status == 'PASSED' %}
+                                            <span class="badge bg-success">{{ status.status }}</span>
+                                        {% elif status.status == 'FAILED' %}
+                                            <span class="badge bg-danger">{{ status.status }}</span>
+                                        {% elif status.status == 'NO_RATE_CARD' %}
+                                            <span class="badge bg-warning">{{ status.status }}</span>
+                                        {% elif status.status == 'REVIEW_REQUIRED' %}
+                                            <span class="badge bg-info">{{ status.status }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ status.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,}".format(status.count) }}</td>
+                                    <td>${{ "{:,.0f}".format(status.total_value) }}</td>
+                                    <td>{{ "{:.1f}%".format((status.count / total_count * 100) if total_count > 0 else 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transportation Mode Breakdown -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-truck"></i> Transportation Mode Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Mode</th>
+                                    <th>Shipments</th>
+                                    <th>Invoices</th>
+                                    <th>Value (USD)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mode in summary.transport_modes %}
+                                <tr>
+                                    <td>
+                                        {% if mode.mode == 'Air' %}
+                                            <i class="fas fa-plane text-primary"></i>
+                                        {% elif mode.mode == 'Sea' %}
+                                            <i class="fas fa-ship text-info"></i>
+                                        {% elif mode.mode == 'Road' %}
+                                            <i class="fas fa-truck text-success"></i>
+                                        {% else %}
+                                            <i class="fas fa-question text-muted"></i>
+                                        {% endif %}
+                                        {{ mode.mode or 'Unknown' }}
+                                    </td>
+                                    <td>{{ "{:,}".format(mode.shipment_count) }}</td>
+                                    <td>{{ "{:,}".format(mode.invoice_count) }}</td>
+                                    <td>${{ "{:,.0f}".format(mode.total_value) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt"></i> Quick Export Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Current Month Reports</h6>
+                            {% if available_months %}
+                            {% set current_month = available_months[0] %}
+                            <div class="btn-group-vertical w-100 mb-2">
+                                <a href="{{ url_for('ytd_reports.export_reports', type='shipment_summary', month=current_month) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-download"></i> {{ current_month }} Shipments
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='invoice_details', month=current_month) }}" 
+                                   class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-download"></i> {{ current_month }} Invoices
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='exceptions', month=current_month) }}" 
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-download"></i> {{ current_month }} Exceptions
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Air Freight Reports</h6>
+                            <div class="btn-group-vertical w-100 mb-2">
+                                <a href="{{ url_for('ytd_reports.export_reports', type='shipment_summary', transportation_mode='Air') }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-plane"></i> Air Shipments
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='invoice_details', transportation_mode='Air') }}" 
+                                   class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-plane"></i> Air Invoices
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='exceptions', transportation_mode='Air') }}" 
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-plane"></i> Air Exceptions
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Sea Freight Reports</h6>
+                            <div class="btn-group-vertical w-100 mb-2">
+                                <a href="{{ url_for('ytd_reports.export_reports', type='shipment_summary', transportation_mode='Sea') }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-ship"></i> Sea Shipments
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='invoice_details', transportation_mode='Sea') }}" 
+                                   class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-ship"></i> Sea Invoices
+                                </a>
+                                <a href="{{ url_for('ytd_reports.export_reports', type='exceptions', transportation_mode='Sea') }}" 
+                                   class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-ship"></i> Sea Exceptions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.03);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.btn-group-vertical .btn {
+    margin-bottom: 2px;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}

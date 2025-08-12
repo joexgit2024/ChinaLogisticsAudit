@@ -1,0 +1,859 @@
+{% extends "base.html" %}
+{% block title %}DHL Express Rate Cards{% endblock %}
+
+{% block content %}
+<style>
+    .nav-link {
+        color: #D70018 !important;
+        border-radius: 10px;
+        margin: 0 5px;
+    }
+    .nav-link:hover, .nav-link.active {
+        background-color: #D70018 !important;
+        color: white !important;
+    }
+    .rate-card-header {
+        background: linear-gradient(135deg, #FF0000 0%, #D70018 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+    .btn-dhl {
+        background-color: #D70018;
+        border-color: #D70018;
+        color: white;
+    }
+    .btn-dhl:hover {
+        background-color: #B80015;
+        border-color: #B80015;
+        color: white;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #fff5f5;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+                <h1><i class="fas fa-table"></i> DHL Express Rate Cards</h1>
+                <p class="text-muted">Manage zone-based rate cards and services/surcharges</p>
+            </div>
+        </div>
+
+        <!-- Rate Card Summary -->
+        <div class="rate-card-header">
+            <div class="row">
+                <div class="col-md-8">
+                    <h2><i class="fas fa-globe"></i> Zone-Based Pricing Structure</h2>
+                    <p class="mb-0">DHL Express uses zone-based pricing with different rates for Export, Import, and 3rd Country services</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <h3>{{ rate_cards|length }} Rate Tables</h3>
+                    <p class="mb-0">
+                        {{ services.total_services }} Services/Surcharges<br>
+                        <small>{{ services.published_services }} Published + {{ services.special_services }} Special</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rate Cards Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-calculator"></i> Rate Card Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Service Type</th>
+                                <th>Rate Section</th>
+                                <th>Weight Range</th>
+                                <th>Rate Count</th>
+                                <th>Effective Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rate_card in rate_cards %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if rate_card.service_type == 'Export' %}primary{% elif rate_card.service_type == 'Import' %}success{% else %}warning{% endif %}">
+                                        {{ rate_card.service_type }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if rate_card.rate_section == 'Documents' %}
+                                        <i class="fas fa-file-alt text-info"></i> Documents
+                                    {% else %}
+                                        <i class="fas fa-box text-warning"></i> Non-documents
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ rate_card.weight_range }}</small></td>
+                                <td>{{ rate_card.rate_count }} rates</td>
+                                <td><small>{{ rate_card.effective_date }}</small></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewRateDetails('{{ rate_card.service_type }}', '{{ rate_card.rate_section }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if not rate_cards %}
+                <div class="text-center py-5">
+                    <i class="fas fa-table fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No rate cards loaded</h5>
+                    <p class="text-muted">Upload DHL Express rate card Excel files to get started.</p>
+                    <a href="/dhl-express/upload" class="btn btn-dhl">
+                        <i class="fas fa-upload"></i> Upload Rate Cards
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Services & Surcharges -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs"></i> Services & Surcharges Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-danger">{{ services.total_services }}</h3>
+                                <p class="text-muted mb-0">Total Services</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-info">{{ services.published_services }}</h3>
+                                <p class="text-muted mb-0">Published Services</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h3 class="text-warning">{{ services.special_services }}</h3>
+                                <p class="text-muted mb-0">Special Agreement</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h6>Common Service Codes:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><code>AA</code> - Saturday Delivery</li>
+                                <li><code>KA</code> - Change of Billing</li>
+                                <li><code>PX</code> - Remote Area Pickup</li>
+                                <li><code>PY</code> - Remote Area Delivery</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><code>OB</code> - Overweight Piece</li>
+                                <li><code>UC</code> - Non Conveyable Piece</li>
+                                <li><code>HX</code> - Bonded Storage</li>
+                                <li><code>PC</code> - Premium 12:00</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Service Charges Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-list"></i> Service Charges Details (Top 50)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Service Name</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Min Charge</th>
+                                <th>Percentage</th>
+                                <th>Products</th>
+                                <th>Special</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for charge in service_charges %}
+                            <tr>
+                                <td><code class="fw-bold">{{ charge.service_code }}</code></td>
+                                <td><small>{{ charge.service_name }}</small></td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ charge.charge_type }}</span>
+                                </td>
+                                <td>
+                                    {% if charge.charge_amount %}
+                                        <strong>${{ charge.charge_amount }}</strong>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if charge.minimum_charge > 0 %}
+                                        <small>${{ charge.minimum_charge }}</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if charge.percentage_rate > 0 %}
+                                        <small>{{ charge.percentage_rate }}%</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ charge.products_applicable }}</small></td>
+                                <td>
+                                    {% if charge.is_special %}
+                                        <span class="badge bg-warning">Special</span>
+                                    {% else %}
+                                        <span class="badge bg-info">Published</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3rd Party Rates -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-exchange-alt"></i> 3rd Party Rates</h5>
+            </div>
+            <div class="card-body">
+                {% if third_party_rates %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Service Type</th>
+                                <th>Rate Count</th>
+                                <th>Weight Range</th>
+                                <th>Last Updated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rate in third_party_rates %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if 'Domestic' in rate.service_type %}success{% else %}primary{% endif %}">
+                                        {{ rate.service_type }}
+                                    </span>
+                                </td>
+                                <td>{{ rate.rate_count }} rates</td>
+                                <td><small>{{ rate.weight_range }}</small></td>
+                                <td><small>{{ rate.effective_date }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-exchange-alt fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No 3rd Party rates loaded</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- AU Domestic Rate Cards -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-map-marker-alt"></i> AU Domestic Rate Cards</h5>
+                <a href="{{ url_for('dhl_express.upload_dhl_express_files') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-upload"></i> Upload Files
+                </a>
+            </div>
+            <div class="card-body">
+                {% if au_domestic.available and (au_domestic.zones_count > 0 or au_domestic.matrix_count > 0 or au_domestic.rates_count > 0) %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <h4 class="text-info">{{ au_domestic.zones_count }}</h4>
+                                <p class="card-text">Zones</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-map-marker-alt"></i> Coverage areas
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h4 class="text-warning">{{ au_domestic.matrix_count }}</h4>
+                                <p class="card-text">Matrix Entries</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-table"></i> Weight/zone mapping
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <h4 class="text-success">{{ au_domestic.rates_count }}</h4>
+                                <p class="card-text">Rate Entries</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-calculator"></i> Pricing data
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if au_domestic.latest_upload %}
+                <div class="mt-3">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Latest Upload:</strong> {{ au_domestic.latest_upload[1] }} by {{ au_domestic.latest_upload[2] }}
+                        {% if au_domestic.latest_upload[3] == 'completed' %}
+                            <span class="badge bg-success ms-2">Completed</span>
+                        {% else %}
+                            <span class="badge bg-warning ms-2">{{ au_domestic.latest_upload[3] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mt-3">
+                    <h6>AU Domestic Coverage:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Metropolitan zones</li>
+                                <li><i class="fas fa-check text-success"></i> Regional areas</li>
+                                <li><i class="fas fa-check text-success"></i> Remote locations</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Weight-based pricing</li>
+                                <li><i class="fas fa-check text-success"></i> Zone-specific rates</li>
+                                <li><i class="fas fa-check text-success"></i> Service level options</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-map-marker-alt fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No AU Domestic rate cards loaded</p>
+                    <a href="{{ url_for('dhl_express.upload_dhl_express_files') }}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Upload AU Domestic Rate Card
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Multiplier Ranges -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-calculator"></i> Multiplier Ranges (MELR001510911 Coverage)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Service Type</th>
+                                <th>Weight Range</th>
+                                <th>Zone 5 Rate</th>
+                                <th>Coverage</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for multiplier in multiplier_ranges %}
+                            <tr>
+                                <td>
+                                    <span class="badge bg-{% if multiplier.service_type == 'Export' %}primary{% else %}success{% endif %}">
+                                        {{ multiplier.service_type }}
+                                    </span>
+                                </td>
+                                <td><strong>{{ multiplier.weight_range }}</strong></td>
+                                <td><strong>${{ multiplier.zone_5_rate }}</strong></td>
+                                <td>
+                                    {% set weight_parts = multiplier.weight_range.split('-') %}
+                                    {% set weight_from = weight_parts[0] | float %}
+                                    {% set weight_to = weight_parts[1].replace(' kg', '') | float %}
+                                    {% if weight_from <= 85 and weight_to >= 85 and multiplier.service_type == 'Export' %}
+                                        <span class="badge bg-success">✓ Covers MELR001510911 (85kg)</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><small>{{ multiplier.created_timestamp }}</small></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone Information -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-map"></i> Export Zones (1-9)</h6>
+                    </div>
+                    <div class="card-body">
+                        <small class="text-muted">
+                            Zone-based pricing for exports from Australia to worldwide destinations.
+                            Different rates apply based on destination zone and weight brackets.
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-map-marked"></i> Import Zones (1-19)</h6>
+                    </div>
+                    <div class="card-body">
+                        <small class="text-muted">
+                            Zone-based pricing for imports to Australia from worldwide origins.
+                            More granular zone structure with 19 zones vs 9 for exports.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zone Mappings Table -->
+        <div class="card mt-4 mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-globe"></i> Zone Mappings</h5>
+            </div>
+            <div class="card-body">
+                {% if zone_mappings %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Zone Distribution:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Zone</th>
+                                        <th>Countries</th>
+                                        <th>Coverage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for zone in zone_mappings %}
+                                    <tr>
+                                        <td><span class="badge bg-primary">Zone {{ zone.zone }}</span></td>
+                                        <td>{{ zone.country_count }} countries</td>
+                                        <td>
+                                            <div class="progress" style="height: 8px;">
+                                                {% set percentage = (zone.country_count / country_info.total_countries * 100) | round(1) %}
+                                                <div class="progress-bar" style="width: {{ percentage }}%"></div>
+                                            </div>
+                                            <small>{{ percentage }}%</small>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Country Information:</h6>
+                        <div class="alert alert-info">
+                            <strong>{{ country_info.total_countries }}</strong> total countries mapped<br>
+                            <strong>{{ country_info.total_regions }}</strong> distinct regions covered
+                        </div>
+                        
+                        <h6>Sample Countries by Region:</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            {% for region in country_regions %}
+                            <div class="mb-2">
+                                <strong>{{ region.region }}:</strong><br>
+                                <small class="text-muted">{{ region.sample_countries }}...</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-globe fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">No zone mappings loaded</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Card Details Modal -->
+    <div class="modal fade" id="rateCardDetailsModal" tabindex="-1" aria-labelledby="rateCardDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rateCardDetailsModalLabel">Rate Card Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="rateCardLoadingSpinner" class="text-center py-5">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading rate card details...</p>
+                    </div>
+                    
+                    <div id="rateCardDetailsContent" class="d-none">
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 id="rateCardTitle">Rate Card</h4>
+                                <span class="badge bg-primary" id="rateCardServiceType">Service Type</span>
+                            </div>
+                            <div class="alert alert-info" id="rateCardInfo">
+                                <i class="fas fa-info-circle"></i> 
+                                <span id="rateCardDescription">Rate card description</span>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="rateCardDetailsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Weight Range (kg)</th>
+                                        <th>Zone 1</th>
+                                        <th>Zone 2</th>
+                                        <th>Zone 3</th>
+                                        <th>Zone 4</th>
+                                        <th>Zone 5</th>
+                                        <th>Zone 6</th>
+                                        <th>Zone 7</th>
+                                        <th>Zone 8</th>
+                                        <th>Zone 9</th>
+                                        <th>Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rateCardTableBody">
+                                    <!-- Table rows will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <hr>
+                        <h5><i class="fas fa-map-marker-alt"></i> Zone Mappings</h5>
+                        <div class="row row-cols-1 row-cols-md-3 g-4" id="zoneMappingsContainer">
+                            <!-- Zone mappings will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div id="rateCardError" class="alert alert-danger d-none">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span id="errorMessage">Error loading rate card details.</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="downloadRateCardBtn">Download as CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Function to view rate card details
+        function viewRateDetails(serviceType, rateSection) {
+            // Show the modal
+            const modal = new bootstrap.Modal(document.getElementById('rateCardDetailsModal'));
+            modal.show();
+            
+            // Reset state
+            document.getElementById('rateCardLoadingSpinner').classList.remove('d-none');
+            document.getElementById('rateCardDetailsContent').classList.add('d-none');
+            document.getElementById('rateCardError').classList.add('d-none');
+            
+            // Set the modal title
+            const sectionIcon = rateSection === 'Documents' ? '<i class="fas fa-file-alt"></i>' : '<i class="fas fa-box"></i>';
+            document.getElementById('rateCardTitle').innerHTML = `${sectionIcon} ${rateSection}`;
+            
+            // Set service type badge color
+            const serviceTypeBadge = document.getElementById('rateCardServiceType');
+            serviceTypeBadge.textContent = serviceType;
+            serviceTypeBadge.className = `badge ${serviceType === 'Export' ? 'bg-primary' : serviceType === 'Import' ? 'bg-success' : 'bg-warning'}`;
+            
+            // Fetch rate card details
+            fetch(`/dhl-express/rate-card-details?service_type=${encodeURIComponent(serviceType)}&rate_section=${encodeURIComponent(rateSection)}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Hide loading spinner, show content
+                    document.getElementById('rateCardLoadingSpinner').classList.add('d-none');
+                    document.getElementById('rateCardDetailsContent').classList.remove('d-none');
+                    
+                    // Set description
+                    document.getElementById('rateCardDescription').textContent = 
+                        `${data.service_type} ${data.rate_section} rate card with ${data.rate_entries.length} weight breaks.`;
+                    
+                    // Populate table
+                    const tableBody = document.getElementById('rateCardTableBody');
+                    tableBody.innerHTML = '';
+                    
+                    data.rate_entries.forEach(entry => {
+                        const row = document.createElement('tr');
+                        
+                        // Weight range column
+                        const weightCell = document.createElement('td');
+                        weightCell.innerHTML = `<strong>${entry.weight_from} - ${entry.weight_to} kg</strong>`;
+                        row.appendChild(weightCell);
+                        
+                        // Zone rate columns
+                        for (let i = 1; i <= 9; i++) {
+                            const zoneCell = document.createElement('td');
+                            const zoneRate = entry[`zone_${i}`];
+                            
+                            if (zoneRate !== null) {
+                                // Format with 2 decimal places and currency symbol
+                                zoneCell.textContent = `$${parseFloat(zoneRate).toFixed(2)}`;
+                                
+                                // Add color coding based on rate value
+                                if (entry.is_multiplier) {
+                                    zoneCell.classList.add('text-success');
+                                }
+                            } else {
+                                zoneCell.textContent = '-';
+                                zoneCell.classList.add('text-muted');
+                            }
+                            
+                            row.appendChild(zoneCell);
+                        }
+                        
+                        // Type column (Rate or Multiplier)
+                        const typeCell = document.createElement('td');
+                        typeCell.innerHTML = entry.is_multiplier ? 
+                            '<span class="badge bg-success">Multiplier</span>' : 
+                            '<span class="badge bg-info">Rate</span>';
+                        row.appendChild(typeCell);
+                        
+                        tableBody.appendChild(row);
+                    });
+                    
+                    // Populate zone mappings
+                    const zoneMappingsContainer = document.getElementById('zoneMappingsContainer');
+                    zoneMappingsContainer.innerHTML = '';
+                    
+                    try {
+                        // Handle case where zones_info might be an error message
+                        if (data.zones_info && typeof data.zones_info === 'object' && !Array.isArray(data.zones_info)) {
+                            // Check if it contains an error message
+                            if (data.zones_info.error) {
+                                const infoCard = document.createElement('div');
+                                infoCard.className = 'col-12';
+                                infoCard.innerHTML = `
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <strong>Note:</strong> ${data.zones_info.error}
+                                    </div>
+                                `;
+                                zoneMappingsContainer.appendChild(infoCard);
+                            } else {
+                                // Get unique zones if it's a proper zone mapping object
+                                const zones = Object.keys(data.zones_info).sort();
+                                
+                                if (zones.length === 0) {
+                                    const infoCard = document.createElement('div');
+                                    infoCard.className = 'col-12';
+                                    infoCard.innerHTML = `
+                                        <div class="alert alert-info">
+                                            <i class="fas fa-info-circle"></i> No zone mappings available.
+                                        </div>
+                                    `;
+                                    zoneMappingsContainer.appendChild(infoCard);
+                                } else {
+                                    zones.forEach(zone => {
+                                        const zoneNumber = zone.replace('zone_', '');
+                                        const mappings = data.zones_info[zone];
+                                        
+                                        if (Array.isArray(mappings) && mappings.length > 0) {
+                                            const card = document.createElement('div');
+                                            card.className = 'col';
+                                            
+                                            // Create mapping items safely
+                                            let mappingItems = '';
+                                            try {
+                                                const displayMappings = mappings.slice(0, 5);
+                                                for (let i = 0; i < displayMappings.length; i++) {
+                                                    const mapping = displayMappings[i];
+                                                    mappingItems += `<li><code>${mapping.origin || 'N/A'}</code> → <code>${mapping.destination || 'N/A'}</code></li>`;
+                                                }
+                                                if (mappings.length > 5) {
+                                                    mappingItems += `<li class="text-muted">+ ${mappings.length - 5} more...</li>`;
+                                                }
+                                            } catch (e) {
+                                                mappingItems = `<li class="text-danger">Error formatting mappings</li>`;
+                                            }
+                                            
+                                            card.innerHTML = `
+                                                <div class="card h-100">
+                                                    <div class="card-header bg-light">
+                                                        <h6 class="mb-0">Zone ${zoneNumber}</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <p class="card-text small">
+                                                            <strong>${mappings.length}</strong> country pairs in this zone
+                                                        </p>
+                                                        <ul class="list-unstyled small">
+                                                            ${mappingItems}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            `;
+                                            
+                                            zoneMappingsContainer.appendChild(card);
+                                        }
+                                    });
+                                }
+                            }
+                        } else {
+                            const infoCard = document.createElement('div');
+                            infoCard.className = 'col-12';
+                            infoCard.innerHTML = `
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Zone mapping information not available.
+                                </div>
+                            `;
+                            zoneMappingsContainer.appendChild(infoCard);
+                        }
+                    } catch (error) {
+                        console.error("Error processing zone mappings:", error);
+                        const errorCard = document.createElement('div');
+                        errorCard.className = 'col-12';
+                        errorCard.innerHTML = `
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Error processing zone mappings. See console for details.
+                            </div>
+                        `;
+                        zoneMappingsContainer.appendChild(errorCard);
+                    }
+                    
+                    // Setup download button
+                    document.getElementById('downloadRateCardBtn').onclick = () => {
+                        downloadRateCardCSV(data);
+                    };
+                })
+                .catch(error => {
+                    // Show error message
+                    document.getElementById('rateCardLoadingSpinner').classList.add('d-none');
+                    document.getElementById('rateCardError').classList.remove('d-none');
+                    document.getElementById('errorMessage').textContent = `Error loading rate card details: ${error.message}`;
+                    console.error('Error:', error);
+                    
+                    // Add reload button
+                    const errorDiv = document.getElementById('rateCardError');
+                    if (!document.getElementById('reloadButton')) {
+                        const reloadBtn = document.createElement('button');
+                        reloadBtn.id = 'reloadButton';
+                        reloadBtn.className = 'btn btn-warning mt-3';
+                        reloadBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Try Again';
+                        reloadBtn.onclick = () => viewRateDetails(serviceType, rateSection);
+                        errorDiv.appendChild(reloadBtn);
+                    }
+                });
+        }
+        
+        // Function to download rate card as CSV
+        function downloadRateCardCSV(data) {
+            try {
+                if (!data || !data.rate_entries || data.rate_entries.length === 0) {
+                    alert('No rate card data available to download.');
+                    return;
+                }
+                
+                // Create CSV header
+                let csvContent = 'Weight From (kg),Weight To (kg),Zone 1,Zone 2,Zone 3,Zone 4,Zone 5,Zone 6,Zone 7,Zone 8,Zone 9,Is Multiplier\n';
+                
+                // Add data rows
+                data.rate_entries.forEach(entry => {
+                    // Ensure values are properly formatted for CSV (avoid nulls, handle commas)
+                    const formatCsvValue = (value) => {
+                        if (value === null || value === undefined) return '';
+                        const strVal = String(value);
+                        // If value contains commas or quotes, wrap in quotes
+                        return strVal.includes(',') || strVal.includes('"') 
+                            ? `"${strVal.replace(/"/g, '""')}"` 
+                            : strVal;
+                    };
+                    
+                    const rowData = [
+                        formatCsvValue(entry.weight_from),
+                        formatCsvValue(entry.weight_to),
+                        formatCsvValue(entry.zone_1),
+                        formatCsvValue(entry.zone_2),
+                        formatCsvValue(entry.zone_3),
+                        formatCsvValue(entry.zone_4),
+                        formatCsvValue(entry.zone_5),
+                        formatCsvValue(entry.zone_6),
+                        formatCsvValue(entry.zone_7),
+                        formatCsvValue(entry.zone_8),
+                        formatCsvValue(entry.zone_9),
+                        entry.is_multiplier ? 'Yes' : 'No'
+                    ];
+                    
+                    csvContent += rowData.join(',') + '\n';
+                });
+                
+                // Create blob and trigger download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `${data.service_type}_${data.rate_section}_rates.csv`);
+                document.body.appendChild(link);
+                
+                // Download the CSV file
+                link.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            } catch (error) {
+                console.error('Error generating CSV:', error);
+                alert('Failed to generate CSV file. See console for details.');
+            }
+        }
+    </script>
+</div>
+{% endblock %}

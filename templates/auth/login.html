@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Sign In - DHL Audit System{% endblock %}
+
+{% block content %}
+<style>
+    .auth-container {
+        max-width: 450px;
+        margin: 3rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: #333;
+    }
+    .auth-header i {
+        color: #667eea;
+        margin-bottom: 1rem;
+    }
+    .login-form {
+        margin-bottom: 2rem;
+    }
+    .corporate-notice {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    .security-features {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+    .security-feature {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    .security-feature:last-child {
+        margin-bottom: 0;
+    }
+    .security-feature i {
+        color: #28a745;
+        margin-right: 0.5rem;
+        width: 16px;
+    }
+    .forgot-password {
+        text-align: center;
+        margin-top: 1rem;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="auth-container">
+        <div class="auth-header">
+            <i class="fas fa-sign-in-alt fa-3x"></i>
+            <h2>Welcome Back</h2>
+            <p class="text-muted">Sign in to access the DHL Audit System</p>
+        </div>
+
+        <div class="corporate-notice">
+            <i class="fas fa-shield-alt me-2"></i>
+            <strong>Secure Access:</strong> Corporate employees only
+        </div>
+
+        <form method="POST" class="login-form" id="loginForm">
+            <div class="mb-3">
+                <label for="email" class="form-label">
+                    <i class="fas fa-envelope me-2"></i>Corporate Email
+                </label>
+                <input type="email" 
+                       class="form-control" 
+                       id="email" 
+                       name="email" 
+                       placeholder="your.name@company.com"
+                       required
+                       autocomplete="email">
+                <div class="form-text">
+                    <i class="fas fa-info-circle text-primary"></i>
+                    Use your corporate email address
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">
+                    <i class="fas fa-lock me-2"></i>Password
+                </label>
+                <div class="input-group">
+                    <input type="password" 
+                           class="form-control" 
+                           id="password" 
+                           name="password" 
+                           placeholder="Enter your password"
+                           required
+                           autocomplete="current-password">
+                    <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me">
+                <label class="form-check-label" for="rememberMe">
+                    Keep me signed in for 24 hours
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" id="loginBtn">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            </button>
+        </form>
+
+        <div class="forgot-password">
+            <a href="#" class="text-muted" onclick="showContactInfo()">
+                <i class="fas fa-question-circle me-1"></i>
+                Forgot your password or need help?
+            </a>
+        </div>
+
+        <hr>
+
+        <div class="text-center">
+            <p class="text-muted">Don't have an account yet?</p>
+            <a href="{{ url_for('auth.signup') }}" class="btn btn-outline-primary">
+                <i class="fas fa-user-plus me-2"></i>Create Account
+            </a>
+        </div>
+
+        <div class="security-features">
+            <h6><i class="fas fa-shield-alt me-2"></i>Security Features</h6>
+            <div class="security-feature">
+                <i class="fas fa-check"></i>
+                <span>Encrypted password storage</span>
+            </div>
+            <div class="security-feature">
+                <i class="fas fa-check"></i>
+                <span>Session timeout protection</span>
+            </div>
+            <div class="security-feature">
+                <i class="fas fa-check"></i>
+                <span>Failed login attempt monitoring</span>
+            </div>
+            <div class="security-feature">
+                <i class="fas fa-check"></i>
+                <span>Corporate domain restriction</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Info Modal -->
+<div class="modal fade" id="contactModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-headset me-2"></i>Need Help?
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>If you're having trouble accessing your account:</p>
+                <ul>
+                    <li><strong>Forgot Password:</strong> Contact your IT administrator</li>
+                    <li><strong>Account Locked:</strong> Wait 30 minutes or contact IT support</li>
+                    <li><strong>Email Issues:</strong> Ensure you're using your @andrew.com email</li>
+                    <li><strong>Technical Support:</strong> Contact the IT Help Desk</li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>IT Help Desk:</strong> ext. 4444 or helpdesk@andrew.com
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const emailInput = document.getElementById('email');
+    const loginBtn = document.getElementById('loginBtn');
+    const loginForm = document.getElementById('loginForm');
+
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+    });
+
+    // Form validation
+    function validateForm() {
+        const emailValid = emailInput.value.match(/^[a-zA-Z0-9._%+-]+@andrew\.com$/);
+        const passwordValid = passwordInput.value.length > 0;
+        
+        loginBtn.disabled = !(emailValid && passwordValid);
+        
+        // Update button text based on validation
+        if (emailValid && passwordValid) {
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Sign In';
+        } else {
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Please complete all fields';
+        }
+    }
+
+    emailInput.addEventListener('input', validateForm);
+    passwordInput.addEventListener('input', validateForm);
+
+    // Add loading state on form submit
+    loginForm.addEventListener('submit', function() {
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Signing In...';
+        loginBtn.disabled = true;
+    });
+
+    // Focus on email field
+    emailInput.focus();
+});
+
+function showContactInfo() {
+    const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+{% block title %}Invoice Validation Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Invoice Validation Dashboard</h1>
+    <div>
+        <button id="revalidateBtn" class="btn btn-outline-primary me-2">
+            <i class="fas fa-sync-alt me-2"></i>Refresh Validation
+        </button>
+        <a href="{{ url_for('invoice.invoices') }}" class="btn btn-secondary">
+            <i class="fas fa-list me-2"></i>Back to Invoices
+        </a>
+    </div>
+</div>
+
+<!-- Validation Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h5 class="card-title text-success">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                </h5>
+                <h3 class="text-success">{{ summary.valid_invoices }}</h3>
+                <p class="card-text">Valid Invoices</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h5 class="card-title text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                </h5>
+                <h3 class="text-danger">{{ summary.invalid_invoices }}</h3>
+                <p class="card-text">Invalid Invoices</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-info">
+            <div class="card-body text-center">
+                <h5 class="card-title text-info">
+                    <i class="fas fa-percentage fa-2x mb-2"></i>
+                </h5>
+                <h3 class="text-info">{{ "%.1f"|format(summary.validation_rate) }}%</h3>
+                <p class="card-text">Validation Rate</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h5 class="card-title text-primary">
+                    <i class="fas fa-star fa-2x mb-2"></i>
+                </h5>
+                <h3 class="text-primary">{{ "%.1f"|format(summary.average_score) }}</h3>
+                <p class="card-text">Average Score</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Issues Summary -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-bug text-danger me-2"></i>Total Issues
+                </h5>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-times-circle text-danger me-2"></i>
+                            <span><strong>{{ summary.total_errors }}</strong> Errors</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                            <span><strong>{{ summary.total_warnings }}</strong> Warnings</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-chart-line text-info me-2"></i>Validation Progress
+                </h5>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success" 
+                         style="width: {{ summary.validation_rate }}%"
+                         aria-valuenow="{{ summary.validation_rate }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        {{ "%.1f"|format(summary.validation_rate) }}%
+                    </div>
+                </div>
+                <small class="text-muted">{{ summary.valid_invoices }} of {{ summary.total_invoices }} invoices pass validation</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Validation Results Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list-check me-2"></i>Invoice Validation Results
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if validation_results %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="validationTable">
+                <thead>
+                    <tr>
+                        <th class="sortable" data-column="0">
+                            Invoice # <i class="fas fa-sort text-muted"></i>
+                        </th>
+                        <th class="sortable" data-column="1">
+                            Status <i class="fas fa-sort text-muted"></i>
+                        </th>
+                        <th class="sortable" data-column="2" data-type="number">
+                            Score <i class="fas fa-sort text-muted"></i>
+                        </th>
+                        <th class="sortable" data-column="3" data-type="number">
+                            Errors <i class="fas fa-sort text-muted"></i>
+                        </th>
+                        <th class="sortable" data-column="4" data-type="number">
+                            Warnings <i class="fas fa-sort text-muted"></i>
+                        </th>
+                        <th>Top Issues</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in validation_results %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('validation.validation_detail', invoice_number=result.invoice_number) }}" 
+                               class="text-decoration-none fw-bold">
+                                {{ result.invoice_number }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if result.is_valid %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Valid
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="fas fa-times me-1"></i>Invalid
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 60px; height: 8px;">
+                                    <div class="progress-bar 
+                                        {% if result.score >= 80 %}bg-success
+                                        {% elif result.score >= 60 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                         style="width: {{ result.score }}%">
+                                    </div>
+                                </div>
+                                <span class="badge 
+                                    {% if result.score >= 80 %}bg-success
+                                    {% elif result.score >= 60 %}bg-warning
+                                    {% else %}bg-danger{% endif %}">
+                                    {{ "%.0f"|format(result.score) }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if result.error_count > 0 %}
+                                <span class="badge bg-danger">{{ result.error_count }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if result.warning_count > 0 %}
+                                <span class="badge bg-warning">{{ result.warning_count }}</span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set top_issues = result.issues[:2] %}
+                            {% if top_issues %}
+                                <div class="small">
+                                    {% for issue in top_issues %}
+                                        <div class="mb-1">
+                                            <i class="fas fa-dot-circle 
+                                                {% if issue.severity.value == 'error' %}text-danger
+                                                {% elif issue.severity.value == 'warning' %}text-warning
+                                                {% else %}text-info{% endif %} me-1"></i>
+                                            <span class="text-muted">{{ issue.field }}:</span> 
+                                            {{ issue.message[:50] }}{% if issue.message|length > 50 %}...{% endif %}
+                                        </div>
+                                    {% endfor %}
+                                    {% if result.issues|length > 2 %}
+                                        <small class="text-muted">+{{ result.issues|length - 2 }} more issues</small>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-success">
+                                    <i class="fas fa-check me-1"></i>No issues found
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('validation.validation_detail', invoice_number=result.invoice_number) }}" 
+                                   class="btn btn-outline-primary btn-sm" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('invoice.invoice_detail_by_number', invoice_number=result.invoice_number) }}" 
+                                   class="btn btn-outline-secondary btn-sm" title="View Invoice">
+                                    <i class="fas fa-file-invoice"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted">No Invoices Found</h4>
+            <p class="text-muted">Upload some invoices to see validation results.</p>
+            <a href="{{ url_for('core.upload_file') }}" class="btn btn-primary">
+                <i class="fas fa-upload me-2"></i>Upload EDI File
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: #f8f9fa;
+}
+
+.sortable i {
+    margin-left: 5px;
+    font-size: 0.8em;
+}
+
+.sort-asc i:before {
+    content: "\f0de"; /* fa-sort-up */
+}
+
+.sort-desc i:before {
+    content: "\f0dd"; /* fa-sort-down */
+}
+
+.progress {
+    border-radius: 10px;
+}
+
+.card-body .progress-bar {
+    border-radius: 10px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add table sorting functionality
+    const table = document.getElementById('validationTable');
+    if (table) {
+        const headers = table.querySelectorAll('th.sortable');
+        
+        headers.forEach(header => {
+            header.addEventListener('click', function() {
+                const column = this.dataset.column;
+                const dataType = this.dataset.type || 'text';
+                
+                // Remove sort classes from all headers
+                headers.forEach(h => {
+                    h.classList.remove('sort-asc', 'sort-desc');
+                    const icon = h.querySelector('i');
+                    icon.className = 'fas fa-sort text-muted';
+                });
+                
+                // Determine sort direction
+                const currentSort = this.dataset.currentSort || 'none';
+                const newSort = currentSort === 'asc' ? 'desc' : 'asc';
+                this.dataset.currentSort = newSort;
+                
+                // Update header appearance
+                this.classList.add('sort-' + newSort);
+                const icon = this.querySelector('i');
+                icon.className = newSort === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down';
+                
+                // Sort the table
+                sortTable(column, newSort, dataType);
+            });
+        });
+    }
+    
+    function sortTable(column, direction, dataType) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        
+        rows.sort((a, b) => {
+            let aVal, bVal;
+            const colIndex = parseInt(column);
+            
+            aVal = a.cells[colIndex].textContent.trim();
+            bVal = b.cells[colIndex].textContent.trim();
+            
+            if (dataType === 'number') {
+                aVal = parseFloat(aVal.replace(/[^0-9.-]/g, '')) || 0;
+                bVal = parseFloat(bVal.replace(/[^0-9.-]/g, '')) || 0;
+            } else {
+                aVal = aVal.toLowerCase();
+                bVal = bVal.toLowerCase();
+            }
+            
+            if (direction === 'asc') {
+                return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+            } else {
+                return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+            }
+        });
+        
+        tbody.innerHTML = '';
+        rows.forEach(row => tbody.appendChild(row));
+    }
+    
+    // Revalidate button functionality
+    document.getElementById('revalidateBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        
+        // Show loading state
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Validating...';
+        btn.disabled = true;
+        
+        fetch('/api/validation/revalidate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message and reload page
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-success alert-dismissible fade show';
+                alert.innerHTML = `
+                    <strong>Validation Complete!</strong> 
+                    ${data.valid_invoices} of ${data.total_invoices} invoices passed validation.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('h1').parentNode);
+                
+                // Reload page after 2 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                throw new Error('Validation failed');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show';
+            alert.innerHTML = `
+                <strong>Error!</strong> Failed to revalidate invoices. Please try again.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alert, document.querySelector('h1').parentNode);
+        })
+        .finally(() => {
+            // Restore button state
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}

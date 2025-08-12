@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Debug Invoice{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Debug Invoice Detail</h1>
+    
+    <div class="alert alert-info">
+        <h4>Invoice Information</h4>
+        <p>Invoice Number: {{ invoice['invoice_number'] }}</p>
+        <p>ID: {{ invoice['id'] }}</p>
+        <p>Total Charges: ${{ "%.2f"|format(invoice['total_charges']|float or 0) }}</p>
+    </div>
+    
+    <h2>Charges</h2>
+    <ul>
+        {% for charge in charges %}
+        <li>{{ charge['description'] or 'Unknown' }}: ${{ "%.2f"|format(charge['amount'] or 0) }}</li>
+        {% endfor %}
+    </ul>
+    
+    <p>
+        <a href="{{ url_for('invoice.invoices') }}" class="btn btn-secondary">Back to Invoices</a>
+    </p>
+</div>
+{% endblock %}

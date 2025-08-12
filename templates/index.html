@@ -1,0 +1,528 @@
+dhl-express/batch-audit/results{% extends "base.html" %}
+{% block title %}DHL Invoice Audit System{% endblock %}
+
+{% block head %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 4rem 0;
+        margin: 0 -1.5rem 2rem -1.5rem;
+        border-radius: 0 0 15px 15px;
+    }
+    .feature-card {
+        border: none;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        height: 100%;
+    }
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    }
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+    }
+    .process-step {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 1.5rem;
+        text-align: center;
+        height: 100%;
+        border-left: 4px solid #667eea;
+    }
+    .process-number {
+        width: 40px;
+        height: 40px;
+        background: #667eea;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-weight: bold;
+    }
+    .nav-button {
+        border-radius: 25px;
+        padding: 0.75rem 2rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s;
+        margin: 0.25rem;
+    }
+    .nav-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    .company-logo-small {
+        height: 40px;
+        width: auto;
+        margin-right: 0.75rem;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section text-center">
+    <div class="container-fluid">
+        <h1 class="display-4 fw-bold mb-3">
+            DHL Invoice Audit System
+        </h1>
+        <p class="lead mb-4">Next-generation AI-powered freight invoice auditing with comprehensive multi-modal transportation support</p>
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <p class="fs-5">Advanced automation combining EDI processing, PDF extraction, LLM intelligence, and rate card matching across air freight, ocean transportation, and express delivery modes.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Features Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-star text-warning me-2"></i>Key Features
+        </h2>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-primary text-white">
+                    <i class="fas fa-file-alt fa-lg"></i>
+                </div>
+                <h5 class="card-title">EDI File Processing</h5>
+                <p class="card-text">Parse X12 EDI format files (210, 214 transaction sets) with automatic data extraction and validation.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-danger text-white">
+                    <i class="fas fa-file-pdf fa-lg"></i>
+                </div>
+                <h5 class="card-title">AI-Powered PDF Processing</h5>
+                <p class="card-text">Advanced PDF invoice extraction with machine learning charge classification and intelligent data parsing.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-success text-white">
+                    <i class="fas fa-brain fa-lg"></i>
+                </div>
+                <h5 class="card-title">LLM Intelligence</h5>
+                <p class="card-text">Large Language Model powered invoice processing with natural language understanding and context-aware extraction.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-warning text-white">
+                    <i class="fas fa-search-dollar fa-lg"></i>
+                </div>
+                <h5 class="card-title">Intelligent Auditing</h5>
+                <p class="card-text">Advanced audit analysis with fuzzy matching, variance calculations, and automated pass/fail determination.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-info text-white">
+                    <i class="fas fa-chart-line fa-lg"></i>
+                </div>
+                <h5 class="card-title">Multi-Modal Support</h5>
+                <p class="card-text">Support for Air freight, Ocean FCL/LCL, and DHL Express with specialized pricing models and rate card matching.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-dark text-white">
+                    <i class="fas fa-robot fa-lg"></i>
+                </div>
+                <h5 class="card-title">Automated Classification</h5>
+                <p class="card-text">Machine learning powered charge classification with unknown charge detection and manual review workflows.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-4">
+        <div class="card feature-card">
+            <div class="card-body text-center">
+                <div class="feature-icon bg-secondary text-white">
+                    <i class="fas fa-chart-bar fa-lg"></i>
+                </div>
+                <h5 class="card-title">Advanced Reports & Analytics</h5>
+                <p class="card-text">Comprehensive shipment reporting, exception analysis, and Excel exports with CW1 shipment grouping and variance analytics.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-cogs text-primary me-2"></i>How It Works
+        </h2>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">1</div>
+            <h6 class="fw-bold">Upload Files</h6>
+            <p class="small">Upload EDI files or PDF invoices for processing</p>
+        </div>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">2</div>
+            <h6 class="fw-bold">AI Processing</h6>
+            <p class="small">LLM and ML algorithms extract and classify invoice data</p>
+        </div>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">3</div>
+            <h6 class="fw-bold">Rate Matching</h6>
+            <p class="small">Intelligent matching with rate cards using fuzzy logic</p>
+        </div>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">4</div>
+            <h6 class="fw-bold">Audit Analysis</h6>
+            <p class="small">Automated variance analysis and validation</p>
+        </div>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">5</div>
+            <h6 class="fw-bold">Review & Export</h6>
+            <p class="small">Manual review workflows and detailed reporting</p>
+        </div>
+    </div>
+    <div class="col-md-2 mb-4">
+        <div class="process-step">
+            <div class="process-number">6</div>
+            <h6 class="fw-bold">Generate Reports</h6>
+            <p class="small">Comprehensive audit reports with actionable insights</p>
+        </div>
+    </div>
+</div>
+
+<!-- Main Functions & Navigation -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-rocket text-success me-2"></i>Core Processing Modules
+        </h2>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-tachometer-alt text-primary me-2"></i>EDI Invoice Dashboard</h5>
+                <p class="card-text mb-3">Traditional EDI file processing with invoice summaries and audit statistics</p>
+                <a href="{{ url_for('core.edi_invoice_dashboard') }}" class="btn btn-primary nav-button">View Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-file-pdf text-danger me-2"></i>PDF Processing Dashboard</h5>
+                <p class="card-text mb-3">AI-powered PDF invoice extraction with ML charge classification</p>
+                <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" class="btn btn-danger nav-button">PDF Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-brain text-success me-2"></i>LLM Enhanced Processing</h5>
+                <p class="card-text mb-3">Large Language Model powered invoice processing with natural language understanding</p>
+                <a href="/llm-pdf" class="btn btn-success nav-button">LLM Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-search-dollar text-warning me-2"></i>Enhanced Audit Engine</h5>
+                <p class="card-text mb-3">Advanced audit analysis with fuzzy matching and detailed variance reporting</p>
+                <a href="{{ url_for('enhanced_audit.enhanced_audit_dashboard') }}" class="btn btn-warning nav-button">Start Audit</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Upload & Management -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-upload text-info me-2"></i>Data Upload & Management
+        </h2>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-code me-2"></i>EDI File Upload</h6>
+                <p class="small mb-3">Upload X12 EDI files for traditional processing</p>
+                <a href="{{ url_for('core.upload_file') }}" class="btn btn-outline-primary nav-button">Upload EDI</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-pdf me-2"></i>PDF Invoice Upload</h6>
+                <p class="small mb-3">Upload PDF invoices for AI-powered processing</p>
+                <a href="{{ url_for('advanced_pdf.upload_pdf') }}" class="btn btn-outline-danger nav-button">Upload PDFs</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-calendar-check me-2"></i>YTD Data Upload</h6>
+                <p class="small mb-3">Upload year-to-date invoice batches for bulk processing</p>
+                <a href="{{ url_for('dhl_ytd.upload_ytd_file') }}" class="btn btn-outline-success nav-button">Upload YTD</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rate Management -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-dollar-sign text-secondary me-2"></i>Rate Card Management
+        </h2>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-plane text-info me-2"></i>Air Freight Rates</h5>
+                <p class="card-text mb-3">Manage air freight rate cards with origin-destination pricing</p>
+                <a href="{{ url_for('rate_card.air_rates') }}" class="btn btn-info nav-button">Air Rates</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h5><i class="fas fa-ship text-primary me-2"></i>Ocean Freight Rates</h5>
+                <p class="card-text mb-3">Manage ocean FCL/LCL rate cards and container pricing</p>
+                <a href="{{ url_for('ocean_rate.dashboard') }}" class="btn btn-primary nav-button">Ocean Rates</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- YTD Management Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-calendar-check text-primary me-2"></i>Year-to-Date DGF Invoices Batch Management
+        </h2>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-upload me-2"></i>Data Management</h6>
+                <p class="small mb-3">Upload and manage YTD invoice data files</p>
+                <a href="{{ url_for('dhl_ytd.upload_ytd_file') }}" class="btn btn-outline-primary nav-button">Upload YTD</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-balance-scale me-2"></i>Audit Functions</h6>
+                <p class="small mb-3">Single invoice and batch audit processing</p>
+                <a href="{{ url_for('ytd_batch_audit.ytd_batch_audit_dashboard') }}" class="btn btn-outline-primary nav-button">Batch Audit</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-pie me-2"></i>Analytics</h6>
+                <p class="small mb-3">YTD statistics and performance insights</p>
+                <a href="{{ url_for('dhl_ytd.ytd_statistics') }}" class="btn btn-outline-primary nav-button">View Stats</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-bar me-2"></i>Advanced Reports</h6>
+                <p class="small mb-3">Comprehensive reporting and Excel exports</p>
+                <a href="{{ url_for('ytd_reports.reports_dashboard') }}" class="btn btn-outline-info nav-button">View Reports</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DHL Express Management Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-shipping-fast text-danger me-2"></i>DHL Express Invoice Management
+        </h2>
+        <p class="text-center text-muted mb-4">Zone-based pricing audit system for DHL Express shipments</p>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h6>
+                <p class="small mb-3">Overview of DHL Express invoices and audit results</p>
+                <a href="/dhl-express" class="btn btn-outline-danger nav-button">View Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-upload me-2"></i>Upload Files</h6>
+                <p class="small mb-3">Upload invoice CSV and rate card Excel files</p>
+                <a href="/dhl-express/upload" class="btn btn-outline-danger nav-button">Upload Files</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-invoice me-2"></i>Invoice Audit</h6>
+                <p class="small mb-3">Zone-based pricing validation and audit</p>
+                <a href="/dhl-express/invoices" class="btn btn-outline-danger nav-button">View Invoices</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-line me-2"></i>Audit Summary</h6>
+                <p class="small mb-3">Comprehensive audit results and analytics</p>
+                <a href="/dhl-express/audit-summary" class="btn btn-outline-danger nav-button">View Results</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-bar me-2"></i>Batch Results</h6>
+                <p class="small mb-3">Detailed batch audit processing results</p>
+                <a href="/dhl-express/batch-audit/results" class="btn btn-outline-danger nav-button">Batch Results</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-download me-2"></i>Export Data</h6>
+                <p class="small mb-3">Export detailed audit reports</p>
+                <a href="/dhl-express/batch-audit/export-detailed" class="btn btn-outline-danger nav-button">Export Report</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LLM Processing Management Section -->
+<div class="row mb-5">
+    <div class="col-12">
+        <h2 class="text-center mb-4">
+            <i class="fas fa-brain text-success me-2"></i>LLM Enhanced Processing
+        </h2>
+        <p class="text-center text-muted mb-4">Large Language Model powered invoice processing with natural language understanding</p>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-tachometer-alt me-2"></i>LLM Dashboard</h6>
+                <p class="small mb-3">Overview of LLM processing and AI analytics</p>
+                <a href="/llm-pdf" class="btn btn-outline-success nav-button">View Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-line me-2"></i>Processing Stats</h6>
+                <p class="small mb-3">LLM processing statistics and performance metrics</p>
+                <a href="/llm-pdf/stats" class="btn btn-outline-success nav-button">View Stats</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-chart-bar me-2"></i>Processing Results</h6>
+                <p class="small mb-3">Detailed LLM processing results and accuracy reports</p>
+                <a href="/llm-pdf/results" class="btn btn-outline-success nav-button">View Results</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-download me-2"></i>Export LLM Data</h6>
+                <p class="small mb-3">Export LLM processing data and analysis reports</p>
+                <a href="/llm-pdf/export" class="btn btn-outline-success nav-button">Export Data</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technology Stack -->
+<div class="row">
+    <div class="col-12">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h5 class="card-title">
+                    <i class="fas fa-layer-group me-2"></i>Technology Stack
+                </h5>
+                <div class="row mt-3">
+                    <div class="col-md-2">
+                        <i class="fab fa-python fa-2x text-primary mb-2"></i>
+                        <p class="small mb-0"><strong>Python 3.12</strong><br>Flask Framework</p>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="fas fa-brain fa-2x text-success mb-2"></i>
+                        <p class="small mb-0"><strong>LLM AI</strong><br>Ollama Integration</p>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="fas fa-robot fa-2x text-warning mb-2"></i>
+                        <p class="small mb-0"><strong>Machine Learning</strong><br>Charge Classification</p>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="fas fa-database fa-2x text-info mb-2"></i>
+                        <p class="small mb-0"><strong>SQLite</strong><br>SQLAlchemy ORM</p>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="fab fa-html5 fa-2x text-danger mb-2"></i>
+                        <p class="small mb-0"><strong>Bootstrap 5</strong><br>Responsive UI</p>
+                    </div>
+                    <div class="col-md-2">
+                        <i class="fas fa-chart-bar fa-2x text-secondary mb-2"></i>
+                        <p class="small mb-0"><strong>Pandas</strong><br>Data Analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

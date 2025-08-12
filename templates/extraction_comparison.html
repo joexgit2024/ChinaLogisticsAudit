@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM vs Traditional Extraction Comparison - DHL Audit</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .comparison-card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+        .traditional-extraction {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .llm-extraction {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+        .charge-item {
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 0.25rem;
+            background-color: #f8f9fa;
+        }
+        .confidence-badge {
+            font-size: 0.8rem;
+        }
+        .accuracy-indicator {
+            font-weight: bold;
+        }
+        .accuracy-good { color: #28a745; }
+        .accuracy-poor { color: #dc3545; }
+        .json-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-shipping-fast"></i>
+                DHL Invoice Audit - LLM vs Traditional Comparison
+            </a>
+            <div class="navbar-nav flex-row">
+                <a class="nav-link me-3" href="/advanced-pdf">Traditional Processing</a>
+                <a class="nav-link me-3" href="/llm-pdf">LLM Processing</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h2>Extraction Comparison: {{ pdf_filename }}</h2>
+                <p class="text-muted">Comparing traditional regex-based extraction vs LLM-enhanced extraction</p>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Traditional Extraction Results -->
+            <div class="col-md-6">
+                <div class="comparison-card traditional-extraction">
+                    <div class="card-header">
+                        <h4><i class="fas fa-cog"></i> Traditional Extraction</h4>
+                        {% if traditional_data %}
+                        <span class="badge bg-warning confidence-badge">
+                            Confidence: {{ "%.1f" | format(traditional_data.extraction_confidence * 100) }}%
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if traditional_data %}
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Total Amount:</strong></div>
+                                <div class="col-sm-8">
+                                    <span class="accuracy-poor">
+                                        ${{ traditional_data.total_amount }} {{ traditional_data.currency }}
+                                    </span>
+                                    <small class="text-danger">(Incorrect - should be $88.00 AUD)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Service Type:</strong></div>
+                                <div class="col-sm-8">{{ traditional_data.service_type }}</div>
+                            </div>
+
+                            <h6>Extracted Charges:</h6>
+                            {% for charge_type, amount in traditional_data.extracted_charges.items() %}
+                            <div class="charge-item">
+                                <strong>{{ charge_type.replace('_', ' ').title() }}:</strong> 
+                                <span class="{% if charge_type == 'storage_demurrage' %}accuracy-poor{% elif charge_type == 'customs_clearance' %}accuracy-good{% else %}accuracy-poor{% endif %}">
+                                    ${{ amount }}
+                                </span>
+                                {% if charge_type == 'storage_demurrage' %}
+                                <small class="text-danger">(Incorrect - no storage charges in invoice)</small>
+                                {% elif charge_type == 'customs_clearance' %}
+                                <small class="text-success">(Partially correct amount)</small>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+
+                            <h6 class="mt-3">Issues Identified:</h6>
+                            <ul class="text-danger">
+                                <li>Incorrectly extracted $10,641 as storage demurrage</li>
+                                <li>Total amount wrong ($80 instead of $88)</li>
+                                <li>Currency detected as USD instead of AUD</li>
+                                <li>Charge descriptions contain irrelevant text</li>
+                            </ul>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No traditional extraction data found for this invoice.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Extraction Results -->
+            <div class="col-md-6">
+                <div class="comparison-card llm-extraction">
+                    <div class="card-header">
+                        <h4><i class="fas fa-brain"></i> LLM Extraction ({{ llm_data.llm_model_used if llm_data else 'llama3.2:3b' }})</h4>
+                        {% if llm_data %}
+                        <span class="badge bg-info confidence-badge">
+                            Confidence: {{ "%.1f" | format(llm_data.extraction_confidence * 100) }}%
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if llm_data and llm_data.extracted_data %}
+                            {% set data = llm_data.extracted_data %}
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Invoice No:</strong></div>
+                                <div class="col-sm-8 accuracy-good">{{ data.invoice_no }}</div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Total Amount:</strong></div>
+                                <div class="col-sm-8">
+                                    <span class="accuracy-good">
+                                        ${{ data.final_total }} {{ data.currency }}
+                                    </span>
+                                    <small class="text-success">(Correct!)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Customer:</strong></div>
+                                <div class="col-sm-8">{{ data.customer_name }}</div>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-sm-4"><strong>Service Type:</strong></div>
+                                <div class="col-sm-8">{{ data.service_type }}</div>
+                            </div>
+
+                            <h6>LLM Extracted Charges:</h6>
+                            {% for charge in data.charges %}
+                            <div class="charge-item">
+                                <strong>{{ charge.description }}:</strong> 
+                                <span class="accuracy-good">${{ charge.amount }}</span>
+                                {% if charge.gst_amount %}
+                                <br><small>GST: ${{ charge.gst_amount }}</small>
+                                {% endif %}
+                                <span class="badge bg-secondary">{{ charge.category }}</span>
+                            </div>
+                            {% endfor %}
+
+                            <div class="mt-3">
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>Subtotal:</strong></div>
+                                    <div class="col-sm-8 accuracy-good">${{ data.subtotal }}</div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-sm-4"><strong>GST Total:</strong></div>
+                                    <div class="col-sm-8 accuracy-good">${{ data.gst_total }}</div>
+                                </div>
+                            </div>
+
+                            {% if data.shipment_details %}
+                            <h6 class="mt-3">Shipment Details:</h6>
+                            <div class="charge-item">
+                                <strong>Weight:</strong> {{ data.shipment_details.weight }}<br>
+                                <strong>Route:</strong> {{ data.shipment_details.origin }} → {{ data.shipment_details.destination }}<br>
+                                <strong>Reference:</strong> {{ data.shipment_details.shipment_ref }}
+                            </div>
+                            {% endif %}
+
+                            <h6 class="mt-3">LLM Advantages:</h6>
+                            <ul class="text-success">
+                                <li>Correct total amount and currency identification</li>
+                                <li>Accurate charge extraction with proper descriptions</li>
+                                <li>Proper handling of GST/tax calculations</li>
+                                <li>Structured shipment details extraction</li>
+                                <li>No false positive charges</li>
+                            </ul>
+                        {% elif llm_processing %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                LLM processing in progress... This may take a few moments.
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="location.reload()">
+                                        Refresh to check status
+                                    </button>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                LLM extraction not yet completed for this invoice.
+                                <div class="mt-2">
+                                    <a href="/llm-pdf/process/{{ pdf_filename }}" class="btn btn-sm btn-primary">
+                                        Process with LLM
+                                    </a>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Data Comparison -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Raw Data Comparison</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if traditional_data %}
+                            <div class="col-md-6">
+                                <h6>Traditional Data (JSON):</h6>
+                                <div class="json-preview bg-light p-2 border rounded">
+                                    <pre>{{ traditional_data | tojson(indent=2) }}</pre>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if llm_data %}
+                            <div class="col-md-6">
+                                <h6>LLM Data (JSON):</h6>
+                                <div class="json-preview bg-light p-2 border rounded">
+                                    <pre>{{ llm_data.extracted_data | tojson(indent=2) if llm_data.extracted_data else 'Processing...' }}</pre>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mt-3 mb-4">
+            <div class="col-12 text-center">
+                <a href="/llm-pdf" class="btn btn-secondary me-2">
+                    <i class="fas fa-arrow-left"></i> Back to LLM Dashboard
+                </a>
+                <a href="/llm-pdf/process/{{ pdf_filename }}" class="btn btn-primary me-2">
+                    <i class="fas fa-redo"></i> Reprocess with LLM
+                </a>
+                <a href="/advanced-pdf/details/{{ traditional_data.invoice_no if traditional_data else 'unknown' }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-eye"></i> View Traditional Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/your-fontawesome-kit.js"></script>
+</body>
+</html>

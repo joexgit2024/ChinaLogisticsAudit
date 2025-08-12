@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Extraction Details - {{ invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-file-alt text-primary"></i>
+                LLM Extraction Details
+                <span class="badge bg-primary">{{ invoice_no }}</span>
+            </h1>
+            
+            <!-- Back to Dashboard -->
+            <div class="mb-3">
+                <a href="{{ url_for('llm_pdf.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            
+            {% if extraction_details %}
+            <div class="row">
+                <!-- Extraction Summary -->
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> Extraction Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Confidence:</strong></td>
+                                    <td>
+                                        {% if extraction_details.confidence %}
+                                            {% set confidence_pct = (extraction_details.confidence * 100)|round(1) %}
+                                            {% set badge_class = 'success' if confidence_pct > 80 else 'warning' if confidence_pct > 60 else 'danger' %}
+                                            <span class="badge bg-{{ badge_class }}">{{ confidence_pct }}%</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Processing Model:</strong></td>
+                                    <td>DeepSeek-R1</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Text Length:</strong></td>
+                                    <td>{{ (extraction_details.raw_text|length) if extraction_details.raw_text else 0 }} chars</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Timing -->
+                    {% if extraction_details.extracted_data and extraction_details.extracted_data.timing %}
+                    {% set timing = extraction_details.extracted_data.timing %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-stopwatch"></i> Performance Timing</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                {% if timing.pdf_extraction %}
+                                <tr>
+                                    <td><strong>PDF Extraction:</strong></td>
+                                    <td>{{ "%.3f"|format(timing.pdf_extraction) }}s</td>
+                                </tr>
+                                {% endif %}
+                                {% if timing.llm_processing %}
+                                <tr>
+                                    <td><strong>LLM Processing:</strong></td>
+                                    <td class="{% if timing.llm_processing > 60 %}text-danger{% elif timing.llm_processing > 30 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ "%.3f"|format(timing.llm_processing) }}s
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% if timing.database_save %}
+                                <tr>
+                                    <td><strong>Database Save:</strong></td>
+                                    <td>{{ "%.3f"|format(timing.database_save) }}s</td>
+                                </tr>
+                                {% endif %}
+                                {% if timing.total_processing %}
+                                <tr class="table-info">
+                                    <td><strong>Total Processing:</strong></td>
+                                    <td><strong>{{ "%.3f"|format(timing.total_processing) }}s</strong></td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Extracted Data -->
+                <div class="col-md-8">
+                    {% if extraction_details.extracted_data %}
+                    {% set data = extraction_details.extracted_data %}
+                    
+                    <!-- Invoice Details -->
+                    {% if data.invoice_details %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-file-invoice"></i> Invoice Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Invoice Number:</strong></td><td>{{ data.invoice_details.invoice_number or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Date:</strong></td><td>{{ data.invoice_details.invoice_date or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Due Date:</strong></td><td>{{ data.invoice_details.due_date or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Customer:</strong></td><td>{{ data.invoice_details.customer_name or 'N/A' }}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <table class="table table-sm">
+                                        <tr><td><strong>Service Type:</strong></td><td>{{ data.invoice_details.service_type or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Origin:</strong></td><td>{{ data.invoice_details.origin or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Destination:</strong></td><td>{{ data.invoice_details.destination or 'N/A' }}</td></tr>
+                                        <tr><td><strong>Currency:</strong></td><td>{{ data.invoice_details.currency or 'N/A' }}</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Billing Summary -->
+                    {% if data.billing_breakdown %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-money-bill"></i> Billing Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6>Subtotal</h6>
+                                        <span class="h4 text-primary">
+                                            {{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(data.billing_breakdown.subtotal or 0) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6>GST/Tax</h6>
+                                        <span class="h4 text-warning">
+                                            {{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(data.billing_breakdown.gst_amount or 0) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-center">
+                                        <h6>Total</h6>
+                                        <span class="h3 text-success">
+                                            {{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(data.billing_breakdown.total_amount or 0) }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Line Items -->
+                    {% if data.billing_breakdown.line_items %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-list"></i> Line Items ({{ data.billing_breakdown.line_items|length }})</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Description</th>
+                                            <th>Category</th>
+                                            <th>Amount</th>
+                                            <th>GST</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in data.billing_breakdown.line_items %}
+                                        <tr>
+                                            <td>{{ loop.index }}</td>
+                                            <td>{{ item.description or 'N/A' }}</td>
+                                            <td>
+                                                {% if item.category %}
+                                                    <span class="badge bg-secondary">{{ item.category }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-light text-dark">Unknown</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(item.amount or 0) }}</td>
+                                            <td>{{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(item.gst or 0) }}</td>
+                                            <td><strong>{{ data.invoice_details.currency or '$' }}{{ "%.2f"|format(item.total or 0) }}</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                    
+                    <!-- Extraction Notes -->
+                    {% if data.extraction_notes %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5><i class="fas fa-sticky-note"></i> Extraction Notes</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>{{ data.extraction_notes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                            <h5>No Extracted Data</h5>
+                            <p class="text-muted">No structured data was extracted for this invoice.</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Raw Text Section -->
+            {% if extraction_details.raw_pdf_text %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>
+                                <i class="fas fa-file-text"></i> Raw PDF Text
+                                <button class="btn btn-sm btn-outline-secondary float-end" type="button" data-bs-toggle="collapse" data-bs-target="#rawTextCollapse">
+                                    <i class="fas fa-eye"></i> Toggle View
+                                </button>
+                            </h5>
+                        </div>
+                        <div class="collapse" id="rawTextCollapse">
+                            <div class="card-body">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> Raw text contains {{ extraction_details.raw_pdf_text|length }} characters
+                                </div>
+                                <pre class="bg-light p-3" style="max-height: 600px; overflow-y: auto; font-size: 0.9em; white-space: pre-wrap;">{{ extraction_details.raw_pdf_text }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div class="alert alert-warning" role="alert">
+                <i class="fas fa-exclamation-triangle"></i>
+                No extraction details found for invoice {{ invoice_no }}.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

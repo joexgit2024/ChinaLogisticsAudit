@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Upload AU Domestic Rate Card{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dhl_express_routes.view_dhl_express_rate_cards') }}">DHL Express Rate Cards</a></li>
+                    <li class="breadcrumb-item active">Upload AU Domestic Rate Card</li>
+                </ol>
+            </nav>
+
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Upload AU Domestic Rate Card</h1>
+                <a href="{{ url_for('dhl_express_routes.view_dhl_express_rate_cards') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Rate Cards
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>AU Domestic Rate Card Upload</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Upload Instructions</h6>
+                        <ul class="mb-0">
+                            <li>Upload the Excel file: <strong>"DHL EXPRESS AU Domestic Cards.xlsx"</strong></li>
+                            <li>File should contain sheets: <strong>AU Zones TD Dom</strong>, <strong>AU Matrix TD Dom</strong>, <strong>AU TD Dom</strong></li>
+                            <li>This will update domestic Australia rate cards for Melbourne→Sydney and other AU routes</li>
+                            <li>Choose replacement mode to completely replace existing data (recommended)</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Select Rate Card File</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                            <div class="form-text">Only Excel files (.xlsx, .xls) are supported</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Upload Mode</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="replace_existing" id="replace_true" value="true" checked>
+                                <label class="form-check-label" for="replace_true">
+                                    <strong>Replace existing data</strong> <small class="text-muted">(Recommended)</small>
+                                    <div class="text-muted small">Completely replaces all AU domestic rate data with the new file</div>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="replace_existing" id="replace_false" value="false">
+                                <label class="form-check-label" for="replace_false">
+                                    <strong>Update/merge with existing data</strong> <small class="text-muted">(Advanced)</small>
+                                    <div class="text-muted small">Updates existing records and adds new ones</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" class="btn btn-outline-secondary me-md-2" onclick="window.history.back()">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="uploadBtn">
+                                <i class="fas fa-upload me-2"></i>Upload Rate Card
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Upload Progress (Hidden by default) -->
+            <div class="card mt-3" id="uploadProgress" style="display: none;">
+                <div class="card-body">
+                    <h6><i class="fas fa-spinner fa-spin me-2"></i>Processing Upload...</h6>
+                    <div class="progress">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 100%"></div>
+                    </div>
+                    <p class="mt-2 mb-0 text-muted">Please wait while the rate card is being processed...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    // Show upload progress
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadBtn').innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    
+    // Scroll to progress indicator
+    document.getElementById('uploadProgress').scrollIntoView({ behavior: 'smooth' });
+});
+
+// File input validation
+document.getElementById('file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            alert('Please select a valid Excel file (.xlsx or .xls)');
+            e.target.value = '';
+        }
+    }
+});
+</script>
+{% endblock %}

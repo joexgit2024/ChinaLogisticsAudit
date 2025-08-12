@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Batch Processing{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-layer-group text-info"></i>
+                LLM Batch Processing
+            </h1>
+            
+            <!-- Back to Dashboard -->
+            <div class="mb-3">
+                <a href="{{ url_for('llm_pdf.dashboard') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+            
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle"></i>
+                <strong>Batch Processing:</strong> This feature is coming soon. Currently, you can process individual PDFs using the single PDF processing feature.
+            </div>
+            
+            <div class="text-center mt-5">
+                <i class="fas fa-tools fa-3x text-muted mb-3"></i>
+                <h3 class="text-muted">Feature Under Development</h3>
+                <p class="text-muted">Batch processing capabilities will allow you to process multiple PDFs simultaneously with DeepSeek-R1.</p>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('llm_pdf.upload_page') }}" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Process Single PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

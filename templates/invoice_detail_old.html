@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block title %}Invoice Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Invoice Details</h1>
+    <div>
+        <a href="{{ url_for('invoice.invoices') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+        </a>
+        {% if invoice %}
+            <button class="btn btn-primary ms-2" onclick="auditInvoice({{ invoice['id'] }})">
+                <i class="fas fa-search me-2"></i>Run Audit
+            </button>
+        {% else %}
+            <button class="btn btn-primary ms-2" disabled>
+                <i class="fas fa-search me-2"></i>Run Audit
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+{% if invoice %}
+<div class="row">
+    <!-- Main Content with Tabs -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="invoiceDetailTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                            <i class="fas fa-info-circle me-2"></i>Basic Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="addresses-tab" data-bs-toggle="tab" data-bs-target="#addresses" type="button" role="tab">
+                            <i class="fas fa-map-marker-alt me-2"></i>Addresses
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="charges-tab" data-bs-toggle="tab" data-bs-target="#charges" type="button" role="tab">
+                            <i class="fas fa-money-bill me-2"></i>Charges
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="line-items-tab" data-bs-toggle="tab" data-bs-target="#line-items" type="button" role="tab">
+                            <i class="fas fa-boxes me-2"></i>Line Items
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="references-tab" data-bs-toggle="tab" data-bs-target="#references" type="button" role="tab">
+                            <i class="fas fa-hashtag me-2"></i>References
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="shipment-tab" data-bs-toggle="tab" data-bs-target="#shipment" type="button" role="tab">
+                            <i class="fas fa-shipping-fast me-2"></i>Shipment
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="technical-tab" data-bs-toggle="tab" data-bs-target="#technical" type="button" role="tab">
+                            <i class="fas fa-cogs me-2"></i>Technical
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="invoiceDetailTabsContent">
+                    <!-- Basic Information Tab -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Invoice Details</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Invoice Number:</td><td>{{ invoice['invoice_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Client Code:</td><td>{{ invoice['client_code'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Carrier Code:</td><td>{{ invoice['carrier_code'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Invoice Date:</td><td>{{ invoice['invoice_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Invoice Status:</td><td>{{ invoice['invoice_status'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">PRO Number:</td><td>{{ invoice['pro_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Reference Number:</td><td>{{ invoice['reference_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Bill of Lading:</td><td>{{ invoice['bill_of_lading'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Booking Number:</td><td>{{ invoice['booking_number'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Financial Summary</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Total Charges:</td><td class="fw-bold text-success">${{ "%.2f"|format(invoice['invoice_amount'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Net Charge:</td><td>${{ "%.2f"|format(invoice['net_charge'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Currency:</td><td>{{ invoice['currency'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Exchange Rate:</td><td>{{ invoice['exchange_rate'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Declared Value:</td><td>${{ "%.2f"|format(invoice['declared_value'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Check Number:</td><td>{{ invoice['check_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Check Date:</td><td>{{ invoice['check_date'] or 'N/A' }}</td></tr>
+                                </table>
+                                
+                                <h5 class="text-primary mb-3 mt-4">Status & Audit</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Status:</td><td>
+                                        {% set status = invoice['audit_status'] or 'pending' %}
+                                        {% if status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif status == 'review' or status == 'pending' %}
+                                            <span class="badge bg-warning">Pending Review</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ status.title() }}</span>
+                                        {% endif %}
+                                    </td></tr>
+                                    <tr><td class="fw-bold">Audit Exception:</td><td>{{ invoice['audit_exception_status'] or 'None' }}</td></tr>
+                                    <tr><td class="fw-bold">Audit Notes:</td><td>{{ invoice['audit_notes'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Created:</td><td>{{ invoice['created_at'][:10] if invoice['created_at'] else 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Updated:</td><td>{{ invoice['updated_at'][:10] if invoice['updated_at'] else 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Addresses Tab -->
+                    <div class="tab-pane fade" id="addresses" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Shipper Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Shipper Name:</td><td>{{ invoice['shipper_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['shipper_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['shipper_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['shipper_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['shipper_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['shipper_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['shipper_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['shipper_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Consignee Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Consignee Name:</td><td>{{ invoice['consignee_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['consignee_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['consignee_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['consignee_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['consignee_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['consignee_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['consignee_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['consignee_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Bill To Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Bill To Name:</td><td>{{ invoice['bill_to_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['bill_to_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['bill_to_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['bill_to_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['bill_to_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['bill_to_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['bill_to_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['bill_to_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Third Party Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Third Party Name:</td><td>{{ invoice['third_party_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['third_party_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['third_party_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['third_party_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['third_party_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['third_party_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['third_party_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['third_party_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charges Tab -->
+            <div class="card-header">
+                <h5 class="card-title mb-0">Shipping Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Shipper</h6>
+                        <address>
+                            <strong>{{ invoice['shipper_name'] or 'Unknown Shipper' }}</strong><br>
+                            {% if invoice['shipper_address'] %}{{ invoice['shipper_address'] }}<br>{% endif %}
+                            {% if invoice['shipper_city'] %}{{ invoice['shipper_city'] }}{% endif %}
+                            {% if invoice['shipper_state'] %}, {{ invoice['shipper_state'] }}{% endif %}
+                            {% if invoice['shipper_postal_code'] %} {{ invoice['shipper_postal_code'] }}{% endif %}
+                            {% if invoice['shipper_country'] %}<br>{{ invoice['shipper_country'] }}{% endif %}
+                        </address>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Consignee</h6>
+                        <address>
+                            <strong>{{ invoice['consignee_name'] or 'Unknown Consignee' }}</strong><br>
+                            {% if invoice['consignee_address'] %}{{ invoice['consignee_address'] }}<br>{% endif %}
+                            {% if invoice['consignee_city'] %}{{ invoice['consignee_city'] }}{% endif %}
+                            {% if invoice['consignee_state'] %}, {{ invoice['consignee_state'] }}{% endif %}
+                            {% if invoice['consignee_postal_code'] %} {{ invoice['consignee_postal_code'] }}{% endif %}
+                            {% if invoice['consignee_country'] %}<br>{{ invoice['consignee_country'] }}{% endif %}
+                        </address>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Carrier</h6>
+                        <address>
+                            <strong>{{ invoice['carrier_name'] or 'Unknown Carrier' }}</strong><br>
+                            {% if invoice['carrier_address'] %}{{ invoice['carrier_address'] }}<br>{% endif %}
+                            {% if invoice['carrier_city'] %}{{ invoice['carrier_city'] }}{% endif %}
+                            {% if invoice['carrier_state'] %}, {{ invoice['carrier_state'] }}{% endif %}
+                            {% if invoice['carrier_postal_code'] %} {{ invoice['carrier_postal_code'] }}{% endif %}
+                            {% if invoice['carrier_country'] %}<br>{{ invoice['carrier_country'] }}{% endif %}
+                        </address>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Bill To</h6>
+                        <address>
+                            <strong>{{ invoice['bill_to_name'] or 'Unknown Bill To' }}</strong><br>
+                            {% if invoice['bill_to_address'] %}{{ invoice['bill_to_address'] }}<br>{% endif %}
+                            {% if invoice['bill_to_city'] %}{{ invoice['bill_to_city'] }}{% endif %}
+                            {% if invoice['bill_to_state'] %}, {{ invoice['bill_to_state'] }}{% endif %}
+                            {% if invoice['bill_to_postal_code'] %} {{ invoice['bill_to_postal_code'] }}{% endif %}
+                            {% if invoice['bill_to_country'] %}<br>{{ invoice['bill_to_country'] }}{% endif %}
+                        </address>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charges Breakdown -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Charges Breakdown</h5>
+            </div>
+            <div class="card-body">
+                {% if charges %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Charge Type</th>
+                                    <th>Description</th>
+                                    <th>Rate</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for charge in charges %}
+                                <tr>
+                                    <td>{{ charge[0] or 'General' }}</td>  <!-- charge_code -->
+                                    <td>{{ charge[1] or 'No description' }}</td>  <!-- charge_description -->
+                                    <td>N/A</td>  <!-- rate not available in current structure -->
+                                    <td>N/A</td>  <!-- quantity not available in current structure -->
+                                    <td class="text-end">${{ "%.2f"|format(charge[2] or 0) }}</td>  <!-- amount -->
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-primary">
+                                    <th colspan="4" class="text-end">Total:</th>
+                                    <th class="text-end">${{ "%.2f"|format(invoice['total_charges'] or 0) }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-receipt fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No charge details available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Line Items -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Line Items Details</h5>
+            </div>
+            <div class="card-body">
+                {% if line_items %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Line #</th>
+                                    <th>Description</th>
+                                    <th>Weight (kg)</th>
+                                    <th>Actual Weight (kg)</th>
+                                    <th>Unit Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in line_items %}
+                                <tr>
+                                    <td>{{ item['line_number'] or 'N/A' }}</td>
+                                    <td>{{ item['item_description'] or 'N/A' }}</td>
+                                    <td>{{ "%.1f"|format(item['quantity'] or 0) }}</td>
+                                    <td>{{ "%.1f"|format(item['weight'] or 0) }}</td>
+                                    <td>{{ item['unit_type'] or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-info">
+                                    <th colspan="2" class="text-end">Totals:</th>
+                                    <th>{{ "%.1f"|format(total_weight_kg or 0) }}</th>
+                                    <th>{{ "%.1f"|format(total_pieces or 0) }}</th>
+                                    <th>-</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-boxes fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No line item details available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Audit Information -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Audit Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Current Status</label>
+                    <div>
+                        {% set status = invoice['audit_status'] or 'pending' %}
+                        {% if status == 'approved' %}
+                            <span class="badge bg-success fs-6">Approved</span>
+                        {% elif status == 'review' or status == 'pending' %}
+                            <span class="badge bg-warning fs-6">Pending Review</span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6">Flagged</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if invoice['audit_exception_status'] %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Audit Notes</label>
+                    <div class="alert alert-info">
+                        {{ invoice['audit_exception_status'] }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success" onclick="updateStatus('approved')">
+                        <i class="fas fa-check me-2"></i>Approve
+                    </button>
+                    <button class="btn btn-warning" onclick="updateStatus('review')">
+                        <i class="fas fa-flag me-2"></i>Flag for Review
+                    </button>
+                    <button class="btn btn-danger" onclick="updateStatus('rejected')">
+                        <i class="fas fa-times me-2"></i>Reject
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-exclamation-triangle fa-4x text-warning mb-3"></i>
+    <h4>Invoice Not Found</h4>
+    <p class="text-muted">The requested invoice could not be found.</p>
+    <a href="{{ url_for('invoice.invoices') }}" class="btn btn-primary">
+        <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateStatus(status) {
+    const invoiceId = '{{ invoice['id'] if invoice else 0 }}';
+    
+    if (confirm(`Are you sure you want to ${status} this invoice?`)) {
+        // This would make an API call to update the status
+        alert(`Status update to '${status}' functionality coming soon!`);
+    }
+}
+</script>
+{% endblock %}

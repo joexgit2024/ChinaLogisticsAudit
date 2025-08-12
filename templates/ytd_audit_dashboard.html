@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}YTD Rate Card Audit System{% endblock %}
+
+{% block head %}
+<style>
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .stat-card h3 {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .mode-breakdown {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 1rem;
+    }
+    .audit-icon {
+        font-size: 3rem;
+        opacity: 0.3;
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+    }
+    .quick-search {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="display-4">
+                <i class="fas fa-balance-scale text-primary me-3"></i>
+                YTD Rate Card Audit System
+            </h1>
+            <p class="lead text-muted">
+                Audit DHL YTD invoices against air and ocean freight rate cards using invoice ID as the primary key
+            </p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card position-relative">
+                <i class="fas fa-file-invoice audit-icon"></i>
+                <h3>{{ "{:,}".format(total_invoices) }}</h3>
+                <p class="mb-0">YTD Invoices Available</p>
+                <small>Ready for audit analysis</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card position-relative">
+                <i class="fas fa-plane audit-icon"></i>
+                <h3>{{ total_air_cards }}</h3>
+                <p class="mb-0">Air Rate Cards</p>
+                <small>Loaded and ready</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card position-relative">
+                <i class="fas fa-ship audit-icon"></i>
+                <h3>{{ "{:,}".format(total_ocean_rates) }}</h3>
+                <p class="mb-0">Ocean Rate Records</p>
+                <small>FCL & LCL rates</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card position-relative">
+                <i class="fas fa-search-dollar audit-icon"></i>
+                <h3>{{ total_air_cards + (total_ocean_rates // 200) }}</h3>
+                <p class="mb-0">Total Rate Sources</p>
+                <small>Air + Ocean combined</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Search -->
+        <div class="col-md-8">
+            <div class="card quick-search">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Quick Invoice Audit
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('ytd_audit.search_invoices') }}" method="GET" class="mb-3">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text">
+                                <i class="fas fa-hashtag"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="q" 
+                                   placeholder="Enter Invoice Number, Origin, or Destination..."
+                                   autofocus>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search me-1"></i>Search & Audit
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Quick Action Buttons -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <a href="{{ url_for('ytd_audit.search_invoices') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-list me-2"></i>Browse All Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{{ url_for('ytd_audit.batch_audit') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-layer-group me-2"></i>Batch Audit
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transportation Mode Breakdown -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Transportation Modes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if mode_breakdown %}
+                        {% for mode, count in mode_breakdown %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                {% if 'Air' in mode %}
+                                    <i class="fas fa-plane text-primary me-2"></i>
+                                {% elif 'Sea' in mode or 'Ocean' in mode %}
+                                    <i class="fas fa-ship text-info me-2"></i>
+                                {% else %}
+                                    <i class="fas fa-truck text-warning me-2"></i>
+                                {% endif %}
+                                <span>{{ mode or 'Unknown' }}</span>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary fs-6">{{ "{:,}".format(count) }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">No transportation data available</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works Section -->
+    <div class="row mt-5">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>How YTD Rate Card Audit Works
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-search fa-lg"></i>
+                                </div>
+                                <h6 class="mt-3">1. Invoice Lookup</h6>
+                                <p class="small text-muted">
+                                    Enter invoice number to retrieve complete YTD invoice data including charges, origin, destination, and transportation mode
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-sitemap fa-lg"></i>
+                                </div>
+                                <h6 class="mt-3">2. Rate Matching</h6>
+                                <p class="small text-muted">
+                                    System automatically finds matching air or ocean rate cards based on origin/destination and transportation mode
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3">
+                                <div class="rounded-circle bg-warning text-white d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-calculator fa-lg"></i>
+                                </div>
+                                <h6 class="mt-3">3. Variance Analysis</h6>
+                                <p class="small text-muted">
+                                    Compare actual YTD charges against rate card expectations and highlight discrepancies
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-plane text-primary me-2"></i>Air Freight Audit
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>Weight-based rate calculation</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Fuel surcharge validation</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Origin/destination fee checking</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Minimum charge enforcement</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-ship text-info me-2"></i>Ocean Freight Audit
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success me-2"></i>FCL container rate validation</li>
+                        <li><i class="fas fa-check text-success me-2"></i>LCL volume-based pricing</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Port-to-port rate matching</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Transit time verification</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus on search input
+    const searchInput = document.querySelector('input[name="q"]');
+    if (searchInput) {
+        searchInput.focus();
+    }
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+F to focus search
+        if (e.ctrlKey && e.key === 'f') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+});
+</script>
+{% endblock %}

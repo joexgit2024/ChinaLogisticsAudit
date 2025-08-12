@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}DHL Year-to-Date Upload{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h2><i class="fas fa-cloud-upload-alt"></i> DHL Year-to-Date Report Upload</h2>
+            <p class="text-muted">Upload DHL year-to-date invoice CSV reports for historical analysis</p>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Upload New File</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" class="mb-4">
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Select DHL YTD CSV File</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+                            <div class="form-text">Maximum file size: 50MB. Only CSV files are accepted.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload and Process
+                        </button>
+                    </form>
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Upload Notes:</h6>
+                        <ul class="mb-0">
+                            <li>Duplicate invoices (based on Invoice No) will be automatically skipped</li>
+                            <li>Files are processed immediately after upload</li>
+                            <li>Large files may take several minutes to process</li>
+                            <li>You can view processing status and results below</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            {% if uploads %}
+            <div class="card mt-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Recent Uploads</h5>
+                    <a href="{{ url_for('dhl_ytd.view_ytd_data') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-table"></i> View All Data
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Batch ID</th>
+                                    <th>Filename</th>
+                                    <th>Status</th>
+                                    <th>Records</th>
+                                    <th>Processed</th>
+                                    <th>Duplicates</th>
+                                    <th>Failed</th>
+                                    <th>Uploaded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for upload in uploads %}
+                                <tr>
+                                    <td>
+                                        <code>{{ upload.batch_id }}</code>
+                                    </td>
+                                    <td>{{ upload.filename }}</td>
+                                    <td>
+                                        {% if upload.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif upload.status == 'processing' %}
+                                            <span class="badge bg-warning">Processing</span>
+                                        {% elif upload.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ upload.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ upload.total_records|default('0', true) }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ upload.processed_records|default('0', true) }}</span>
+                                    </td>
+                                    <td>
+                                        {% if upload.duplicate_records and upload.duplicate_records > 0 %}
+                                            <span class="badge bg-warning">{{ upload.duplicate_records }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if upload.failed_records and upload.failed_records > 0 %}
+                                            <span class="badge bg-danger">{{ upload.failed_records }}</span>
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ upload.created_at }}</small>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-info" 
+                                                onclick="checkStatus('{{ upload.batch_id }}')">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% if upload.error_message %}
+                                <tr>
+                                    <td colspan="9">
+                                        <div class="alert alert-danger mb-0">
+                                            <small><strong>Error:</strong> {{ upload.error_message }}</small>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dhl_ytd.view_ytd_data') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-table"></i><br>
+                                View YTD Data
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dhl_ytd.ytd_statistics') }}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-chart-bar"></i><br>
+                                Statistics
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('core.edi_invoice_dashboard') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-search"></i><br>
+                                Invoice Audit
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('core.upload_file') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-file-upload"></i><br>
+                                Upload EDI
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Upload Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="statusContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function checkStatus(batchId) {
+    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+    const statusContent = document.getElementById('statusContent');
+    
+    // Show loading
+    statusContent.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch status
+    fetch(`/dhl-ytd-status/${batchId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                statusContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                return;
+            }
+            
+            let statusClass = 'secondary';
+            if (data.processing_status === 'completed') statusClass = 'success';
+            else if (data.processing_status === 'failed') statusClass = 'danger';
+            else if (data.processing_status === 'processing') statusClass = 'warning';
+            
+            let html = `
+                <div class="row">
+                    <div class="col-6"><strong>Batch ID:</strong></div>
+                    <div class="col-6"><code>${data.batch_id}</code></div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Status:</strong></div>
+                    <div class="col-6"><span class="badge bg-${statusClass}">${data.processing_status}</span></div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Filename:</strong></div>
+                    <div class="col-6">${data.filename}</div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>File Size:</strong></div>
+                    <div class="col-6">${formatBytes(data.file_size)}</div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6"><strong>Total Records:</strong></div>
+                    <div class="col-6">${data.total_records || 0}</div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Processed:</strong></div>
+                    <div class="col-6"><span class="badge bg-success">${data.processed_records || 0}</span></div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Duplicates:</strong></div>
+                    <div class="col-6"><span class="badge bg-warning">${data.duplicate_records || 0}</span></div>
+                </div>
+                <div class="row">
+                    <div class="col-6"><strong>Failed:</strong></div>
+                    <div class="col-6"><span class="badge bg-danger">${data.failed_records || 0}</span></div>
+                </div>
+            `;
+            
+            if (data.processing_start_time) {
+                html += `
+                    <hr>
+                    <div class="row">
+                        <div class="col-6"><strong>Started:</strong></div>
+                        <div class="col-6"><small>${data.processing_start_time}</small></div>
+                    </div>
+                `;
+            }
+            
+            if (data.processing_end_time) {
+                html += `
+                    <div class="row">
+                        <div class="col-6"><strong>Completed:</strong></div>
+                        <div class="col-6"><small>${data.processing_end_time}</small></div>
+                    </div>
+                `;
+            }
+            
+            if (data.error_message) {
+                html += `
+                    <hr>
+                    <div class="alert alert-danger">
+                        <strong>Error:</strong> ${data.error_message}
+                    </div>
+                `;
+            }
+            
+            statusContent.innerHTML = html;
+        })
+        .catch(error => {
+            statusContent.innerHTML = `<div class="alert alert-danger">Error fetching status: ${error}</div>`;
+        });
+}
+
+function formatBytes(bytes) {
+    if (!bytes) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
+}
+</script>
+{% endblock %}

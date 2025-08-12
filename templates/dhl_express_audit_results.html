@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}DHL Express Audit Results{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/languages/json.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            document.querySelectorAll('pre code').forEach((el) => {
+                hljs.highlightElement(el);
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block content %}
+<style>
+
+        .nav-link {
+            color: #D70018 !important;
+            border-radius: 10px;
+            margin: 0 5px;
+        }
+        .nav-link:hover {
+            background-color: #D70018 !important;
+            color: white !important;
+        }
+        .audit-header {
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            color: white;
+        }
+        .audit-header.pass { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+        .audit-header.fail { background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%); }
+        .audit-header.review { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+        .line-result-pass { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .line-result-fail { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .line-result-review { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .variance-positive { color: #dc3545; font-weight: bold; }
+        .variance-negative { color: #28a745; font-weight: bold; }
+        .confidence-high { color: #28a745; }
+        .confidence-medium { color: #ffc107; }
+        .confidence-low { color: #dc3545; }
+    
+</style>
+
+<div class="container-fluid">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/dhl-express">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/dhl-express/invoices">Invoices</a></li>
+                <li class="breadcrumb-item active">Audit: {{ audit.invoice_no }}</li>
+            </ol>
+        </nav>
+
+        <!-- Audit Header -->
+        <div class="audit-header {{ audit.audit_status.lower() }}">
+            <div class="row">
+                <div class="col-md-8">
+                    <h1>
+                        <i class="fas fa-{% if audit.audit_status == 'PASS' %}check-circle{% elif audit.audit_status == 'FAIL' %}times-circle{% else %}eye{% endif %}"></i>
+                        Audit Result: {{ audit.audit_status }}
+                    </h1>
+                    <h3>Invoice {{ audit.invoice_no }}</h3>
+                    <p class="mb-0">
+                        {{ audit.lines_audited }} lines audited • 
+                        {{ audit.lines_passed }} passed • 
+                        {{ audit.lines_failed }} failed
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <h2>{{ "{:.1f}%".format(audit.variance_percentage|default(0.0, true)) }} variance</h2>
+                    <p class="mb-2">
+                        <strong>Confidence: {{ "{:.0f}%".format((audit.confidence_score|default(0.7, true) * 100)) }}</strong>
+                    </p>
+                    <p class="mb-0">
+                        <small>
+                            Invoice: ${{ "{:,.2f}".format(audit.total_invoice_amount|default(0.0, true)) }}<br>
+                            Expected: ${{ "{:,.2f}".format(audit.total_expected_amount|default(0.0, true)) }}<br>
+                            Variance: {% if audit.total_variance|default(0.0, true) > 0 %}+{% endif %}<span class="{% if audit.total_variance|default(0.0, true) > 0 %}variance-positive{% else %}variance-negative{% endif %}">${{ "{:,.2f}".format(audit.total_variance|default(0.0, true)) }}</span>
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <a href="/dhl-express/invoice/{{ audit.invoice_no }}" class="btn btn-outline-primary">
+                    <i class="fas fa-file-invoice"></i> View Invoice Details
+                </a>
+                {% if has_invoice_image %}
+                    <a href="{{ url_for('images.view_invoice_image', invoice_type='DHL_EXPRESS', invoice_number=audit.invoice_no) }}" 
+                       class="btn btn-outline-warning">
+                        <i class="fas fa-file-image"></i> View Invoice Image
+                    </a>
+                {% endif %}
+                <button class="btn btn-outline-success" onclick="reRunAudit()">
+                    <i class="fas fa-redo"></i> Re-run Audit
+                </button>
+                <button class="btn btn-outline-info" onclick="downloadAuditReport()">
+                    <i class="fas fa-download"></i> Download Report
+                </button>
+                <a href="/dhl-express/invoices" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Invoices
+                </a>
+            </div>
+        </div>
+
+        <!-- Line-by-Line Audit Results -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-list-ul"></i> Line-by-Line Audit Results</h5>
+            </div>
+            <div class="card-body">
+                {% if audit.detailed_results %}
+                {% for line_result in audit.detailed_results %}
+                <div class="card mb-3 line-result-{{ line_result.result|default('review')|lower }}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>
+                                    <span class="badge bg-secondary">Line {{ line_result.line_number|default('N/A') }}</span>
+                                    {{ line_result.description|default('Unknown Product') }}
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Invoiced Amount:</strong><br>
+                                        ${{ "{:,.2f}".format((line_result.invoiced|default(0.0, true))|float) }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Expected Amount:</strong><br>
+                                        ${{ "{:,.2f}".format((line_result.expected|default(0.0, true))|float) }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Variance:</strong><br>
+                                        <span class="{% if line_result.variance > 0 %}variance-positive{% elif line_result.variance < 0 %}variance-negative{% endif %}">
+                                            {% if (line_result.variance|default(0.0, true)) > 0 %}+{% endif %} ${{ "{:,.2f}".format((line_result.variance|default(0.0, true))|float) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if line_result.comments %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Comments:</strong>
+                                        {% if line_result.comments is string %}
+                                            {{ line_result.comments }}
+                                        {% else %}
+                                            {% for comment in line_result.comments %}
+                                                {{ comment }}{% if not loop.last %} • {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-{% if line_result.result == 'PASS' %}success{% elif line_result.result == 'FAIL' %}danger{% else %}warning{% endif %} fs-6">
+                                    <i class="fas fa-{% if line_result.result == 'PASS' %}check{% elif line_result.result == 'FAIL' %}times{% else %}eye{% endif %}"></i>
+                                    {{ line_result.result|default('REVIEW') }}
+                                </span>
+                                {% if line_result.variance != 0 %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        {{ "{:.1f}%".format(((line_result.variance|default(0.0, true))|float / (line_result.invoiced|default(1.0, true))|float * 100) if (line_result.invoiced|default(0.0, true))|float > 0 else 0) }} variance
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <!-- Display line_items directly if detailed_results is not available -->
+                {% for line_item in audit.line_items %}
+                <div class="card mb-3 line-result-{{ line_item.result.lower() }}">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>
+                                    <span class="badge bg-secondary">Line {{ line_item.line_number }}</span>
+                                    {{ line_item.description }}
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Invoiced Amount:</strong><br>
+                                        ${{ "{:,.2f}".format(line_item.invoiced) }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Expected Amount:</strong><br>
+                                        ${{ "{:,.2f}".format(line_item.expected) }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Variance:</strong><br>
+                                        <span class="{% if line_item.variance > 0 %}variance-positive{% elif line_item.variance < 0 %}variance-negative{% endif %}">
+                                            {% if line_item.variance > 0 %}+{% endif %} ${{ "{:,.2f}".format(line_item.variance) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if line_item.comments %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Comments:</strong>
+                                        {% for comment in line_item.comments %}
+                                            {{ comment }}{% if not loop.last %} • {% endif %}
+                                        {% endfor %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-{% if line_item.result == 'PASS' %}success{% elif line_item.result == 'FAIL' %}danger{% else %}warning{% endif %} fs-6">
+                                    <i class="fas fa-{% if line_item.result == 'PASS' %}check{% elif line_item.result == 'FAIL' %}times{% else %}eye{% endif %}"></i>
+                                    {{ line_item.result }}
+                                </span>
+                                {% if line_item.variance != 0 %}
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        {{ "{:.1f}%".format((line_item.variance / line_item.invoiced * 100) if line_item.invoiced > 0 else 0) }} variance
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-success">{{ audit.lines_passed }}</h4>
+                        <p class="text-muted mb-0">Lines Passed</p>
+                        <small class="text-muted">{{ "{:.0f}%".format(((audit.lines_passed|default(0, true)) / (audit.lines_audited|default(1, true)) * 100) if (audit.lines_audited|default(0, true)) > 0 else 0) }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-danger">{{ audit.lines_failed }}</h4>
+                        <p class="text-muted mb-0">Lines Failed</p>
+                        <small class="text-muted">{{ "{:.0f}%".format(((audit.lines_failed|default(0, true)) / (audit.lines_audited|default(1, true)) * 100) if (audit.lines_audited|default(0, true)) > 0 else 0) }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="{% if audit.variance_percentage|abs <= 5 %}text-success{% elif audit.variance_percentage|abs <= 15 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ "{:.1f}%".format((audit.variance_percentage|default(0.0, true))|abs) }}
+                        </h4>
+                        <p class="text-muted mb-0">Abs. Variance</p>
+                        <small class="text-muted">{% if audit.variance_percentage|abs <= 5 %}Acceptable{% elif audit.variance_percentage|abs <= 15 %}Review{% else %}Significant{% endif %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="{% if audit.confidence_score >= 0.8 %}confidence-high{% elif audit.confidence_score >= 0.6 %}confidence-medium{% else %}confidence-low{% endif %}">
+                            {{ "{:.0f}%".format((audit.confidence_score|default(0.7, true)) * 100) }}
+                        </h4>
+                        <p class="text-muted mb-0">Confidence</p>
+                        <small class="text-muted">
+                            {% if audit.confidence_score >= 0.8 %}High
+                            {% elif audit.confidence_score >= 0.6 %}Medium
+                            {% else %}Low
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Recommendations -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-lightbulb"></i> Audit Recommendations</h5>
+            </div>
+            <div class="card-body">
+                {% if audit.audit_status == 'PASS' %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Invoice Approved:</strong> This invoice has passed the audit with acceptable variance levels. 
+                    All charges appear to be in line with the agreed rate card.
+                </div>
+                {% elif audit.audit_status == 'FAIL' %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Invoice Rejected:</strong> Significant variances detected that require investigation. 
+                    Review failed line items and contact DHL Express for clarification.
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-eye"></i>
+                    <strong>Manual Review Required:</strong> Some charges could not be automatically validated. 
+                    Manual review recommended before approval.
+                </div>
+                {% endif %}
+
+                <h6 class="mt-3">Next Steps:</h6>
+                <ul>
+                    {% if audit.lines_failed > 0 %}
+                    <li>Review {{ audit.lines_failed }} failed line item(s) for billing discrepancies</li>
+                    <li>Contact DHL Express billing team for clarification on variance</li>
+                    {% endif %}
+                    {% if audit.confidence_score < 0.8 %}
+                    <li>Low confidence score indicates missing rate card data - update rate cards</li>
+                    {% endif %}
+                </ul>
+                
+                <!-- Raw Data Section -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5>
+                            <button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#rawDataCollapse" aria-expanded="false" aria-controls="rawDataCollapse">
+                                <i class="fas fa-code"></i> Raw Audit Data
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </h5>
+                    </div>
+                    <div class="collapse" id="rawDataCollapse">
+                        <div class="card-body">
+                            <pre><code class="language-json">{{ audit.line_items | tojsonpretty }}</code></pre>
+                        </div>
+                    </div>
+                </div>
+                    {% if audit.audit_status == 'REVIEW' %}
+                    <li>Manual validation required for service charges not in rate card</li>
+                    {% endif %}
+                    <li>Document audit results for compliance records</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script><script>
+        function reRunAudit() {
+            if (confirm('Re-run audit for invoice {{ audit.invoice_no }}?')) {
+                window.location.reload();
+            }
+        }
+
+        function downloadAuditReport() {
+            // Show brief loading indication
+            const button = event.target;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
+            button.disabled = true;
+            
+            // Create a temporary anchor element to trigger download
+            const link = document.createElement('a');
+            link.href = `/dhl-express/audit/{{ audit.invoice_no }}/download`;
+            link.download = `DHL_Express_Audit_Report_{{ audit.invoice_no }}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Reset button after a short delay
+            setTimeout(() => {
+                button.innerHTML = originalContent;
+                button.disabled = false;
+            }, 2000);
+        }
+    </script>
+{% endblock %}

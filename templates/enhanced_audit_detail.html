@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}Enhanced Audit Detail - {{ audit_result.invoice_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2">
+                        Enhanced Audit Detail
+                        <span class="badge 
+                            {% if audit_result.audit_status == 'approved' %}bg-success
+                            {% elif audit_result.audit_status == 'error' %}bg-danger  
+                            {% elif audit_result.audit_status == 'review' %}bg-warning text-dark
+                            {% elif audit_result.audit_status == 'pending' %}bg-info
+                            {% else %}bg-secondary{% endif %} ms-2">
+                            {{ audit_result.audit_status.title() }}
+                        </span>
+                    </h1>
+                    <h4 class="text-muted">Invoice #{{ audit_result.invoice_number }}</h4>
+                </div>
+                <div>
+                    <a href="{{ url_for('enhanced_audit.enhanced_audit_dashboard') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>Invoice Amount</h5>
+                    <h3>AUD {{ "${:,.2f}".format(audit_result.total_invoice_amount) if audit_result.total_invoice_amount else '0.00' }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>Expected Amount</h5>
+                    <h3>AUD {{ "${:,.2f}".format(audit_result.total_expected_amount) if audit_result.total_expected_amount else '0.00' }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if audit_result.total_variance and audit_result.total_variance > 0 %}bg-danger{% else %}bg-success{% endif %} text-white">
+                <div class="card-body text-center">
+                    <h5>Variance</h5>
+                    <h3>AUD {{ "{:+,.2f}".format(audit_result.total_variance) if audit_result.total_variance else '0.00' }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card {% if audit_result.variance_percent and audit_result.variance_percent > 10 %}bg-warning text-dark{% else %}bg-success text-white{% endif %}">
+                <div class="card-body text-center">
+                    <h5>Variance %</h5>
+                    <h3>{{ "{:.1f}%".format(audit_result.variance_percent) if audit_result.variance_percent else '0.0%' }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column - Invoice Details -->
+        <div class="col-md-6">
+            <!-- Invoice Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-invoice"></i> Invoice Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Invoice Number:</strong></div>
+                        <div class="col-sm-8">{{ invoice.invoice_number if invoice else 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Carrier:</strong></div>
+                        <div class="col-sm-8">{{ invoice.carrier_name if invoice and invoice.carrier_name else 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Service:</strong></div>
+                        <div class="col-sm-8">{{ invoice.service_type if invoice and invoice.service_type else 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Mode:</strong></div>
+                        <div class="col-sm-8">{{ invoice.shipping_mode if invoice and invoice.shipping_mode else 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Route:</strong></div>
+                        <div class="col-sm-8">
+                            {{ invoice.shipper_country if invoice and invoice.shipper_country else '??' }} 
+                            → 
+                            {{ invoice.consignee_country if invoice and invoice.consignee_country else '??' }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Weight:</strong></div>
+                        <div class="col-sm-8">
+                            {% if audit_details.weight_analysis %}
+                            Ship: {{ audit_details.weight_analysis.ship_weight or 0 }} kg, 
+                            Bill: {{ audit_details.weight_analysis.bill_weight or 0 }} kg
+                            <br><small class="text-muted">Chargeable: {{ audit_details.weight_analysis.chargeable_weight or 0 }} kg</small>
+                            {% else %}
+                            {{ invoice.weight if invoice and invoice.weight else 0 }} kg
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Currency Analysis -->
+            {% if audit_details.currency_conversion %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-exchange-alt"></i> Currency Analysis</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Conversion:</strong></div>
+                        <div class="col-sm-8">
+                            {{ audit_details.currency_conversion.from_currency or 'AUD' }} 
+                            → 
+                            {{ audit_details.currency_conversion.to_currency or 'USD' }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Exchange Rate:</strong></div>
+                        <div class="col-sm-8">{{ audit_details.currency_conversion.exchange_rate or 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Rate Card Currency:</strong></div>
+                        <div class="col-sm-8">USD (Standard)</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Location Match -->
+            {% if audit_details.location_match %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-map-marker-alt"></i> Location Matching</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Invoice Route:</strong></div>
+                        <div class="col-sm-8">{{ audit_details.location_match.invoice_route or 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Rate Card Route:</strong></div>
+                        <div class="col-sm-8">{{ audit_details.location_match.rate_card_route or 'N/A' }}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Match Quality:</strong></div>
+                        <div class="col-sm-8">
+                            <div class="progress">
+                                <div class="progress-bar 
+                                    {% if audit_details.location_match.overall_match_score > 0.8 %}bg-success
+                                    {% elif audit_details.location_match.overall_match_score > 0.6 %}bg-warning  
+                                    {% else %}bg-danger{% endif %}" 
+                                    style="width: {{ (audit_details.location_match.overall_match_score * 100)|round }}%">
+                                    {{ "{:.0%}".format(audit_details.location_match.overall_match_score) }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Audit Analysis -->
+        <div class="col-md-6">
+            <!-- Charge Breakdown -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-calculator"></i> Detailed Charge Analysis</h5>
+                </div>
+                <div class="card-body">
+                    {% if audit_details.charge_breakdown %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Charge Type</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Actual (AUD)</th>
+                                    <th class="text-end">Expected (AUD)</th>
+                                    <th class="text-end">Variance</th>
+                                    <th class="text-end">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for charge_type, details in audit_details.charge_breakdown.items() %}
+                                <tr>
+                                    <td>
+                                        <code>{{ details.charge_type }}</code>
+                                    </td>
+                                    <td>{{ details.description or 'N/A' }}</td>
+                                    <td class="text-end">
+                                        <strong>{{ "${:.2f}".format(details.actual_amount) }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        {% if details.expected_amount > 0 %}
+                                        {{ "${:.2f}".format(details.expected_amount) }}
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if details.expected_amount > 0 %}
+                                        <span class="{% if details.variance > 0 %}text-danger{% elif details.variance < 0 %}text-success{% else %}text-muted{% endif %}">
+                                            {{ "{:+.2f}".format(details.variance) }}
+                                            <br><small>({{ "{:+.1f}%".format(details.variance_percent) }})</small>
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if details.expected_amount > 0 %}
+                                        {% set var_pct = details.variance_percent %}
+                                        <span class="badge 
+                                            {% if var_pct <= 5 %}bg-success
+                                            {% elif var_pct <= 15 %}bg-warning text-dark
+                                            {% elif var_pct <= 25 %}bg-danger
+                                            {% else %}bg-dark{% endif %}">
+                                            {% if var_pct <= 5 %}Good
+                                            {% elif var_pct <= 15 %}Check
+                                            {% elif var_pct <= 25 %}High
+                                            {% else %}Critical{% endif %}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">No Rate</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-secondary">
+                                    <td colspan="2"><strong>Total</strong></td>
+                                    <td class="text-end">
+                                        <strong>{{ "${:,.2f}".format(audit_result.total_invoice_amount) if audit_result.total_invoice_amount else '0.00' }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ "${:,.2f}".format(audit_result.total_expected_amount) if audit_result.total_expected_amount else '0.00' }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="{% if audit_result.total_variance and audit_result.total_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                            {{ "{:+,.2f}".format(audit_result.total_variance) if audit_result.total_variance else '0.00' }}
+                                            <br><small>({{ "{:+.1f}%".format(audit_result.variance_percent) if audit_result.variance_percent else '0.0%' }})</small>
+                                        </strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge 
+                                            {% if audit_result.audit_status == 'approved' %}bg-success
+                                            {% elif audit_result.audit_status == 'pending' %}bg-info  
+                                            {% elif audit_result.audit_status == 'review' %}bg-warning text-dark
+                                            {% else %}bg-danger{% endif %}">
+                                            {{ audit_result.audit_status.title() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Charge Analysis Summary -->
+                    <div class="mt-3">
+                        <h6>Analysis Notes:</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-info-circle text-info"></i> Air freight calculated based on {{ audit_details.chargeable_weight or 0 }} kg chargeable weight</li>
+                            <li><i class="fas fa-info-circle text-info"></i> Rates converted from USD to AUD using exchange rate {{ audit_details.currency_conversion.exchange_rate if audit_details.currency_conversion else 'N/A' }}</li>
+                            <li><i class="fas fa-info-circle text-info"></i> Regulatory charges (VAT, customs) are not rate card items but validated for reasonableness</li>
+                        </ul>
+                    </div>
+                    
+                    {% else %}
+                    <!-- Fallback to original simple breakdown -->
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Component</th>
+                                    <th class="text-end">Expected</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-end">Variance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Freight Charge</td>
+                                    <td class="text-end">
+                                        {% if audit_details.expected_freight %}
+                                        AUD {{ "${:.2f}".format(audit_details.expected_freight) }}
+                                        {% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">-</td>
+                                </tr>
+                                <tr>
+                                    <td>Fuel Surcharge</td>
+                                    <td class="text-end">
+                                        {% if audit_details.expected_fuel_surcharge %}
+                                        AUD {{ "${:.2f}".format(audit_details.expected_fuel_surcharge) }}
+                                        {% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">-</td>
+                                </tr>
+                                <tr class="table-secondary">
+                                    <td><strong>Total</strong></td>
+                                    <td class="text-end">
+                                        <strong>AUD {{ "${:,.2f}".format(audit_result.total_expected_amount) if audit_result.total_expected_amount else '0.00' }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>AUD {{ "${:,.2f}".format(audit_result.total_invoice_amount) if audit_result.total_invoice_amount else '0.00' }}</strong>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="{% if audit_result.total_variance and audit_result.total_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                            AUD {{ "{:+,.2f}".format(audit_result.total_variance) if audit_result.total_variance else '0.00' }}
+                                        </strong>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Issues and Findings -->
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Issues and Findings</h5>
+                </div>
+                <div class="card-body">
+                    {% if audit_details.issues %}
+                    <div class="list-group list-group-flush">
+                        {% for issue in audit_details.issues %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge 
+                                            {% if issue.severity == 'error' %}bg-danger
+                                            {% elif issue.severity == 'warning' %}bg-warning text-dark  
+                                            {% else %}bg-info{% endif %} me-2">
+                                            {{ issue.severity.title() }}
+                                        </span>
+                                        <small class="text-muted">{{ issue.charge_type.replace('_', ' ').title() }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ issue.message }}</p>
+                                    {% if issue.invoice_amount or issue.expected_amount %}
+                                    <small class="text-muted">
+                                        {% if issue.invoice_amount %}Invoice: {{ issue.invoice_amount }}{% endif %}
+                                        {% if issue.expected_amount %}{% if issue.invoice_amount %}, {% endif %}Expected: {{ issue.expected_amount }}{% endif %}
+                                        {% if issue.variance_percent %}({{ "{:.1f}%".format(issue.variance_percent) }} variance){% endif %}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5 class="text-success">No Issues Found</h5>
+                        <p class="text-muted">This invoice passed all audit checks successfully.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rate Card Information -->
+    {% if audit_result.rate_card_used %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Rate Card Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Rate Card Used:</strong> {{ audit_result.rate_card_used }}</p>
+                    <p class="text-muted">This invoice was audited against the specified rate card using flexible location matching and currency conversion.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.progress {
+    height: 1.2rem;
+}
+</style>
+{% endblock %}

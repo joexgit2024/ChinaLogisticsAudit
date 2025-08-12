@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% block title %}YTD Audit Results - {{ results.invoice_no }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.variance-positive { color: #dc3545; font-weight: bold; }
+.variance-negative { color: #28a745; font-weight: bold; }
+.variance-neutral { color: #6c757d; font-weight: bold; }
+.rate-match-card { transition: all 0.3s ease; }
+.best-match { 
+    border-left: 5px solid #28a745; 
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
+}
+.charge-breakdown { 
+    background-color: #f8f9fa; 
+    padding: 15px; 
+    border-radius: 5px; 
+    margin-top: 10px;
+}
+.variance-detail { 
+    padding: 10px 0; 
+    border-bottom: 1px solid #e9ecef;
+}
+.variance-detail:last-child { border-bottom: none; }
+.analysis-note { 
+    font-size: 0.9em; 
+    color: #6c757d; 
+    font-style: italic;
+    margin-top: 5px;
+}
+.status-summary {
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="text-primary">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>
+                    YTD Audit Results
+                </h2>
+                <div class="btn-group">
+                    <a href="{{ url_for('ytd_audit.search_invoices') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-search me-1"></i>New Search
+                    </a>
+                    <button class="btn btn-outline-success" onclick="exportResults()">
+                        <i class="fas fa-download me-1"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Details -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                Invoice Details - {{ results.invoice_no }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Invoice No:</strong> {{ results.invoice_no }}</p>
+                    <p><strong>Origin:</strong> {{ results.invoice_details['origin'] }}</p>
+                    <p><strong>Destination:</strong> {{ results.invoice_details['destination'] }}</p>
+                    <p><strong>Transportation Mode:</strong> {{ results.invoice_details['transportation_mode'] }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Weight:</strong> {{ results.invoice_details['weight_kg'] }} kg</p>
+                    {% if results.invoice_details.get('volume_m3') %}
+                    <p><strong>Volume:</strong> {{ results.invoice_details['volume_m3'] }} m³</p>
+                    {% endif %}
+                    <p><strong>Total Amount:</strong> ${{ "%.2f"|format(results.invoice_details['total_charges_usd']) }}</p>
+                    <p><strong>Currency:</strong> USD</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Summary -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-line me-2"></i>
+                Audit Summary
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="status-summary">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="mb-2">
+                            <span class="badge 
+                            {% if results.summary['overall_status'] == 'PASS' %}bg-success
+                            {% elif results.summary['overall_status'] == 'WARNING' %}bg-warning text-dark
+                            {% else %}bg-secondary{% endif %}">
+                            {{ results.summary['overall_status'] }}
+                            </span>
+                        </div>
+                        {% if results.summary['overall_status'] == 'NO_RATES_FOUND' %}
+                        <small class="text-muted">No matching rate cards found</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-1">Rate Cards Checked</h6>
+                        <h4 class="text-primary">{{ results.summary['total_rate_cards_checked'] }}</h4>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-1">Best Match Variance</h6>
+                        {% if results.summary.get('best_match') %}
+                        <h4 class="{% if results.summary['best_match']['total_variance'] > 0 %}text-danger{% elif results.summary['best_match']['total_variance'] < 0 %}text-success{% else %}text-secondary{% endif %}">
+                            {% if results.summary['best_match']['total_variance'] > 0 %}+{% endif %}${{ "%.2f"|format(results.summary['best_match']['total_variance']) }}
+                        </h4>
+                        {% else %}
+                        <h4 class="text-secondary">N/A</h4>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if results.summary['total_rate_cards_checked'] == 0 %}
+    <!-- No Rates Found Message -->
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            No Rate Cards Found
+        </h4>
+        <p>No matching rate cards were found for this invoice. This could be due to:</p>
+        <ul>
+            <li>Origin/destination combination not available in rate cards</li>
+            <li>Transportation mode not supported</li>
+            <li>Rate card data may need to be updated</li>
+        </ul>
+        <hr>
+        <p class="mb-0">
+            <a href="{{ url_for('rate_card.list_rate_cards') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add Rate Cards
+            </a>
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Best Match Summary -->
+    {% if results.summary.get('best_match') %}
+    <div class="card mb-4 best-match">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-star me-2"></i>
+                Best Match: {{ results.summary['best_match']['lane_id'] }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-8">
+                    <h6>{{ results.summary['best_match']['lane_description'] }}</h6>
+                    <p class="text-muted mb-2">{{ results.summary['best_match']['service'] }} Service</p>
+                    <span class="badge 
+                        {% if results.summary['best_match']['audit_status'] == 'PASS' %}bg-success
+                        {% elif results.summary['best_match']['audit_status'] == 'WARNING' %}bg-warning text-dark
+                        {% else %}bg-danger{% endif %} fs-6">
+                        {{ results.summary['best_match']['audit_status'] }}
+                    </span>
+                </div>
+                <div class="col-md-4 text-end">
+                    <h6 class="text-muted mb-1">Total Variance</h6>
+                    <h3 class="mb-2">
+                        <span class="{% if results.summary['best_match']['total_variance'] > 0 %}variance-positive{% elif results.summary['best_match']['total_variance'] < 0 %}variance-negative{% else %}variance-neutral{% endif %}">
+                            {% if results.summary['best_match']['total_variance'] > 0 %}+{% endif %}${{ "%.2f"|format(results.summary['best_match']['total_variance']) }}
+                        </span>
+                    </h3>
+                    <div class="text-muted small">
+                        <small class="text-muted">Expected: ${{ "%.2f"|format(results.summary['best_match']['total_expected']) }}</small><br>
+                        <small class="text-muted">Actual: ${{ "%.2f"|format(results.summary['best_match']['total_actual']) }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Audit Results -->
+    {% if results.audit_results %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-{{ 'plane' if 'Air' in results.invoice_details['transportation_mode'] else 'ship' }} text-primary me-2"></i>
+                {{ results.invoice_details['transportation_mode'] }} Freight Rate Card Analysis
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for audit in results.audit_results %}
+            <div class="card rate-match-card{% if audit['lane_id'] == results.summary.get('best_match', {}).get('lane_id', '') %} best-match{% endif %} mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">{{ audit['lane_id'] }} - {{ audit['lane_description'] }}</h6>
+                        <small class="text-muted">{{ audit['service'] }} Service</small>
+                    </div>
+                    <span class="badge 
+                        {% if audit['audit_status'] == 'PASS' %}bg-success
+                        {% elif audit['audit_status'] == 'WARNING' %}bg-warning text-dark
+                        {% else %}bg-danger{% endif %}">
+                        {{ audit['audit_status'] }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Expected Total:</strong> ${{ "%.2f"|format(audit['total_expected']) }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Actual Total:</strong> ${{ "%.2f"|format(audit['total_actual']) }}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Variance:</strong> 
+                            <span class="{% if audit['total_variance'] > 0 %}variance-positive{% elif audit['total_variance'] < 0 %}variance-negative{% else %}variance-neutral{% endif %}">
+                                {% if audit['total_variance'] > 0 %}+{% endif %}${{ "%.2f"|format(audit['total_variance']) }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Variance Breakdown -->
+                    {% if audit.get('variances') %}
+                    <div class="charge-breakdown">
+                        <h6 class="mb-3">
+                            <i class="fas fa-list-alt me-2"></i>
+                            Charge Breakdown
+                        </h6>
+                        {% for variance in audit['variances'] %}
+                        <div class="variance-detail">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <strong>{{ variance['charge_type'] }}</strong>
+                                    {% if variance.get('weight_kg') %}
+                                    <br><small class="text-muted">{{ variance['weight_kg'] }}kg @ ${{ "%.3f"|format(variance['rate_per_kg']) }}/kg</small>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <small class="text-muted">Expected</small><br>
+                                    ${{ "%.2f"|format(variance['expected']) }}
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <small class="text-muted">Actual</small><br>
+                                    ${{ "%.2f"|format(variance['actual']) }}
+                                </div>
+                                <div class="col-md-2 text-end">
+                                    <small class="text-muted">Variance</small><br>
+                                    <span class="{% if variance['variance'] > 0 %}variance-positive{% elif variance['variance'] < 0 %}variance-negative{% else %}variance-neutral{% endif %}">
+                                        {% if variance['variance'] > 0 %}+{% endif %}${{ "%.2f"|format(variance['variance']) }}
+                                    </span>
+                                </div>
+                                <div class="col-md-3">
+                                    {% if variance.get('analysis') %}
+                                    <div class="analysis-note">{{ variance['analysis'] }}</div>
+                                    {% endif %}
+                                    {% if variance['variance_pct'] != 0 and variance['expected'] > 0 %}
+                                    <small class="text-muted">
+                                        ({% if variance['variance'] > 0 %}+{% endif %}{{ "%.1f"|format(variance['variance_pct']) }}%)
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Navigation -->
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <a href="{{ url_for('ytd_audit.search_invoices') }}" class="btn btn-primary me-2">
+                <i class="fas fa-search me-1"></i>Search Other Invoices
+            </a>
+            <a href="{{ url_for('ytd_audit.dashboard') }}" class="btn btn-outline-secondary me-2">
+                <i class="fas fa-home me-1"></i>Dashboard
+            </a>
+            <button class="btn btn-outline-info" onclick="exportResults()">
+                <i class="fas fa-download me-1"></i>Export Results
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportResults() {
+    const csv = [];
+    csv.push(['Invoice No', 'Lane ID', 'Description', 'Charge Type', 'Expected', 'Actual', 'Variance', 'Status']);
+    
+    {% if results and results.audit_results %}
+    {% for audit in results.audit_results %}
+    {% if audit.get('variances') %}
+    {% for variance in audit['variances'] %}
+    csv.push([
+        '{{ results.invoice_no | escape }}',
+        '{{ audit["lane_id"] | escape }}', 
+        '{{ audit["lane_description"] | escape }}',
+        '{{ variance["charge_type"] | escape }}',
+        '{{ "%.2f"|format(variance["expected"]) }}',
+        '{{ "%.2f"|format(variance["actual"]) }}', 
+        '{{ "%.2f"|format(variance["variance"]) }}',
+        '{{ audit["audit_status"] | escape }}'
+    ]);
+    {% endfor %}
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    
+    const csvContent = csv.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'audit_results_{% if results %}{{ results.invoice_no }}{% else %}export{% endif %}.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Highlight best match on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const bestMatch = document.querySelector('.best-match');
+    if (bestMatch) {
+        bestMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+});
+</script>
+{% endblock %}

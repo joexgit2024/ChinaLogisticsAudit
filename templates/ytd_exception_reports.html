@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Exceptions - YTD Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-exclamation-triangle"></i> Audit Exceptions</h2>
+                <div class="btn-group">
+                    <a href="{{ url_for('ytd_reports.reports_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Reports
+                    </a>
+                    <a href="{{ url_for('ytd_reports.export_reports', type='exceptions', **filters) }}" 
+                       class="btn btn-warning">
+                        <i class="fas fa-download"></i> Export Current View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('ytd_reports.exception_reports') }}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="month" class="form-label">Month</label>
+                                <select name="month" id="month" class="form-select">
+                                    <option value="">All Months</option>
+                                    {% for month in available_months %}
+                                    <option value="{{ month }}" {% if filters.month == month %}selected{% endif %}>
+                                        {{ month }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="transportation_mode" class="form-label">Transportation Mode</label>
+                                <select name="transportation_mode" id="transportation_mode" class="form-select">
+                                    <option value="">All Modes</option>
+                                    {% for mode in transport_modes %}
+                                    <option value="{{ mode }}" {% if filters.transportation_mode == mode %}selected{% endif %}>
+                                        {{ mode }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="exception_type" class="form-label">Exception Type</label>
+                                <select name="exception_type" id="exception_type" class="form-select">
+                                    <option value="">All Exceptions</option>
+                                    {% for ex_type in exception_types %}
+                                    <option value="{{ ex_type }}" {% if filters.exception_type == ex_type %}selected{% endif %}>
+                                        {{ ex_type.replace('_', ' ').title() }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-warning me-2">
+                                    <i class="fas fa-search"></i> Apply Filters
+                                </button>
+                                <a href="{{ url_for('ytd_reports.exception_reports') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    {% if exceptions %}
+    {% set exception_counts = {} %}
+    {% for ex in exceptions %}
+        {% set _ = exception_counts.update({ex.audit_status: exception_counts.get(ex.audit_status, 0) + 1}) %}
+    {% endfor %}
+    
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(exceptions|length) }}</h3>
+                    <h6>Total Exceptions</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(exception_counts.get('No Rate Card', 0)) }}</h3>
+                    <h6>No Rate Card</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h3>{{ "{:,}".format(exception_counts.get('rejected', 0)) }}</h3>
+                    <h6>Rejected</h6>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h3>${{ "{:,.0f}".format(exceptions|sum(attribute='total_charges_usd')) }}</h3>
+                    <h6>Total Value (USD)</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Exception Types Breakdown -->
+    {% if exceptions %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Exception Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for ex_type in exception_types %}
+                        {% set count = exceptions|selectattr('audit_status', 'equalto', ex_type)|list|length %}
+                        {% if count > 0 %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card {% if ex_type == 'No Rate Card' %}border-warning{% elif ex_type == 'rejected' %}border-danger{% else %}border-secondary{% endif %}">
+                                <div class="card-body text-center">
+                                    <h4 class="{% if ex_type == 'No Rate Card' %}text-warning{% elif ex_type == 'rejected' %}text-danger{% else %}text-secondary{% endif %}">
+                                        {{ count }}
+                                    </h4>
+                                    <h6>{{ ex_type.title() }}</h6>
+                                    <p class="text-muted mb-0">${{ "{:,.0f}".format(exceptions|selectattr('audit_status', 'equalto', ex_type)|sum(attribute='total_charges_usd')) }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Exceptions Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-table"></i> Exception Details ({{ exceptions|length }} exceptions)</h5>
+                </div>
+                <div class="card-body">
+                    {% if exceptions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="exceptionsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>CW1 Shipment #</th>
+                                    <th>Date</th>
+                                    <th>Route</th>
+                                    <th>Mode</th>
+                                    <th>Shipper/Consignee</th>
+                                    <th>Amount (USD)</th>
+                                    <th>Exception Type</th>
+                                    <th>Rate Cards</th>
+                                    <th>Details</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for exception in exceptions %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ exception.invoice_no }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if exception.cw1_shipment_number %}
+                                        <a href="{{ url_for('ytd_reports.invoice_reports', cw1_shipment_number=exception.cw1_shipment_number) }}" 
+                                           class="text-decoration-none">
+                                            {{ exception.cw1_shipment_number }}
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ exception.invoice_creation_date or 'N/A' }}</small>
+                                        {% if exception.audit_date %}
+                                        <br><small class="text-muted">Audit: {{ exception.audit_date[:10] }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>{{ exception.origin or 'N/A' }}</strong><br>
+                                            <i class="fas fa-arrow-down"></i><br>
+                                            <strong>{{ exception.destination or 'N/A' }}</strong>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if exception.transportation_mode == 'Air' %}
+                                            <span class="badge bg-primary"><i class="fas fa-plane"></i> Air</span>
+                                        {% elif exception.transportation_mode == 'Sea' %}
+                                            <span class="badge bg-info"><i class="fas fa-ship"></i> Sea</span>
+                                        {% elif exception.transportation_mode == 'Road' %}
+                                            <span class="badge bg-success"><i class="fas fa-truck"></i> Road</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ exception.transportation_mode or 'Unknown' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <strong>From:</strong> {{ (exception.shipper_name or 'N/A')[:15] }}{% if exception.shipper_name and exception.shipper_name|length > 15 %}...{% endif %}<br>
+                                            <strong>To:</strong> {{ (exception.consignee_name or 'N/A')[:15] }}{% if exception.consignee_name and exception.consignee_name|length > 15 %}...{% endif %}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>${{ "{:,.2f}".format(exception.total_charges_usd) }}</strong>
+                                    </td>
+                                    <td>
+                                        {% if exception.audit_status == 'No Rate Card' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-times"></i> No Rate Card
+                                            </span>
+                                        {% elif exception.audit_status == 'rejected' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-ban"></i> Rejected
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ exception.audit_status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if exception.rate_cards_checked and exception.rate_cards_checked > 0 %}
+                                        <span class="text-warning">{{ exception.rate_cards_checked }} checked</span>
+                                        <br><small class="text-muted">{{ exception.matching_lanes or 0 }} matches</small>
+                                        {% else %}
+                                        <span class="text-muted">None</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if exception.audit_details %}
+                                        <button class="btn btn-outline-info btn-sm" 
+                                                onclick="showExceptionDetails('{{ exception.invoice_no }}')" 
+                                                title="View Details">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ url_for('dhl_ytd.view_ytd_invoice_detail', invoice_no=exception.invoice_no) }}" 
+                                               class="btn btn-outline-primary" title="View Invoice">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('improved_ytd_audit.audit_invoice', invoice_no=exception.invoice_no) }}" 
+                                               class="btn btn-outline-success" title="Re-audit">
+                                                <i class="fas fa-redo"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h5>No exceptions found</h5>
+                        <p class="text-muted">All audited invoices passed successfully, or try adjusting your filters.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exception Details Modal -->
+<div class="modal fade" id="exceptionDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Exception Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="exceptionDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize DataTable for sorting and pagination
+$(document).ready(function() {
+    if ($('#exceptionsTable tbody tr').length > 0) {
+        $('#exceptionsTable').DataTable({
+            pageLength: 25,
+            order: [[2, 'desc']], // Sort by date descending
+            columnDefs: [
+                { targets: [6], type: 'num' }, // Amount column
+                { targets: [9, 10], orderable: false } // Details and Actions columns not sortable
+            ]
+        });
+    }
+});
+
+// Store exceptions data for the modal
+const exceptionsData = {{ exceptions|tojson|safe }};
+
+function showExceptionDetails(invoiceNo) {
+    const exception = exceptionsData.find(ex => ex.invoice_no === invoiceNo);
+    
+    if (!exception || !exception.audit_details) {
+        $('#exceptionDetailsContent').html(`
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                No exception details available for this invoice.
+            </div>
+        `);
+        $('#exceptionDetailsModal').modal('show');
+        return;
+    }
+    
+    let html = `
+        <h6>Invoice: ${exception.invoice_no}</h6>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Exception Type:</strong> 
+                <span class="badge ${getExceptionBadgeClass(exception.audit_status)}">${exception.audit_status}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Audit Date:</strong> ${exception.audit_date || 'N/A'}
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <strong>Invoice Amount:</strong><br>
+                $${exception.total_charges_usd.toFixed(2)}
+            </div>
+            <div class="col-md-4">
+                <strong>Rate Cards Checked:</strong><br>
+                ${exception.rate_cards_checked || 0}
+            </div>
+            <div class="col-md-4">
+                <strong>Matching Lanes:</strong><br>
+                ${exception.matching_lanes || 0}
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Transportation Mode:</strong> ${exception.transportation_mode || 'N/A'}
+            </div>
+            <div class="col-md-6">
+                <strong>Route:</strong> ${exception.origin || 'N/A'} → ${exception.destination || 'N/A'}
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <strong>Exception Details:</strong>
+            <div class="border p-3 bg-light">
+                <pre style="white-space: pre-wrap; font-size: 0.9em;">${exception.audit_details}</pre>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <h6>Recommended Actions:</h6>
+            ${getRecommendedActions(exception.audit_status)}
+        </div>
+    `;
+    
+    $('#exceptionDetailsContent').html(html);
+    $('#exceptionDetailsModal').modal('show');
+}
+
+function getExceptionBadgeClass(status) {
+    switch(status) {
+        case 'No Rate Card': return 'bg-warning';
+        case 'rejected': return 'bg-danger';
+        default: return 'bg-secondary';
+    }
+}
+
+function getRecommendedActions(status) {
+    switch(status) {
+        case 'No Rate Card':
+            return `
+                <div class="alert alert-warning">
+                    <ul class="mb-0">
+                        <li>Check if rate cards are loaded for this route and transportation mode</li>
+                        <li>Verify origin and destination codes are correct</li>
+                        <li>Consider adding a new rate card for this lane</li>
+                        <li>Check for alternative routing options</li>
+                    </ul>
+                </div>
+            `;
+        case 'rejected':
+            return `
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        <li>Invoice was rejected during audit validation</li>
+                        <li>Check for calculation errors or overcharges</li>
+                        <li>Verify rate card accuracy for this lane</li>
+                        <li>Review variance details and investigate discrepancies</li>
+                        <li>Contact carrier for rate clarification if needed</li>
+                    </ul>
+                </div>
+            `;
+        default:
+            return `
+                <div class="alert alert-secondary">
+                    <p class="mb-0">No specific recommendations available for this exception type.</p>
+                </div>
+            `;
+    }
+}
+</script>
+
+<style>
+.table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Make table more readable */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-hover > tbody > tr:hover > td {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Exception type cards */
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.border-info {
+    border-color: #0dcaf0 !important;
+}
+
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.border-secondary {
+    border-color: #6c757d !important;
+}
+</style>
+{% endblock %}

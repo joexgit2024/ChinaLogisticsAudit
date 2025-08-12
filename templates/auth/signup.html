@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Sign Up - DHL Audit System{% endblock %}
+
+{% block content %}
+<style>
+    .auth-container {
+        max-width: 500px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: #333;
+    }
+    .auth-header i {
+        color: #667eea;
+        margin-bottom: 1rem;
+    }
+    .password-strength {
+        margin-top: 0.5rem;
+    }
+    .strength-bar {
+        height: 5px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.25rem;
+    }
+    .strength-fill {
+        height: 100%;
+        transition: all 0.3s ease;
+        border-radius: 3px;
+    }
+    .strength-weak { background: #dc3545; width: 25%; }
+    .strength-fair { background: #ffc107; width: 50%; }
+    .strength-good { background: #28a745; width: 75%; }
+    .strength-strong { background: #007bff; width: 100%; }
+    .password-suggestions {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+        font-size: 0.9rem;
+    }
+    .btn-generate {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        border-radius: 8px;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    .btn-generate:hover {
+        background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+        color: white;
+    }
+    .corporate-notice {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="auth-container">
+        <div class="auth-header">
+            <i class="fas fa-user-plus fa-3x"></i>
+            <h2>Create Account</h2>
+            <p class="text-muted">Join the DHL Audit System</p>
+        </div>
+
+        <div class="corporate-notice">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Corporate Access Only:</strong> Only corporate email addresses are permitted
+        </div>
+
+        <form method="POST" id="signupForm">
+            <div class="mb-3">
+                <label for="email" class="form-label">
+                    <i class="fas fa-envelope me-2"></i>Corporate Email Address
+                </label>
+                <input type="email" 
+                       class="form-control" 
+                       id="email" 
+                       name="email" 
+                       placeholder="your.name@company.com"
+                       required>
+                <div class="form-text">
+                    <i class="fas fa-shield-alt text-primary"></i>
+                    Use your corporate email address as your username
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">
+                    <i class="fas fa-lock me-2"></i>Password
+                </label>
+                <div class="input-group">
+                    <input type="password" 
+                           class="form-control" 
+                           id="password" 
+                           name="password" 
+                           placeholder="Create a strong password"
+                           required>
+                    <button type="button" class="btn btn-outline-secondary" id="togglePassword">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                
+                <div class="password-strength">
+                    <div class="strength-bar">
+                        <div class="strength-fill" id="strengthFill"></div>
+                    </div>
+                    <small class="text-muted" id="strengthText">Enter a password to see strength</small>
+                </div>
+            </div>
+
+            <div class="password-suggestions">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong><i class="fas fa-lightbulb me-2"></i>Password Suggestions</strong>
+                    <button type="button" class="btn btn-generate btn-sm" id="generatePassword">
+                        <i class="fas fa-random me-1"></i>Generate Strong Password
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>System Generated:</strong>
+                        <div class="font-monospace text-primary" id="suggestedPassword">{{ suggested_password }}</div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-1" id="useSuggested">
+                            <i class="fas fa-copy me-1"></i>Use This Password
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Requirements:</strong>
+                        <ul class="small mb-0">
+                            <li>At least 12 characters</li>
+                            <li>Uppercase & lowercase letters</li>
+                            <li>Numbers and special characters</li>
+                            <li>No common patterns</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3 form-check">
+                <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                <label class="form-check-label" for="agreeTerms">
+                    I agree to use this system responsibly and maintain the confidentiality of audit data
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-3" id="submitBtn" disabled>
+                <i class="fas fa-user-plus me-2"></i>Create Account
+            </button>
+        </form>
+
+        <div class="text-center">
+            <p class="text-muted">Already have an account?</p>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary">
+                <i class="fas fa-sign-in-alt me-2"></i>Sign In
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const strengthFill = document.getElementById('strengthFill');
+    const strengthText = document.getElementById('strengthText');
+    const generateBtn = document.getElementById('generatePassword');
+    const useSuggestedBtn = document.getElementById('useSuggested');
+    const suggestedPasswordDiv = document.getElementById('suggestedPassword');
+    const submitBtn = document.getElementById('submitBtn');
+    const agreeTerms = document.getElementById('agreeTerms');
+    const emailInput = document.getElementById('email');
+
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+    });
+
+    // Check password strength
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        
+        if (password.length === 0) {
+            strengthFill.className = 'strength-fill';
+            strengthText.textContent = 'Enter a password to see strength';
+            return;
+        }
+
+        fetch('/auth/check-password-strength', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ password: password })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const score = data.strength_score;
+            let strengthClass = 'strength-weak';
+            let strengthLabel = 'Weak';
+
+            if (score >= 80) {
+                strengthClass = 'strength-strong';
+                strengthLabel = 'Strong';
+            } else if (score >= 60) {
+                strengthClass = 'strength-good';
+                strengthLabel = 'Good';
+            } else if (score >= 40) {
+                strengthClass = 'strength-fair';
+                strengthLabel = 'Fair';
+            }
+
+            strengthFill.className = `strength-fill ${strengthClass}`;
+            strengthText.textContent = `${strengthLabel} (${score}/100) - ${data.message}`;
+            strengthText.className = data.is_valid ? 'text-success' : 'text-danger';
+        });
+    });
+
+    // Generate new password
+    generateBtn.addEventListener('click', function() {
+        fetch('/auth/generate-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ length: 16 })
+        })
+        .then(response => response.json())
+        .then(data => {
+            suggestedPasswordDiv.textContent = data.password;
+        });
+    });
+
+    // Use suggested password
+    useSuggestedBtn.addEventListener('click', function() {
+        passwordInput.value = suggestedPasswordDiv.textContent;
+        passwordInput.dispatchEvent(new Event('input'));
+    });
+
+    // Enable/disable submit button
+    function checkFormValidity() {
+        const emailValid = emailInput.value.match(/^[a-zA-Z0-9._%+-]+@andrew\.com$/);
+        const passwordValid = passwordInput.value.length >= 12;
+        const termsAgreed = agreeTerms.checked;
+        
+        submitBtn.disabled = !(emailValid && passwordValid && termsAgreed);
+    }
+
+    emailInput.addEventListener('input', checkFormValidity);
+    passwordInput.addEventListener('input', checkFormValidity);
+    agreeTerms.addEventListener('change', checkFormValidity);
+});
+</script>
+{% endblock %}

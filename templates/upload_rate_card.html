@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Upload Air Freight Rate Card{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <h1 class="h3 mb-0">Upload Air Freight Rate Card</h1>
+                <p class="text-muted small mb-0">
+                    Upload an Excel file containing DHL air freight rates
+                </p>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="card_name" class="form-label">Rate Card Name</label>
+                        <input type="text" class="form-control" id="card_name" name="card_name" 
+                               placeholder="e.g., DHL Air Rates 2025 Q3">
+                        <div class="form-text">Optional: If not provided, will be generated from the file name</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="rate_card_file" class="form-label">Rate Card Excel File</label>
+                        <input type="file" class="form-control" id="rate_card_file" name="rate_card_file" required
+                               accept=".xlsx,.xls">
+                        <div class="form-text">
+                            Upload the Excel file containing rate card data. The file should contain columns for lane details,
+                            origin/destination information, and rate tiers.
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('rate_card.list_rate_cards') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Rate Cards
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Rate Card
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card-footer bg-light">
+                <h5 class="mb-3">Rate Card File Format Requirements</h5>
+                <ul class="mb-0 small text-muted">
+                    <li class="mb-2">Excel file (.xlsx or .xls) with rate information</li>
+                    <li class="mb-2">Required columns: Lane ID, Lane Description, Origin Country, Lane Origin, Destination Country, Lane Destination</li>
+                    <li class="mb-2">Rate columns: Base rates for different weight tiers (per kg)</li>
+                    <li class="mb-2">Additional fees: Fuel surcharge, origin/destination fees, etc.</li>
+                    <li>File name can contain validity dates in format: "YYYY-MM-DD thru YYYY-MM-DD" for automatic date extraction</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

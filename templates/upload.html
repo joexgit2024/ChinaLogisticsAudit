@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Upload EDI File{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title mb-0">
+                    <i class="fas fa-upload me-2"></i>Upload EDI File
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label for="file" class="form-label">Select EDI File</label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="file" name="file" 
+                                   accept=".edi,.txt" required>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-upload me-2"></i>Upload & Process
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            Supported formats: .edi, .txt (X12 EDI format)
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="alert alert-info" role="alert">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-info-circle me-2"></i>Upload Instructions
+                    </h6>
+                    <ul class="mb-0">
+                        <li>Upload EDI files in X12 format (.edi or .txt extensions)</li>
+                        <li>Supported transaction sets: 210 (Freight Invoice), 214 (Shipment Status)</li>
+                        <li>Files will be automatically parsed and validated</li>
+                        <li>Invoices will be stored in the database for audit review</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sample EDI Format -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-code me-2"></i>Sample EDI Format
+                </h5>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded"><code>ST*210*000000001~
+B3*INVOICE123*PRO456~
+B2A*00*SS*REFERENCE789~
+N1*SH*SHIPPER COMPANY NAME~
+N3*123 SHIPPING STREET~
+N4*SHIPPING CITY*STATE*12345~
+N1*CN*CONSIGNEE COMPANY NAME~
+N3*456 DELIVERY AVENUE~
+N4*DELIVERY CITY*STATE*67890~
+G62*10*20231215~
+L0*1*2000*LB*100~
+L1*FC*125.50~
+L1*FSC*15.75~
+SE*12*000000001~</code></pre>
+                <p class="mt-2 text-muted">
+                    This sample shows a basic freight invoice with shipper/consignee info, 
+                    service date, weight details, and charge breakdown.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

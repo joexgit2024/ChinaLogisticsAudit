@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice Audit Detail - {{ audit_result.invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-file-invoice text-primary"></i>
+                    Invoice Audit Detail
+                </h1>
+                <div>
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                    {% if has_invoice_image %}
+                        <a href="{{ url_for('images.view_invoice_image', invoice_type='DGF', invoice_number=audit_result.invoice_no) }}" 
+                           class="btn btn-outline-info me-2">
+                            <i class="fas fa-file-image"></i> View PDF Invoice Image
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('ytd_batch_audit.ytd_batch_audit_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Invoice Summary Card -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-info-circle"></i> Invoice {{ audit_result.invoice_no }} - Audit Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Basic Information</h6>
+                                    <p><strong>Invoice Number:</strong> {{ audit_result.invoice_no }}</p>
+                                    <p><strong>Transportation Mode:</strong> {{ audit_result.transportation_mode or 'N/A' }}</p>
+                                    <p><strong>Audit Status:</strong> 
+                                        <span class="badge 
+                                            {% if audit_result.status == 'ERROR' %}bg-warning
+                                            {% elif audit_result.status == 'REJECTED' %}bg-danger
+                                            {% elif audit_result.status == 'REVIEW_REQUIRED' %}bg-info
+                                            {% elif audit_result.status == 'APPROVED' %}bg-success
+                                            {% else %}bg-secondary{% endif %} fs-6">
+                                            {% if audit_result.status == 'REJECTED' %}NO RATE CARD
+                                            {% elif audit_result.status == 'REVIEW_REQUIRED' %}REVIEW REQUIRED
+                                            {% else %}{{ audit_result.status.upper() }}{% endif %}
+                                        </span>
+                                    </p>
+                                    <p><strong>Processing Time:</strong> {{ audit_result.processing_time_ms }}ms</p>
+                                    <p><strong>Audit Date:</strong> {{ audit_result.created_at }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Financial Summary</h6>
+                                    <p><strong>Invoice Amount:</strong> ${{ "{:,.2f}".format(audit_result.total_invoice_amount) }}</p>
+                                    <p><strong>Expected Amount:</strong> ${{ "{:,.2f}".format(audit_result.total_expected_amount) }}</p>
+                                    <p><strong>Total Variance:</strong> 
+                                        <span class="
+                                            {% if audit_result.total_variance > 0 %}text-danger
+                                            {% elif audit_result.total_variance < 0 %}text-success
+                                            {% else %}text-muted{% endif %}">
+                                            {% if audit_result.total_variance > 0 %}+{% endif %}${{ "{:,.2f}".format(audit_result.total_variance) }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Variance Percentage:</strong> 
+                                        <span class="
+                                            {% if audit_result.variance_percent|abs > 20 %}text-danger
+                                            {% elif audit_result.variance_percent|abs > 10 %}text-warning
+                                            {% else %}text-muted{% endif %}">
+                                            {% if audit_result.variance_percent > 0 %}+{% endif %}{{ "{:.2f}".format(audit_result.variance_percent) }}%
+                                        </span>
+                                    </p>
+                                    <p><strong>Rate Cards Checked:</strong> {{ audit_result.rate_cards_checked }}</p>
+                                    <p><strong>Matching Lanes:</strong> {{ audit_result.matching_lanes }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Audit Results -->
+            {% if audit_details %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-magnifying-glass"></i> Detailed Audit Analysis</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if audit_details.get('invoice_details') %}
+                            <!-- Invoice Details -->
+                            <h6 class="mb-3">Invoice Details</h6>
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    {% set inv_details = audit_details.invoice_details %}
+                                    <p><strong>Origin:</strong> {{ inv_details.get('origin', 'N/A') }}</p>
+                                    <p><strong>Destination:</strong> {{ inv_details.get('destination', 'N/A') }}</p>
+                                    <p><strong>Origin Country:</strong> {{ inv_details.get('origin_country', 'N/A') }}</p>
+                                    <p><strong>Destination Country:</strong> {{ inv_details.get('destination_country', 'N/A') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Weight (kg):</strong> {{ inv_details.get('weight_kg', 0) }}</p>
+                                    <p><strong>Chargeable Weight (kg):</strong> {{ inv_details.get('chargeable_weight_kg', 0) }}</p>
+                                    <p><strong>Actual Weight (kg):</strong> {{ inv_details.get('actual_weight_kg', 0) }}</p>
+                                    <p><strong>Volume (m³):</strong> {{ inv_details.get('volume_m3', 0) }}</p>
+                                    <p><strong>Currency:</strong> {{ inv_details.get('currency', 'N/A') }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if audit_details.get('audit_results') %}
+                            <!-- Rate Card Analysis -->
+                            <h6 class="mb-3">Rate Card Analysis</h6>
+                            {% for rate_result in audit_details.audit_results %}
+                            <div class="card mb-3 border-
+                                {% if rate_result.get('audit_status') == 'PASS' %}success
+                                {% elif rate_result.get('audit_status') == 'WARNING' %}warning
+                                {% else %}danger{% endif %}">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">
+                                            {{ rate_result.get('lane_description', 'N/A') }} 
+                                            ({{ rate_result.get('service', 'N/A') }})
+                                        </h6>
+                                        <span class="badge bg-
+                                            {% if rate_result.get('audit_status') == 'PASS' %}success
+                                            {% elif rate_result.get('audit_status') == 'WARNING' %}warning
+                                            {% else %}danger{% endif %}">
+                                            {{ rate_result.get('audit_status', 'N/A') }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <h7><strong>Charge Breakdown:</strong></h7>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Charge Type</th>
+                                                            <th>Expected</th>
+                                                            <th>Actual</th>
+                                                            <th>Variance</th>
+                                                            <th>Variance %</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for variance in rate_result.get('variances', []) %}
+                                                        <tr>
+                                                            <td>{{ variance.get('charge_type', 'N/A') }}</td>
+                                                            <td>${{ "{:,.2f}".format(variance.get('expected', 0)) }}</td>
+                                                            <td>${{ "{:,.2f}".format(variance.get('actual', 0)) }}</td>
+                                                            <td class="
+                                                                {% if variance.get('variance', 0) > 0 %}text-danger
+                                                                {% elif variance.get('variance', 0) < 0 %}text-success
+                                                                {% else %}text-muted{% endif %}">
+                                                                {% if variance.get('variance', 0) > 0 %}+{% endif %}${{ "{:,.2f}".format(variance.get('variance', 0)) }}
+                                                            </td>
+                                                            <td class="
+                                                                {% if variance.get('variance_pct', 0)|abs > 20 %}text-danger
+                                                                {% elif variance.get('variance_pct', 0)|abs > 10 %}text-warning
+                                                                {% else %}text-muted{% endif %}">
+                                                                {% if variance.get('variance_pct', 0) > 0 %}+{% endif %}{{ "{:.2f}".format(variance.get('variance_pct', 0)) }}%
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <h7><strong>Summary:</strong></h7>
+                                            <p><strong>Total Expected:</strong> ${{ "{:,.2f}".format(rate_result.get('total_expected', 0)) }}</p>
+                                            <p><strong>Total Actual:</strong> ${{ "{:,.2f}".format(rate_result.get('total_actual', 0)) }}</p>
+                                            <p><strong>Total Variance:</strong> 
+                                                <span class="
+                                                    {% if rate_result.get('total_variance', 0) > 0 %}text-danger
+                                                    {% elif rate_result.get('total_variance', 0) < 0 %}text-success
+                                                    {% else %}text-muted{% endif %}">
+                                                    {% if rate_result.get('total_variance', 0) > 0 %}+{% endif %}${{ "{:,.2f}".format(rate_result.get('total_variance', 0)) }}
+                                                </span>
+                                            </p>
+                                            <p><strong>Status Reason:</strong><br>
+                                                <small class="text-muted">{{ rate_result.get('status_reason', 'N/A') }}</small>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Ocean Freight Detailed Comparison -->
+            {% if audit_details.get('ocean_audit_details') %}
+            {% set ocean_details = audit_details.ocean_audit_details %}
+            {% set invoice_data = ocean_details.get('invoice_data', {}) %}
+            {% set expected_calc = ocean_details.get('expected_calculation', {}) %}
+            {% set rate_card_pricing = ocean_details.get('rate_card_pricing', {}) %}
+            {% set best_match = ocean_details.get('best_match', {}) %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-ship text-primary"></i> Ocean Freight Detailed Comparison</h5>
+                        </div>
+                        <div class="card-body">
+                            
+                            <!-- Basic Information Comparison -->
+                            <h6 class="text-primary mb-3">📋 Basic Information</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Invoice Data</th>
+                                            <th>Rate Card Data</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Transportation Mode</strong></td>
+                                            <td>{{ invoice_data.get('transportation_mode', 'N/A') }}</td>
+                                            <td>{{ best_match.get('service_type', 'N/A') }}</td>
+                                            <td>
+                                                {% if invoice_data.get('transportation_mode', '').lower() in ['sea', 'ocean'] and best_match.get('service_type', '').lower() == 'ocean' %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Partial</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Service Type</strong></td>
+                                            <td>{{ invoice_data.get('service_type', 'N/A') }}</td>
+                                            <td>{{ expected_calc.get('calculation_type', 'N/A') }}</td>
+                                            <td>
+                                                {% if invoice_data.get('service_type', '').upper() == expected_calc.get('calculation_type', '').upper() %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger"><i class="fas fa-times"></i> Mismatch</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Origin</strong></td>
+                                            <td>{{ invoice_data.get('origin_port', 'N/A') }}</td>
+                                            <td>{{ best_match.get('lane_origin', 'N/A') }}</td>
+                                            <td>
+                                                {% if best_match.get('origin_score', 0) >= 0.8 %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match ({{ "%.0f"|format(best_match.get('origin_score', 0) * 100) }}%)</span>
+                                                {% elif best_match.get('origin_score', 0) >= 0.6 %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Partial ({{ "%.0f"|format(best_match.get('origin_score', 0) * 100) }}%)</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger"><i class="fas fa-times"></i> Poor ({{ "%.0f"|format(best_match.get('origin_score', 0) * 100) }}%)</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Destination</strong></td>
+                                            <td>{{ invoice_data.get('destination_port', 'N/A') }}</td>
+                                            <td>{{ best_match.get('lane_destination', 'N/A') }}</td>
+                                            <td>
+                                                {% if best_match.get('destination_score', 0) >= 0.8 %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match ({{ "%.0f"|format(best_match.get('destination_score', 0) * 100) }}%)</span>
+                                                {% elif best_match.get('destination_score', 0) >= 0.6 %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Partial ({{ "%.0f"|format(best_match.get('destination_score', 0) * 100) }}%)</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger"><i class="fas fa-times"></i> Poor ({{ "%.0f"|format(best_match.get('destination_score', 0) * 100) }}%)</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Weight</strong></td>
+                                            <td>{{ "{:,.2f}".format(invoice_data.get('shipment_weight_kg', 0)) }} kg</td>
+                                            <td>{{ "{:,.2f}".format(expected_calc.get('weight_kg', 0)) }} kg</td>
+                                            <td>
+                                                {% if invoice_data.get('shipment_weight_kg', 0) == expected_calc.get('weight_kg', 0) %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match</span>
+                                                {% else %}
+                                                    <span class="badge bg-info"><i class="fas fa-info-circle"></i> Used in calc</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Volume</strong></td>
+                                            <td>{{ "{:.2f}".format(invoice_data.get('volume_m3', 0)) }} m³</td>
+                                            <td>{{ "{:.2f}".format(expected_calc.get('volume_cbm', 0)) }} CBM</td>
+                                            <td>
+                                                {% set volume_diff = ((invoice_data.get('volume_m3', 0) - expected_calc.get('volume_cbm', 0)) / expected_calc.get('volume_cbm', 1) * 100) if expected_calc.get('volume_cbm', 0) > 0 %}
+                                                {% if volume_diff is defined and volume_diff|abs <= 5 %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Match</span>
+                                                {% elif volume_diff is defined %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Diff: {{ "{:.1f}".format(volume_diff) }}%</span>
+                                                {% else %}
+                                                    <span class="badge bg-info"><i class="fas fa-info-circle"></i> Used in calc</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Currency and Total Comparison -->
+                            <h6 class="text-primary mb-3">💰 Currency & Total Amount Comparison</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Invoice</th>
+                                            <th>Rate Card Expected</th>
+                                            <th>Variance</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Currency</strong></td>
+                                            <td>{{ invoice_data.get('currency', 'N/A') }}</td>
+                                            <td>{{ expected_calc.get('currency', 'N/A') }}</td>
+                                            <td>-</td>
+                                            <td>
+                                                {% if invoice_data.get('currency', '') == expected_calc.get('currency', '') %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Same</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exchange-alt"></i> Conversion needed</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr class="table-warning">
+                                            <td><strong>Total Amount</strong></td>
+                                            <td>{{ "{:.2f}".format(invoice_data.get('total_charges_with_duty_tax', 0)) }} {{ invoice_data.get('currency', '') }}</td>
+                                            <td>{{ "{:.2f}".format(expected_calc.get('total_cost', 0)) }} {{ expected_calc.get('currency', '') }}</td>
+                                            <td>
+                                                {% set variance = audit_result.variance_percent or 0 %}
+                                                {{ "{:.1f}".format(variance) }}%
+                                            </td>
+                                            <td>
+                                                {% set abs_variance = variance if variance >= 0 else -variance %}
+                                                {% if abs_variance <= 5 %}
+                                                    <span class="badge bg-success"><i class="fas fa-check"></i> Approved</span>
+                                                {% elif abs_variance <= 15 %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Review Required</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger"><i class="fas fa-times"></i> Rejected</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Detailed Charge Breakdown -->
+                            <h6 class="text-primary mb-3">⚖️ Charge-by-Charge Breakdown</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Charge Type</th>
+                                            <th>Invoice Amount</th>
+                                            <th>Rate Card Expected</th>
+                                            <th>Rate Card Method</th>
+                                            <th>Variance</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% set charge_mappings = {
+                                            'pickup_charges': 'pickup',
+                                            'origin_handling_charges': 'origin_handling', 
+                                            'freight_charges': 'freight',
+                                            'destination_handling_charges': 'destination_handling',
+                                            'delivery_charges': 'delivery'
+                                        } %}
+                                        
+                                        {% for invoice_field, rate_field in charge_mappings.items() %}
+                                        {% set invoice_amount = invoice_data.get('charge_breakdown', {}).get(invoice_field, 0) %}
+                                        {% set expected_data = expected_calc.get('cost_breakdown', {}).get(rate_field, {}) %}
+                                        {% set expected_amount = expected_data.get('cost', 0) %}
+                                        {% set calculation_method = expected_data.get('calculation_method', 'N/A') %}
+                                        
+                                        <tr>
+                                            <td><strong>{{ rate_field|title|replace('_', ' ') }}</strong></td>
+                                            <td>
+                                                {% if invoice_amount > 0 %}
+                                                    {{ "{:.2f}".format(invoice_amount) }} {{ invoice_data.get('currency', '') }}
+                                                {% else %}
+                                                    <span class="text-muted">0.00</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ "{:.2f}".format(expected_amount) }} {{ expected_calc.get('currency', '') }}</td>
+                                            <td>
+                                                <small class="text-muted">{{ calculation_method }}</small>
+                                            </td>
+                                            <td>
+                                                {% if expected_amount > 0 %}
+                                                    {% set charge_variance = ((invoice_amount - expected_amount) / expected_amount * 100) %}
+                                                    <span class="{% if charge_variance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                        {{ "{:.1f}".format(charge_variance) }}%
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if expected_amount > 0 %}
+                                                    {% set charge_variance = ((invoice_amount - expected_amount) / expected_amount * 100) %}
+                                                    {% set abs_charge_variance = charge_variance if charge_variance >= 0 else -charge_variance %}
+                                                    {% if abs_charge_variance <= 10 %}
+                                                        <span class="badge bg-success"><i class="fas fa-check"></i> Pass</span>
+                                                    {% elif abs_charge_variance <= 25 %}
+                                                        <span class="badge bg-warning"><i class="fas fa-exclamation-triangle"></i> Review Required</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger"><i class="fas fa-times"></i> Rejected</span>
+                                                    {% endif %}
+                                                {% elif invoice_amount == 0 and expected_amount == 0 %}
+                                                    <span class="badge bg-secondary"><i class="fas fa-minus"></i> N/A</span>
+                                                {% elif invoice_amount == 0 %}
+                                                    <span class="badge bg-info"><i class="fas fa-question"></i> Missing</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning"><i class="fas fa-exclamation"></i> Unexpected</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Rate Card Pricing Structure -->
+                            <h6 class="text-primary mb-3">📊 Rate Card Pricing Structure</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Charge Type</th>
+                                            <th>Minimum Charge (USD)</th>
+                                            <th>Per CBM Rate (USD)</th>
+                                            <th>Applied For {{ expected_calc.get('calculation_type', 'N/A') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for charge_type, pricing in rate_card_pricing.items() %}
+                                        {% if charge_type != 'total' %}
+                                        <tr>
+                                            <td><strong>{{ charge_type|title|replace('_', ' ') }}</strong></td>
+                                            <td>{{ "{:.2f}".format(pricing.get('minimum_charge', 0)) }}</td>
+                                            <td>{{ "{:.2f}".format(pricing.get('rate_per_cbm', 0)) }}</td>
+                                            <td>
+                                                {% if expected_calc.get('calculation_type', '') == 'FCL' %}
+                                                    <span class="badge bg-info">Minimum Charge</span>
+                                                {% else %}
+                                                    <span class="badge bg-info">Volume-based ({{ "{:.2f}".format(expected_calc.get('volume_cbm', 0)) }} CBM)</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Rate Card Validity and Match Quality -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="alert alert-info">
+                                        <h6><i class="fas fa-calendar-alt me-2"></i>Rate Card Validity</h6>
+                                        <p class="mb-1"><strong>Rate Validity:</strong> {{ best_match.get('rate_validity', 'N/A') }}</p>
+                                        <p class="mb-0"><strong>Contract Validity:</strong> {{ best_match.get('contract_validity', 'N/A') }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert alert-secondary">
+                                        <h6><i class="fas fa-info-circle me-2"></i>Match Quality</h6>
+                                        <p class="mb-1"><strong>Overall Score:</strong> {{ "{:.0f}".format(best_match.get('match_score', 0) * 100) }}%</p>
+                                        <p class="mb-1"><strong>Rate Card ID:</strong> {{ best_match.get('rate_card_id', 'N/A') }}</p>
+                                        <p class="mb-0"><strong>Lane:</strong> {{ best_match.get('lane_name', 'N/A') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Raw Audit Data (Collapsible) -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>
+                                <button class="btn btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#rawDataCollapse" aria-expanded="false" aria-controls="rawDataCollapse">
+                                    <i class="fas fa-code"></i> Raw Audit Data
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </h5>
+                        </div>
+                        <div class="collapse" id="rawDataCollapse">
+                            <div class="card-body">
+                                <pre><code class="language-json">{{ audit_result.audit_details | tojsonpretty }}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add syntax highlighting if Prism.js is available
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightAll();
+    }
+});
+</script>
+{% endblock %}

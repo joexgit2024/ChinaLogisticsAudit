@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice Images{% endblock %}
+
+{% block content %}
+<style>
+    .invoice-card {
+        transition: transform 0.2s;
+        border: 1px solid #dee2e6;
+    }
+    .invoice-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .invoice-type-badge {
+        font-size: 0.8em;
+    }
+    .file-size {
+        color: #6c757d;
+        font-size: 0.9em;
+    }
+    .image-preview {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .no-image-placeholder {
+        width: 100%;
+        height: 200px;
+        background: #f8f9fa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        border: 2px dashed #dee2e6;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">
+        <i class="fas fa-images me-2"></i>Invoice Images Dashboard
+    </h1>
+    <div>
+        <a href="{{ url_for('images.upload_invoice_image') }}" class="btn btn-primary">
+                    <i class="fas fa-upload me-1"></i>Upload Image
+        </a>
+    </div>
+</div>
+
+<!-- Header Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div>
+            <p class="text-muted mb-0">Manage invoice images for DHL Express and DGF invoices</p>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">Total Images</h5>
+                                <h3 class="mb-0">{{ images|length }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-images fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">DHL Express</h5>
+                                <h3 class="mb-0">{{ images|selectattr('invoice_type', 'equalto', 'DHL_EXPRESS')|list|length }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-shipping-fast fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h5 class="card-title">DGF Invoices</h5>
+                                <h3 class="mb-0">{{ images|selectattr('invoice_type', 'equalto', 'DGF')|list|length }}</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-file-invoice fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Images Grid -->
+        {% if images %}
+            <div class="row">
+                {% for image in images %}
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card invoice-card h-100">
+                            <!-- Image Preview -->
+                            <div class="card-img-top">
+                                {% set is_image = image.image_filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp')) %}
+                                {% if is_image %}
+                                    <img src="{{ url_for('images.display_invoice_image', invoice_type=image.invoice_type, invoice_number=image.invoice_number) }}" 
+                                         class="image-preview" 
+                                         alt="Invoice {{ image.invoice_number }}"
+                                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                    <div class="no-image-placeholder" style="display: none;">
+                                        <i class="fas fa-image fa-3x text-muted"></i>
+                                    </div>
+                                {% else %}
+                                    <div class="no-image-placeholder">
+                                        <div class="text-center">
+                                            <i class="fas fa-file fa-3x text-muted mb-2"></i>
+                                            <div class="text-muted">{{ image.image_filename.split('.')[-1].upper() }} File</div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="card-body">
+                                <!-- Invoice Type Badge -->
+                                <div class="mb-2">
+                                    {% if image.invoice_type == 'DHL_EXPRESS' %}
+                                        <span class="badge bg-success invoice-type-badge">DHL Express</span>
+                                    {% else %}
+                                        <span class="badge bg-info invoice-type-badge">DGF Invoice</span>
+                                    {% endif %}
+                                    {% if not image.is_active %}
+                                        <span class="badge bg-secondary invoice-type-badge">Inactive</span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Invoice Number -->
+                                <h5 class="card-title">{{ image.invoice_number }}</h5>
+                                
+                                <!-- File Details -->
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-file me-1"></i>{{ image.original_filename or image.image_filename }}<br>
+                                        <i class="fas fa-hdd me-1"></i>{{ "%.1f"|format(image.file_size / 1024) }} KB<br>
+                                        <i class="fas fa-calendar me-1"></i>{{ image.upload_date[:19] if image.upload_date else 'Unknown' }}<br>
+                                        <i class="fas fa-user me-1"></i>{{ image.uploaded_by or 'Unknown' }}
+                                    </small>
+                                </p>
+
+                                <!-- Description -->
+                                {% if image.description %}
+                                    <p class="card-text">
+                                        <small class="text-muted">{{ image.description[:100] }}{% if image.description|length > 100 %}...{% endif %}</small>
+                                    </p>
+                                {% endif %}
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="card-footer bg-transparent">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{{ url_for('images.view_invoice_image', invoice_type=image.invoice_type, invoice_number=image.invoice_number) }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    <a href="{{ url_for('images.download_invoice_image', invoice_type=image.invoice_type, invoice_number=image.invoice_number) }}" 
+                                       class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Empty State -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-images fa-5x text-muted mb-3"></i>
+                        <h3 class="text-muted">No Invoice Images Found</h3>
+                        <p class="text-muted mb-4">Upload your first invoice image to get started</p>
+                        <a href="{{ url_for('images.upload_invoice_image') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-upload me-2"></i>Upload First Image
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+{% endblock %}

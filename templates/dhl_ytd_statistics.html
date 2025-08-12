@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}DHL YTD Statistics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chart-bar"></i> DHL Year-to-Date Statistics</h2>
+                <div>
+                    <a href="{{ url_for('dhl_ytd.view_ytd_data') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-table"></i> View Data
+                    </a>
+                    <a href="{{ url_for('dhl_ytd.upload_ytd_file') }}" class="btn btn-primary">
+                        <i class="fas fa-cloud-upload-alt"></i> Upload Data
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ "{:,}".format(total_invoices) }}</h3>
+                            <h5>Total Invoices</h5>
+                            <p class="text-muted">Historical invoice records</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">{{ total_batches }}</h3>
+                            <h5>Upload Batches</h5>
+                            <p class="text-muted">Data import sessions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Currency Breakdown -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-money-bill-wave"></i> Currency Breakdown</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Currency</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">Total (Local)</th>
+                                            <th class="text-end">Total (USD)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in currency_stats %}
+                                        <tr>
+                                            <td><strong>{{ stat.currency }}</strong></td>
+                                            <td class="text-end">{{ "{:,}".format(stat.count) }}</td>
+                                            <td class="text-end">
+                                                {% if stat.total_amount %}
+                                                    {{ "%.0f"|format(stat.total_amount) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                {% if stat.total_amount_usd %}
+                                                    ${{ "{:,.0f}".format(stat.total_amount_usd) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Transportation Mode Breakdown -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-truck"></i> Transportation Modes</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Mode</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">Avg Amount (USD)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in transport_stats %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-info">{{ stat.mode or 'N/A' }}</span>
+                                            </td>
+                                            <td class="text-end">{{ "{:,}".format(stat.count) }}</td>
+                                            <td class="text-end">
+                                                {% if stat.avg_amount_usd %}
+                                                    ${{ "{:,.2f}".format(stat.avg_amount_usd) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Monthly Trends -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-calendar-alt"></i> Monthly Trends (Last 12 Months)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th class="text-end">Invoice Count</th>
+                                            <th class="text-end">Total Amount (USD)</th>
+                                            <th class="text-end">Average Amount (USD)</th>
+                                            <th>Trend</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in monthly_stats %}
+                                        <tr>
+                                            <td><strong>{{ stat.month }}</strong></td>
+                                            <td class="text-end">{{ "{:,}".format(stat.count) }}</td>
+                                            <td class="text-end">
+                                                {% if stat.total_usd %}
+                                                    ${{ "{:,.0f}".format(stat.total_usd) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                {% if stat.total_usd and stat.count %}
+                                                    ${{ "{:,.2f}".format(stat.total_usd / stat.count) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <!-- Simple visualization -->
+                                                {% if stat.count > 50 %}
+                                                    <span class="badge bg-success">High</span>
+                                                {% elif stat.count > 20 %}
+                                                    <span class="badge bg-warning">Medium</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Low</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Top Shippers and Consignees -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-building"></i> Top Shippers</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Shipper Name</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">Total (USD)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for shipper in top_shippers %}
+                                        <tr>
+                                            <td>
+                                                <small>{{ shipper.name[:30] + '...' if shipper.name|length > 30 else shipper.name }}</small>
+                                            </td>
+                                            <td class="text-end">{{ "{:,}".format(shipper.count) }}</td>
+                                            <td class="text-end">
+                                                {% if shipper.total_usd %}
+                                                    ${{ "{:,.0f}".format(shipper.total_usd) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-warehouse"></i> Top Consignees</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Consignee Name</th>
+                                            <th class="text-end">Count</th>
+                                            <th class="text-end">Total (USD)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for consignee in top_consignees %}
+                                        <tr>
+                                            <td>
+                                                <small>{{ consignee.name[:30] + '...' if consignee.name|length > 30 else consignee.name }}</small>
+                                            </td>
+                                            <td class="text-end">{{ "{:,}".format(consignee.count) }}</td>
+                                            <td class="text-end">
+                                                {% if consignee.total_usd %}
+                                                    ${{ "{:,.0f}".format(consignee.total_usd) }}
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6>Analysis Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dhl_ytd.view_ytd_data', currency='AUD') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-dollar-sign"></i><br>
+                                View AUD Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dhl_ytd.view_ytd_data', currency='EUR') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-euro-sign"></i><br>
+                                View EUR Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dhl_ytd.view_ytd_data', currency='USD') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-dollar-sign"></i><br>
+                                View USD Invoices
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="/ytd-batch-audit" class="btn btn-outline-success w-100">
+                                <i class="fas fa-search"></i><br>
+                                Invoice Audit
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <a href="{{ url_for('ytd_reports.reports_dashboard') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-chart-bar"></i><br>
+                                Advanced Reports
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="{{ url_for('ytd_reports.shipment_reports') }}" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-ship"></i><br>
+                                Shipment Reports
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="{{ url_for('ytd_reports.exception_reports') }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-exclamation-triangle"></i><br>
+                                Exception Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

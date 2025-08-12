@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}LLM PDF Processing Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-robot text-primary"></i>
+                LLM PDF Processing Dashboard
+            </h1>
+            
+            <!-- Status Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">DeepSeek-R1 Status</h5>
+                                    <p class="card-text" id="model-status">Checking...</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-brain fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">GPU Status</h5>
+                                    <p class="card-text" id="gpu-status">Checking...</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-microchip fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Total Processed</h5>
+                                    <p class="card-text">{{ total_processed or 0 }}</p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-file-pdf fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h5 class="card-title">Avg Confidence</h5>
+                                    <p class="card-text">
+                                        {% if avg_confidence %}
+                                            {{ avg_confidence }}%
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-chart-line fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('llm_pdf.upload_page') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload PDF
+                        </a>
+                        <a href="{{ url_for('llm_pdf.batch_page') }}" class="btn btn-info">
+                            <i class="fas fa-layer-group"></i> Batch Process
+                        </a>
+                        <a href="{{ url_for('llm_pdf.test_gpu_page') }}" class="btn btn-warning">
+                            <i class="fas fa-microchip"></i> Test GPU
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Extractions -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history"></i> Recent LLM Extractions
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_extractions %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Invoice No</th>
+                                                <th>PDF File</th>
+                                                <th>Customer</th>
+                                                <th>Amount</th>
+                                                <th>Confidence</th>
+                                                <th>Processed</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for extraction in recent_extractions %}
+                                                <tr>
+                                                    <td>
+                                                        <strong>{{ extraction.invoice_no }}</strong>
+                                                    </td>
+                                                    <td>{{ extraction.pdf_filename }}</td>
+                                                    <td>{{ extraction.customer_name or 'N/A' }}</td>
+                                                    <td>
+                                                        {% if extraction.total_amount %}
+                                                            {{ extraction.currency or 'USD' }} {{ "%.2f"|format(extraction.total_amount) }}
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if extraction.confidence %}
+                                                            <span class="badge {% if extraction.confidence >= 0.8 %}bg-success{% elif extraction.confidence >= 0.6 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                                {{ "%.1f"|format(extraction.confidence * 100) }}%
+                                                            </span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">N/A</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ extraction.timestamp }}</td>
+                                                    <td>
+                                                        <a href="{{ url_for('llm_pdf.view_extraction', invoice_no=extraction.invoice_no) }}" 
+                                                           class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-eye"></i> View
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No LLM extractions yet</h5>
+                                    <p class="text-muted">Upload a PDF to get started with LLM processing</p>
+                                    <a href="{{ url_for('llm_pdf.upload_page') }}" class="btn btn-primary">
+                                        <i class="fas fa-upload"></i> Upload First PDF
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.confidence-high { color: #28a745; font-weight: bold; }
+.confidence-medium { color: #ffc107; font-weight: bold; }
+.confidence-low { color: #dc3545; font-weight: bold; }
+.status-badge { font-size: 0.8rem; }
+</style>
+
+<script>
+// Check model and GPU status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkModelStatus();
+    checkGPUStatus();
+});
+
+function checkModelStatus() {
+    fetch('/llm-pdf/api/model-status')
+        .then(response => response.json())
+        .then(data => {
+            const statusElement = document.getElementById('model-status');
+            if (data.available) {
+                statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Available';
+                statusElement.parentElement.parentElement.parentElement.parentElement.className = 'card bg-success text-white';
+            } else {
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Unavailable';
+                statusElement.parentElement.parentElement.parentElement.parentElement.className = 'card bg-danger text-white';
+            }
+        })
+        .catch(error => {
+            document.getElementById('model-status').innerHTML = '<i class="fas fa-times-circle"></i> Error';
+        });
+}
+
+function checkGPUStatus() {
+    fetch('/llm-pdf/api/gpu-status')
+        .then(response => response.json())
+        .then(data => {
+            const statusElement = document.getElementById('gpu-status');
+            if (data.available) {
+                statusElement.innerHTML = '<i class="fas fa-check-circle"></i> Ready';
+                statusElement.parentElement.parentElement.parentElement.parentElement.className = 'card bg-success text-white';
+            } else {
+                statusElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i> CPU Only';
+                statusElement.parentElement.parentElement.parentElement.parentElement.className = 'card bg-warning text-white';
+            }
+        })
+        .catch(error => {
+            document.getElementById('gpu-status').innerHTML = '<i class="fas fa-times-circle"></i> Unknown';
+        });
+}
+
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    checkModelStatus();
+    checkGPUStatus();
+}, 30000);
+</script>
+{% endblock %}

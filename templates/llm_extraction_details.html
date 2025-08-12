@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-file-invoice"></i> Extraction Details - {{ extraction.invoice_no }}</h4>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <p class="text-muted mb-0">LLM extraction results and performance metrics</p>
+                        <a href="{{ url_for('llm_pdf.model_comparison') }}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to Comparison
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Summary Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Basic Info</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Invoice No:</strong><br>{{ extraction.invoice_no }}</p>
+                                    <p><strong>File:</strong><br>{{ extraction.pdf_filename }}</p>
+                                    <p><strong>Model Used:</strong><br>{{ extraction.model_used }}</p>
+                                    <p><strong>Processed:</strong><br>{{ extraction.processing_timestamp }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fas fa-chart-line"></i> Quality Metrics</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Confidence:</strong><br>
+                                        <span class="h4 {% if extraction.confidence >= 0.8 %}text-success{% elif extraction.confidence >= 0.5 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ (extraction.confidence * 100)|round(1) }}%
+                                        </span>
+                                    </p>
+                                    <p><strong>Fields Extracted:</strong><br>
+                                        <span class="h5 text-info">{{ extraction.extracted_data|length }}</span>
+                                    </p>
+                                    <p><strong>Review Needed:</strong><br>
+                                        {% if extraction.manual_review_needed %}
+                                            <span class="badge bg-warning">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-success">No</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fas fa-clock"></i> Performance</h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if extraction.timing_data %}
+                                        {% if extraction.timing_data.total_processing_time %}
+                                            <p><strong>Total Time:</strong><br>{{ extraction.timing_data.total_processing_time|round(2) }}s</p>
+                                        {% endif %}
+                                        {% if extraction.timing_data.llm_processing %}
+                                            <p><strong>LLM Processing:</strong><br>{{ extraction.timing_data.llm_processing|round(2) }}s</p>
+                                        {% endif %}
+                                        {% if extraction.timing_data.pdf_extraction %}
+                                            <p><strong>PDF Extraction:</strong><br>{{ extraction.timing_data.pdf_extraction|round(2) }}s</p>
+                                        {% endif %}
+                                    {% else %}
+                                        <p class="text-muted">No timing data available</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <h6 class="mb-0"><i class="fas fa-cogs"></i> Actions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <button class="btn btn-primary btn-sm mb-2" onclick="downloadJSON()">
+                                        <i class="fas fa-download"></i> Download JSON
+                                    </button>
+                                    <br>
+                                    <button class="btn btn-info btn-sm mb-2" onclick="copyToClipboard()">
+                                        <i class="fas fa-copy"></i> Copy Data
+                                    </button>
+                                    <br>
+                                    <button class="btn btn-success btn-sm" onclick="reprocessInvoice()">
+                                        <i class="fas fa-redo"></i> Reprocess
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Extracted Data -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-database"></i> Extracted Data</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if extraction.extracted_data %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Field</th>
+                                                <th>Value</th>
+                                                <th>Type</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for key, value in extraction.extracted_data.items() %}
+                                                {% if key != 'timing_data' %}
+                                                <tr>
+                                                    <td><strong>{{ key|replace('_', ' ')|title }}</strong></td>
+                                                    <td>
+                                                        {% if value is mapping %}
+                                                            <details>
+                                                                <summary class="text-primary">{{ value|length }} items</summary>
+                                                                <pre class="mt-2">{{ value|tojson(indent=2) }}</pre>
+                                                            </details>
+                                                        {% elif value is iterable and value is not string %}
+                                                            <details>
+                                                                <summary class="text-primary">{{ value|length }} items</summary>
+                                                                <ul class="mt-2">
+                                                                    {% for item in value %}
+                                                                        <li>{{ item }}</li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            </details>
+                                                        {% else %}
+                                                            {{ value }}
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-secondary">
+                                                            {% if value is mapping %}
+                                                                Object
+                                                            {% elif value is iterable and value is not string %}
+                                                                Array
+                                                            {% elif value is number %}
+                                                                Number
+                                                            {% else %}
+                                                                String
+                                                            {% endif %}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> No data was extracted from this invoice.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Raw JSON Data -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#rawDataCollapse">
+                                    <i class="fas fa-code"></i> Raw JSON Data
+                                </button>
+                            </h5>
+                        </div>
+                        <div id="rawDataCollapse" class="collapse">
+                            <div class="card-body">
+                                <pre id="rawJsonData" class="bg-light p-3" style="max-height: 400px; overflow-y: auto;">{{ extraction.extracted_data|tojson(indent=2) }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const extractionData = {{ extraction.extracted_data|tojson }};
+
+function downloadJSON() {
+    const dataStr = JSON.stringify(extractionData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = '{{ extraction.invoice_no }}_extraction.json';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function copyToClipboard() {
+    const dataStr = JSON.stringify(extractionData, null, 2);
+    navigator.clipboard.writeText(dataStr).then(() => {
+        alert('Extraction data copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy data to clipboard');
+    });
+}
+
+function reprocessInvoice() {
+    if (confirm('Are you sure you want to reprocess this invoice? This will create a new extraction record.')) {
+        // Redirect to upload page with specific invoice
+        window.location.href = '/llm-pdf';
+    }
+}
+</script>
+{% endblock %}

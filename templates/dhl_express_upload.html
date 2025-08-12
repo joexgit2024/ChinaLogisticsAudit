@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+{% block title %}DHL Express Upload{% endblock %}
+
+{% block content %}
+<style>
+    .upload-zone {
+        border: 3px dashed #D70018;
+        border-radius: 15px;
+        padding: 40px;
+        text-align: center;
+        background-color: #fff5f5;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .upload-zone:hover {
+        background-color: #ffebeb;
+        border-color: #B80015;
+    }
+    .upload-zone.dragover {
+        background-color: #ffe6e6;
+        border-color: #B80015;
+    }
+    .btn-dhl {
+        background-color: #D70018;
+        border-color: #D70018;
+        color: white;
+        }
+        .btn-dhl:hover {
+            background-color: #B80015;
+            border-color: #B80015;
+            color: white;
+        }
+        .file-info {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .progress-container {
+            display: none;
+            margin: 20px 0;
+        }
+        .nav-link {
+            color: #D70018 !important;
+            border-radius: 10px;
+            margin: 0 5px;
+        }
+        .nav-link:hover {
+            background-color: #D70018 !important;
+            color: white !important;
+        }
+    </style>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+                <div>
+                    <h1><i class="fas fa-upload"></i> Upload DHL Express Files</h1>
+                    <p class="text-muted">Upload invoice CSV files and rate card Excel files for processing</p>
+                </div>
+                <div>
+                    <a href="/dhl-express/dashboard" class="btn btn-outline-info">
+                        <i class="fas fa-monitor-waveform"></i> Upload Monitoring
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-file-upload"></i> File Upload</h5>
+                </div>
+                <div class="card-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="upload-zone" id="uploadZone">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-danger mb-3"></i>
+                            <h4>Drag & Drop Files Here</h4>
+                            <p class="text-muted">or click to browse files</p>
+                                <input type="file" id="fileInput" multiple accept=".csv,.xlsx,.xls" style="display: none;">
+                                <button type="button" class="btn btn-dhl" id="browseBtn">
+                                    <i class="fas fa-folder-open"></i> Browse Files
+                                </button>
+                            </div>
+
+                            <div id="fileList" class="mt-3"></div>
+
+                            <div class="progress-container" id="progressContainer">
+                                <div class="progress">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <small class="text-muted mt-2 d-block">Processing files...</small>
+                            </div>
+
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-dhl" id="uploadBtn" disabled>
+                                    <i class="fas fa-upload"></i> <span id="uploadBtnText">Upload Files</span>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearFiles()">
+                                    <i class="fas fa-times"></i> Clear All
+                                </button>
+                                <button type="button" class="btn btn-warning" onclick="clearUploadStatus()" style="display: none;" id="clearStatusBtn">
+                                    <i class="fas fa-eraser"></i> Clear Results
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Permanent Upload Status Display -->
+                        <div id="uploadStatusContainer" class="mt-4" style="display: none;">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Upload Status & Results</h5>
+                                    <span class="badge" id="statusBadge"></span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="uploadStatusContent"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legacy results div for compatibility -->
+                        <div id="uploadResults" class="mt-4" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> File Requirements</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6><i class="fas fa-file-csv text-success"></i> Invoice Files (CSV)</h6>
+                        <ul class="text-sm">
+                            <li>DHL Express invoice export format</li>
+                            <li>Must contain columns: Invoice No, Amount, Weight, etc.</li>
+                            <li>Maximum file size: 50MB</li>
+                        </ul>
+
+                        <h6 class="mt-3"><i class="fas fa-file-excel text-success"></i> Rate Card Files (Excel)</h6>
+                        <ul class="text-sm">
+                            <li><strong>International Rate Cards:</strong> Multi-sheet format with zone-based rates</li>
+                            <li>&nbsp;&nbsp;• Sheets: AU TD Exp WW, AU TD Imp WW, S&S Published</li>
+                            <li><strong>AU Domestic Rate Cards:</strong> Domestic Australia rate cards</li>
+                            <li>&nbsp;&nbsp;• Sheets: AU Zones TD Dom, AU Matrix TD Dom, AU TD Dom</li>
+                            <li>Maximum file size: 25MB</li>
+                        </ul>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-lightbulb"></i>
+                            <strong>Tip:</strong> You can upload multiple files at once. The system will automatically detect file types and process them accordingly.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedFiles = [];
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFileList();
+            updateUploadButton();
+        });
+
+        // File input change handler
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            handleFiles(e.target.files);
+        });
+
+        // Browse button click handler
+        document.getElementById('browseBtn').addEventListener('click', function(e) {
+            e.stopPropagation(); // Prevent event bubbling
+            document.getElementById('fileInput').click();
+        });
+
+        // Drag and drop handlers
+        const uploadZone = document.getElementById('uploadZone');
+
+        uploadZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        // Click handler for upload zone (but not the button)
+        uploadZone.addEventListener('click', function(e) {
+            // Only trigger file input if we didn't click the browse button
+            if (!e.target.closest('#browseBtn')) {
+                document.getElementById('fileInput').click();
+            }
+        });
+
+        function handleFiles(files) {
+            let newFilesAdded = 0;
+            
+            for (let file of files) {
+                // Check for duplicates
+                const isDuplicate = selectedFiles.some(existingFile => 
+                    existingFile.name === file.name && existingFile.size === file.size
+                );
+                
+                if (isDuplicate) {
+                    showToast(`File "${file.name}" is already selected`, 'warning');
+                    continue;
+                }
+                
+                if (isValidFile(file)) {
+                    selectedFiles.push(file);
+                    newFilesAdded++;
+                }
+            }
+            
+            if (newFilesAdded > 0) {
+                showToast(`${newFilesAdded} file(s) selected for upload`, 'success');
+            }
+            
+            updateFileList();
+            updateUploadButton();
+            
+            // Clear the file input so the same file can be selected again if needed
+            document.getElementById('fileInput').value = '';
+        }
+
+        function showToast(message, type = 'info') {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toastContainer';
+                toastContainer.className = 'position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '1055';
+                document.body.appendChild(toastContainer);
+            }
+
+            // Create toast element
+            const toastId = 'toast_' + Date.now();
+            const bgClass = type === 'success' ? 'bg-success' : type === 'warning' ? 'bg-warning' : 'bg-info';
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${type === 'success' ? 'check' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            // Show toast
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+            
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+
+        function isValidFile(file) {
+            const validTypes = ['.csv', '.xlsx', '.xls'];
+            const maxSize = 50 * 1024 * 1024; // 50MB
+
+            // Check file extension
+            const extension = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validTypes.includes(extension)) {
+                showToast(`Invalid file type: ${file.name}. Please upload CSV or Excel files.`, 'warning');
+                return false;
+            }
+
+            // Check file size
+            if (file.size > maxSize) {
+                showToast(`File too large: ${file.name}. Maximum size is 50MB.`, 'warning');
+                return false;
+            }
+
+            return true;
+        }
+
+        function updateFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+
+            if (selectedFiles.length === 0) {
+                fileList.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-file fa-2x mb-2"></i>
+                        <p class="mb-0">No files selected</p>
+                        <small>Select files to see them here</small>
+                    </div>
+                `;
+                return;
+            }
+
+            selectedFiles.forEach((file, index) => {
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'file-info d-flex justify-content-between align-items-center';
+                
+                const fileType = file.name.toLowerCase().endsWith('.csv') ? 'Invoice CSV' : 'Rate Card Excel';
+                const fileIcon = file.name.toLowerCase().endsWith('.csv') ? 'fa-file-csv' : 'fa-file-excel';
+                
+                fileDiv.innerHTML = `
+                    <div>
+                        <i class="fas ${fileIcon} text-success me-2"></i>
+                        <strong>${file.name}</strong>
+                        <br>
+                        <small class="text-muted">${fileType} - ${formatFileSize(file.size)}</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})" title="Remove file">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                fileList.appendChild(fileDiv);
+            });
+        }
+
+        function removeFile(index) {
+            const fileName = selectedFiles[index].name;
+            selectedFiles.splice(index, 1);
+            updateFileList();
+            updateUploadButton();
+            showToast(`Removed "${fileName}" from upload queue`, 'info');
+        }
+
+        function clearFiles() {
+            const count = selectedFiles.length;
+            selectedFiles = [];
+            updateFileList();
+            updateUploadButton();
+            document.getElementById('fileInput').value = '';
+            if (count > 0) {
+                showToast(`Cleared ${count} file(s) from upload queue`, 'info');
+            }
+        }
+
+        function updateUploadButton() {
+            const uploadBtn = document.getElementById('uploadBtn');
+            const uploadBtnText = document.getElementById('uploadBtnText');
+            const fileCount = selectedFiles.length;
+            
+            uploadBtn.disabled = fileCount === 0;
+            
+            if (fileCount === 0) {
+                uploadBtnText.textContent = 'Upload Files';
+            } else if (fileCount === 1) {
+                uploadBtnText.textContent = 'Upload 1 File';
+            } else {
+                uploadBtnText.textContent = `Upload ${fileCount} Files`;
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Form submission handler
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadFiles();
+        });
+
+        function uploadFiles() {
+            const formData = new FormData();
+            
+            selectedFiles.forEach((file, index) => {
+                formData.append(`file_${index}`, file);
+            });
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = progressContainer.querySelector('.progress-bar');
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            progressContainer.style.display = 'block';
+            uploadBtn.disabled = true;
+            
+            fetch('/dhl-express/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                progressContainer.style.display = 'none';
+                uploadBtn.disabled = false;
+                showUploadResults(data);
+                
+                if (data.success) {
+                    clearFiles();
+                }
+            })
+            .catch(error => {
+                progressContainer.style.display = 'none';
+                uploadBtn.disabled = false;
+                console.error('Error:', error);
+                showUploadResults({success: false, error: 'Upload failed'});
+            });
+        }
+
+        function showUploadResults(data) {
+            const statusContainer = document.getElementById('uploadStatusContainer');
+            const statusContent = document.getElementById('uploadStatusContent');
+            const statusBadge = document.getElementById('statusBadge');
+            const clearStatusBtn = document.getElementById('clearStatusBtn');
+            
+            // Show the permanent status container
+            statusContainer.style.display = 'block';
+            clearStatusBtn.style.display = 'inline-block';
+            
+            // Scroll to status area smoothly
+            setTimeout(() => {
+                statusContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 200);
+            
+            if (data.success) {
+                statusBadge.className = 'badge bg-success fs-6';
+                statusBadge.textContent = '✅ SUCCESS';
+                
+                let statusHtml = `
+                    <div class="alert alert-success border-success">
+                        <h4><i class="fas fa-check-circle text-success"></i> Upload Completed Successfully!</h4>
+                        <p class="mb-3 lead">All files have been processed and imported into the system.</p>
+                        <hr>
+                        <p class="mb-0"><i class="fas fa-info-circle"></i> <strong>Results will remain visible below until you clear them manually.</strong></p>
+                    </div>
+                `;
+                
+                if (data.files_processed && data.files_processed.length > 0) {
+                    statusHtml += '<h5 class="mt-4"><i class="fas fa-list-check"></i> Processing Details:</h5>';
+                    
+                    data.files_processed.forEach((file, index) => {
+                        const isSuccess = file.result && file.result.success !== false;
+                        const cardClass = isSuccess ? 'border-success' : 'border-warning';
+                        const iconClass = isSuccess ? 'fa-check-circle text-success' : 'fa-exclamation-triangle text-warning';
+                        
+                        statusHtml += `
+                            <div class="card mb-3 ${cardClass}">
+                                <div class="card-header bg-light">
+                                    <h6 class="card-title mb-0">
+                                        <i class="fas ${iconClass} me-2"></i>
+                                        <strong>${file.filename}</strong>
+                                        <span class="badge bg-primary ms-2">${file.type}</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <h6>📊 Processing Results:</h6>
+                                            <div class="bg-light p-3 rounded border">
+                                                <pre class="mb-0 small text-dark" style="white-space: pre-wrap;">${JSON.stringify(file.result, null, 2)}</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                statusContent.innerHTML = statusHtml;
+                
+                // Show permanent success toast with redirect option
+                showToast('✅ Upload completed successfully! You will be redirected to the dashboard to view results.', 'success');
+                
+                // Redirect to dashboard after short delay to show results
+                setTimeout(() => {
+                    window.location.href = '/dhl-express/dashboard';
+                }, 3000);
+                
+            } else {
+                statusBadge.className = 'badge bg-danger fs-6';
+                statusBadge.textContent = '❌ FAILED';
+                
+                let errorDetails = '';
+                if (data.error_details) {
+                    errorDetails = `
+                        <h5 class="mt-4"><i class="fas fa-bug"></i> Detailed Error Information:</h5>
+                        <div class="bg-light p-3 rounded border">
+                            <pre class="mb-0 small text-danger" style="white-space: pre-wrap;">${JSON.stringify(data.error_details, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+                
+                statusContent.innerHTML = `
+                    <div class="alert alert-danger border-danger">
+                        <h4><i class="fas fa-exclamation-triangle text-danger"></i> Upload Failed</h4>
+                        <p class="lead"><strong>Error:</strong> ${data.error || 'Unknown error occurred during upload'}</p>
+                        ${errorDetails}
+                        
+                        <hr class="my-4">
+                        
+                        <div class="bg-info bg-opacity-10 p-3 rounded border border-info">
+                            <h6><i class="fas fa-lightbulb text-info"></i> Troubleshooting Guide:</h6>
+                            <ul class="mb-0">
+                                <li><strong>For Rate Card Files:</strong> Ensure your Excel file has a sheet named exactly <code>'S&S Published'</code> for service charges</li>
+                                <li><strong>Required Sheets:</strong> Rate card files need sheets named <code>'AU TD Exp WW'</code> and <code>'AU TD Imp WW'</code></li>
+                                <li><strong>File Format:</strong> Use .xlsx or .xls format for rate cards, .csv for invoices</li>
+                                <li><strong>File Size:</strong> Maximum 50MB for CSV files, 25MB for Excel files</li>
+                                <li><strong>Enhanced Processing:</strong> The system now requires exact sheet names - no fallback to basic processing</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <p class="mb-2"><i class="fas fa-info-circle"></i> <strong>Error details will remain visible until you clear them manually.</strong></p>
+                            <a href="/dhl-express/dashboard" class="btn btn-info">
+                                <i class="fas fa-monitor-waveform"></i> Upload Monitoring
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // NO AUTOMATIC REDIRECTION - Results stay on page permanently
+            console.log('Upload results displayed. Staying on upload page as requested.');
+        }
+    </script>
+</div>
+{% endblock %}

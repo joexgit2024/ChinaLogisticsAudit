@@ -1,0 +1,561 @@
+{% extends "base.html" %}
+{% block title %}Rate Card: {{ rate_card['card_name'] }}{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-8">
+        <h1 class="h3">Rate Card: {{ rate_card['card_name'] }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('rate_card.air_rates') }}">Air Rates</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('rate_card.list_rate_cards') }}">Rate Cards</a></li>
+                <li class="breadcrumb-item active">{{ rate_card['card_name'] }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{{ url_for('rate_card.list_rate_cards') }}" class="btn btn-outline-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Back to Rate Cards
+        </a>
+    </div>
+</div>
+
+<!-- Rate Card Summary -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Card ID</dt>
+                    <dd class="col-sm-8">{{ rate_card['id'] }}</dd>
+                    
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">{{ rate_card['card_name'] }}</dd>
+                    
+                    <dt class="col-sm-4">Validity Period</dt>
+                    <dd class="col-sm-8">
+                        {% if rate_card['validity_start'] and rate_card['validity_end'] %}
+                            {{ rate_card['validity_start'] }} to {{ rate_card['validity_end'] }}
+                        {% else %}
+                            No date range specified
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">File Name</dt>
+                    <dd class="col-sm-8">{{ rate_card['uploaded_file'] }}</dd>
+                    
+                    <dt class="col-sm-4">Upload Date</dt>
+                    <dd class="col-sm-8">{{ rate_card['uploaded_at'] }}</dd>
+                    
+                    <dt class="col-sm-4">Rate Entries</dt>
+                    <dd class="col-sm-8">{{ entries|length }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="mb-3">Filter Rate Entries</h5>
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="origin_country" class="form-label">Origin Country</label>
+                <input type="text" class="form-control" id="origin_country" name="origin_country" 
+                       placeholder="Origin Country" value="{{ origin_country }}">
+            </div>
+            <div class="col-md-3">
+                <label for="destination_country" class="form-label">Destination Country</label>
+                <input type="text" class="form-control" id="destination_country" name="destination_country" 
+                       placeholder="Destination Country" value="{{ destination_country }}">
+            </div>
+            <div class="col-md-2">
+                <label for="service_filter" class="form-label">Service</label>
+                <input type="text" class="form-control" id="service_filter" name="service_filter" 
+                       placeholder="Service Type" value="{{ request.args.get('service_filter', '') }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid d-md-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                    <a href="{{ url_for('rate_card.view_rate_card', rate_card_id=rate_card['id']) }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tabbed Rate Card Data -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="rateCardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+                    <i class="fas fa-chart-line me-2"></i>Overview
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pricing-tab" data-bs-toggle="tab" data-bs-target="#pricing" type="button" role="tab" aria-controls="pricing" aria-selected="false">
+                    <i class="fas fa-dollar-sign me-2"></i>Pricing & Rates
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="routes-tab" data-bs-toggle="tab" data-bs-target="#routes" type="button" role="tab" aria-controls="routes" aria-selected="false">
+                    <i class="fas fa-route me-2"></i>Routes & Locations
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="service-tab" data-bs-toggle="tab" data-bs-target="#service" type="button" role="tab" aria-controls="service" aria-selected="false">
+                    <i class="fas fa-truck me-2"></i>Service & Transit
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="contract-tab" data-bs-toggle="tab" data-bs-target="#contract" type="button" role="tab" aria-controls="contract" aria-selected="false">
+                    <i class="fas fa-file-contract me-2"></i>Contract & Vendor
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="calculator-tab" data-bs-toggle="tab" data-bs-target="#calculator" type="button" role="tab" aria-controls="calculator" aria-selected="false">
+                    <i class="fas fa-calculator me-2"></i>Calculator
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="rateCardTabContent">
+            
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lane ID</th>
+                                <th>Origin → Destination</th>
+                                <th>Service</th>
+                                <th>Transit</th>
+                                <th>Min Charge</th>
+                                <th>&lt;1000kg</th>
+                                <th>1000-1999kg</th>
+                                <th>2000-3000kg</th>
+                                <th>&gt;3000kg</th>
+                                <th>Fuel</th>
+                                <th>Total Min</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if entries %}
+                                {% for entry in entries %}
+                                <tr>
+                                    <td><strong>{{ entry['lane_id'] or 'N/A' }}</strong></td>
+                                    <td>
+                                        <div><strong>{{ entry['origin_country'] or 'N/A' }}</strong> → <strong>{{ entry['destination_country'] or 'N/A' }}</strong></div>
+                                        <small class="text-muted">{{ entry['lane_origin'] or 'N/A' }} → {{ entry['lane_destination'] or 'N/A' }}</small>
+                                    </td>
+                                    <td>{{ entry['service'] or 'N/A' }}</td>
+                                    <td>{{ entry['transit_time'] or 'N/A' }}</td>
+                                    <td>${{ "%.2f"|format(entry['ata_min_charge'] or 0) }}</td>
+                                    <td>${{ "%.2f"|format(entry['base_rate_lt1000kg'] or 0) }}</td>
+                                    <td>${{ "%.2f"|format(entry['base_rate_1000to2000kg'] or 0) }}</td>
+                                    <td>${{ "%.2f"|format(entry['base_rate_2000to3000kg'] or 0) }}</td>
+                                    <td>{{ entry['base_rate_gt3000kg'] or 'N/A' }}</td>
+                                    <td>${{ "%.2f"|format(entry['fuel_surcharge'] or 0) }}</td>
+                                    <td>${{ "%.2f"|format(entry['total_min_charge'] or 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="11" class="text-center py-3">
+                                        <em>No rate entries found for this rate card.</em>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pricing & Rates Tab -->
+            <div class="tab-pane fade" id="pricing" role="tabpanel" aria-labelledby="pricing-tab">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lane ID</th>
+                                <th>Base Rates (USD/KG)</th>
+                                <th>ATA Costs (USD/KG)</th>
+                                <th>PSS & Surcharges</th>
+                                <th>DTP/PTD Rates</th>
+                                <th>Minimum Charges</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if entries %}
+                                {% for entry in entries %}
+                                <tr>
+                                    <td><strong>{{ entry['lane_id'] or 'N/A' }}</strong></td>
+                                    <td>
+                                        <div>&lt;1000kg: ${{ "%.3f"|format(entry['base_rate_lt1000kg'] or 0) }}</div>
+                                        <div>1000-2000kg: ${{ "%.3f"|format(entry['base_rate_1000to2000kg'] or 0) }}</div>
+                                        <div>2000-3000kg: ${{ "%.3f"|format(entry['base_rate_2000to3000kg'] or 0) }}</div>
+                                        <div>&gt;3000kg: {{ entry['base_rate_gt3000kg'] or 'N/A' }}</div>
+                                    </td>
+                                    <td>
+                                        <div>&lt;1000kg: ${{ "%.3f"|format(entry['ata_cost_lt1000kg'] or 0) }}</div>
+                                        <div>1000-1999kg: ${{ "%.3f"|format(entry['ata_cost_1000_1999kg'] or 0) }}</div>
+                                        <div>2000-3000kg: ${{ "%.3f"|format(entry['ata_cost_2000_3000kg'] or 0) }}</div>
+                                        <div>&gt;3000kg: {{ entry['ata_cost_gt3000kg'] or 'N/A' }}</div>
+                                    </td>
+                                    <td>
+                                        <div>PSS: ${{ "%.3f"|format(entry['pss_charge'] or 0) }}/kg</div>
+                                        <div>Fuel: ${{ "%.3f"|format(entry['fuel_surcharge'] or 0) }}/kg</div>
+                                        <div><small class="text-muted">{{ entry['pss_validity'] or 'No validity info' }}</small></div>
+                                    </td>
+                                    <td>
+                                        <div>DTP: ${{ "%.3f"|format(entry['dtp_freight_cost'] or 0) }}/kg</div>
+                                        <div>PTD: ${{ "%.3f"|format(entry['ptd_freight_charge'] or 0) }}/kg</div>
+                                        <div><small>DTP Min: ${{ "%.2f"|format(entry['dtp_min_charge'] or 0) }}</small></div>
+                                        <div><small>PTD Min: ${{ "%.2f"|format(entry['ptd_min_charge'] or 0) }}</small></div>
+                                    </td>
+                                    <td>
+                                        <div>ATA: ${{ "%.2f"|format(entry['ata_min_charge'] or 0) }}</div>
+                                        <div>Total: ${{ "%.2f"|format(entry['total_min_charge'] or 0) }}</div>
+                                        <div><small>Breakeven: {{ "%.1f"|format(entry['breakeven_kg'] or 0) }}kg</small></div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-3">
+                                        <em>No pricing data found for this rate card.</em>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Routes & Locations Tab -->
+            <div class="tab-pane fade" id="routes" role="tabpanel" aria-labelledby="routes-tab">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Route Info</th>
+                                <th>Origin Details</th>
+                                <th>Destination Details</th>
+                                <th>Fees & Charges</th>
+                                <th>Additional Info</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if entries %}
+                                {% for entry in entries %}
+                                <tr>
+                                    <td>
+                                        <div><strong>{{ entry['lane_id'] or 'N/A' }}</strong></div>
+                                        <div><small class="text-muted">Route ID: {{ entry['route_id'] or 'N/A' }}</small></div>
+                                        <div><small>{{ entry['lane_description'] or 'No description' }}</small></div>
+                                    </td>
+                                    <td>
+                                        <div><strong>{{ entry['origin_country'] or 'N/A' }}</strong></div>
+                                        <div>{{ entry['lane_origin'] or 'N/A' }}</div>
+                                        <div><small>Code: {{ entry['origin_port_code'] or 'N/A' }}</small></div>
+                                        <div><small>Region: {{ entry['origin_region'] or 'N/A' }}</small></div>
+                                        {% if entry['cities_included_origin'] %}
+                                        <div><small class="text-info">Cities: {{ entry['cities_included_origin'] }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div><strong>{{ entry['destination_country'] or 'N/A' }}</strong></div>
+                                        <div>{{ entry['lane_destination'] or 'N/A' }}</div>
+                                        <div><small>Code: {{ entry['destination_port_code'] or 'N/A' }}</small></div>
+                                        <div><small>Region: {{ entry['destination_region'] or 'N/A' }}</small></div>
+                                        {% if entry['cities_included_dest'] %}
+                                        <div><small class="text-info">Cities: {{ entry['cities_included_dest'] }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div>Origin: ${{ "%.3f"|format(entry['origin_fees'] or 0) }}/kg</div>
+                                        <div><small>Min: ${{ "%.2f"|format(entry['origin_min_charge'] or 0) }}</small></div>
+                                        <div>Dest: ${{ "%.3f"|format(entry['destination_fees'] or 0) }}/kg</div>
+                                        <div><small>Min: ${{ "%.2f"|format(entry['destination_min_charge'] or 0) }}</small></div>
+                                    </td>
+                                    <td>
+                                        {% if entry['route_requirements'] %}
+                                        <div><small><strong>Requirements:</strong> {{ entry['route_requirements'] }}</small></div>
+                                        {% endif %}
+                                        {% if entry['est_monthly_weight_kg'] %}
+                                        <div><small>Est. Monthly: {{ "%.0f"|format(entry['est_monthly_weight_kg']) }}kg</small></div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3">
+                                        <em>No route data found for this rate card.</em>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Service & Transit Tab -->
+            <div class="tab-pane fade" id="service" role="tabpanel" aria-labelledby="service-tab">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lane ID</th>
+                                <th>Service Type</th>
+                                <th>Transit Information</th>
+                                <th>Validation Status</th>
+                                <th>Contract Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if entries %}
+                                {% for entry in entries %}
+                                <tr>
+                                    <td><strong>{{ entry['lane_id'] or 'N/A' }}</strong></td>
+                                    <td>
+                                        <div><strong>{{ entry['service'] or 'N/A' }}</strong></div>
+                                    </td>
+                                    <td>
+                                        <div>Time: {{ entry['transit_time'] or 'N/A' }}</div>
+                                        <div>Target: {{ entry['target_transit'] or 'N/A' }}</div>
+                                        {% if entry['transit_validation'] %}
+                                        <div><small class="badge bg-success">{{ entry['transit_validation'] }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry['rate_validation'] %}
+                                        <div><span class="badge bg-success">Rate: {{ entry['rate_validation'] }}</span></div>
+                                        {% endif %}
+                                        {% if entry['rate_check'] %}
+                                        <div><span class="badge bg-info">Check: {{ entry['rate_check'] }}</span></div>
+                                        {% endif %}
+                                        {% if entry['rate_validity'] %}
+                                        <div><small>Valid: {{ entry['rate_validity'] }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry['contract_validity'] %}
+                                        <div><small><strong>Validity:</strong> {{ entry['contract_validity'] }}</small></div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-3">
+                                        <em>No service data found for this rate card.</em>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Contract & Vendor Tab -->
+            <div class="tab-pane fade" id="contract" role="tabpanel" aria-labelledby="contract-tab">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lane ID</th>
+                                <th>Bidder Information</th>
+                                <th>Award Status</th>
+                                <th>Comments</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if entries %}
+                                {% for entry in entries %}
+                                <tr>
+                                    <td><strong>{{ entry['lane_id'] or 'N/A' }}</strong></td>
+                                    <td>
+                                        <div><strong>{{ entry['bidder_name'] or 'N/A' }}</strong></div>
+                                    </td>
+                                    <td>
+                                        {% if entry['award_status'] %}
+                                        <span class="badge bg-primary">{{ entry['award_status'] }}</span>
+                                        {% else %}
+                                        <span class="text-muted">No status</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ entry['bidder_comments'] or 'No comments' }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-3">
+                                        <em>No contract data found for this rate card.</em>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Rate Calculator Tab -->
+            <div class="tab-pane fade" id="calculator" role="tabpanel" aria-labelledby="calculator-tab">
+                <div class="mb-4">
+                    <h5>Rate Calculator</h5>
+                    <form id="rateCalculatorForm" class="row g-3">
+                        <input type="hidden" id="rate_card_id" value="{{ rate_card['id'] }}">
+                        
+                        <div class="col-md-3">
+                            <label for="calc_origin" class="form-label">Origin</label>
+                            <input type="text" class="form-control" id="calc_origin" placeholder="Country/Port Code" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="calc_destination" class="form-label">Destination</label>
+                            <input type="text" class="form-control" id="calc_destination" placeholder="Country/Port Code" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="calc_weight" class="form-label">Weight (kg)</label>
+                            <input type="number" class="form-control" id="calc_weight" step="0.1" min="0.1" placeholder="0.0" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="calc_service" class="form-label">Service</label>
+                            <input type="text" class="form-control" id="calc_service" placeholder="e.g., Express">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary d-block w-100">Calculate</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div id="rateResults" class="d-none">
+                    <h6>Rate Calculation Results</h6>
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <tbody>
+                                <tr>
+                                    <th style="width: 150px">Lane</th>
+                                    <td id="result_lane"></td>
+                                    <th style="width: 150px">Weight</th>
+                                    <td id="result_weight"></td>
+                                </tr>
+                                <tr>
+                                    <th>Base Rate</th>
+                                    <td id="result_base_rate"></td>
+                                    <th>Base Cost</th>
+                                    <td id="result_base_cost"></td>
+                                </tr>
+                                <tr>
+                                    <th>Fuel Surcharge</th>
+                                    <td id="result_fuel"></td>
+                                    <th>Origin Fees</th>
+                                    <td id="result_origin_fees"></td>
+                                </tr>
+                                <tr>
+                                    <th>Destination Fees</th>
+                                    <td id="result_dest_fees"></td>
+                                    <th>PSS Charge</th>
+                                    <td id="result_pss"></td>
+                                </tr>
+                                <tr>
+                                    <th>Min Charge</th>
+                                    <td id="result_min_charge"></td>
+                                    <th>Min Applied</th>
+                                    <td id="result_min_applied"></td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <th>Total Cost</th>
+                                    <td colspan="3" id="result_total_cost" class="fw-bold"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="noRateFound" class="alert alert-warning d-none">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    No applicable rate found for the specified criteria.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calculatorForm = document.getElementById('rateCalculatorForm');
+        const resultsDiv = document.getElementById('rateResults');
+        const noRateDiv = document.getElementById('noRateFound');
+        
+        if (calculatorForm) {
+            calculatorForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const origin = document.getElementById('calc_origin').value;
+                const destination = document.getElementById('calc_destination').value;
+                const weight = document.getElementById('calc_weight').value;
+                const service = document.getElementById('calc_service').value;
+                const rateCardId = document.getElementById('rate_card_id').value;
+                
+                // Hide any previous results
+                resultsDiv.classList.add('d-none');
+                noRateDiv.classList.add('d-none');
+                
+                // Call the rate lookup API
+                fetch(`/api/rate-lookup?origin=${origin}&destination=${destination}&weight=${weight}&service_type=${service}&rate_card_id=${rateCardId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.found) {
+                            // Helper function to safely format numbers
+                            const safeFormat = (value, decimals = 2) => {
+                                const num = parseFloat(value) || 0;
+                                return num.toFixed(decimals);
+                            };
+                            
+                            // Show the results with safe formatting
+                            document.getElementById('result_lane').textContent = `${data.origin || 'N/A'} to ${data.destination || 'N/A'}`;
+                            document.getElementById('result_weight').textContent = `${safeFormat(data.weight_kg)} kg (${data.rate_tier || 'N/A'})`;
+                            document.getElementById('result_base_rate').textContent = `$${safeFormat(data.base_rate)}/kg`;
+                            document.getElementById('result_base_cost').textContent = `$${safeFormat(data.base_cost)}`;
+                            document.getElementById('result_fuel').textContent = `$${safeFormat(data.fuel_surcharge)}/kg ($${safeFormat(data.fuel_cost)})`;
+                            document.getElementById('result_origin_fees').textContent = `$${safeFormat(data.origin_fees)}/kg ($${safeFormat(data.origin_fees_cost)})`;
+                            document.getElementById('result_dest_fees').textContent = `$${safeFormat(data.destination_fees)}/kg ($${safeFormat(data.destination_fees_cost)})`;
+                            document.getElementById('result_pss').textContent = `$${safeFormat(data.pss_charge)}/kg ($${safeFormat(data.pss_cost)})`;
+                            document.getElementById('result_min_charge').textContent = `$${safeFormat(data.min_charge)}`;
+                            document.getElementById('result_min_applied').textContent = data.min_charge_applied ? 'Yes' : 'No';
+                            document.getElementById('result_total_cost').textContent = `$${safeFormat(data.total_cost)}`;
+                            
+                            resultsDiv.classList.remove('d-none');
+                        } else {
+                            // Show no rate found message
+                            noRateDiv.classList.remove('d-none');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while calculating the rate.');
+                    });
+            });
+        }
+    });
+</script>
+{% endblock %}

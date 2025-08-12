@@ -1,0 +1,166 @@
+# DHL Invoice Audit Application - Git Ignore File
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Test and debug files - added to avoid VS Code restoring them
+test_*.py
+test-*.py
+fix_*.py
+list_*.py
+check_*.py
+cleanup_*.py
+debug_*.py
+
+# Flask
+instance/
+.webassets-cache
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Database files
+*.sqlite
+*.sqlite3
+
+# Upload files
+upload_temp/
+temp_uploads/
+
+# Temporary files
+temp_*.py
+temp_*.txt
+temp_*.csv
+temp_*.json
+
+# Important: Allow uploads folder to be visible
+!uploads/
+!uploads/*
+
+# Log files
+*.log
+logs/
+debug.log
+error.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Windows
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Backup files
+*.backup
+*.bak
+*_backup.*
+backup_*
+
+# Configuration files with sensitive data
+config.ini
+settings.ini
+secrets.json
+
+# Large data files
+*.zip
+*.rar
+*.7z
+*.tar.gz
+*.tgz
+
+# EDI test files (keep sample files but ignore large datasets)
+large_edi_files/
+bulk_test_data/
+
+# Rate card uploads (keep samples but ignore bulk uploads)
+rate_card_backups/
+bulk_rate_cards/
+
+# Analysis and report outputs
+analysis_outputs/
+reports/
+audit_reports/
+
+# Large bulk files - exclude from specific directories
+rate_card_backups/
+bulk_rate_cards/
+large_edi_files/
+bulk_test_data/
+
+# Generated reports (but allow uploads folder to be visible)
+/reports/*.xlsx
+/reports/*.csv
+/analysis_outputs/*.xlsx
+/analysis_outputs/*.csv
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Documentation build
+docs/_build/
+site/

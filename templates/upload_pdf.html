@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}Upload PDF{% endblock %}
+
+{% block head %}
+<style>
+    .upload-area {
+        border: 2px dashed #007bff;
+        border-radius: 10px;
+        padding: 40px;
+        text-align: center;
+        background-color: #f8f9fa;
+        transition: background-color 0.3s;
+    }
+    .upload-area:hover {
+        background-color: #e9ecef;
+    }
+    .upload-area.dragover {
+        background-color: #cce5ff;
+        border-color: #0056b3;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-upload"></i> Upload PDF Invoice
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        
+                        <!-- Flash Messages -->
+                        {% with messages = get_flashed_messages() %}
+                            {% if messages %}
+                                {% for message in messages %}
+                                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+
+                        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                            
+                            <!-- Invoice Number Input -->
+                            <div class="mb-3">
+                                <label for="invoice_no" class="form-label">Invoice Number (Optional)</label>
+                                <input type="text" class="form-control" id="invoice_no" name="invoice_no" 
+                                       placeholder="e.g., D1234567 (will be auto-detected if not provided)">
+                                <div class="form-text">
+                                    If not provided, the system will attempt to extract the invoice number from the PDF.
+                                </div>
+                            </div>
+
+                            <!-- File Upload Area -->
+                            <div class="mb-3">
+                                <label class="form-label">PDF File</label>
+                                <div class="upload-area" id="uploadArea">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                    <h5>Drop PDF file here or click to browse</h5>
+                                    <p class="text-muted">Maximum file size: 10MB</p>
+                                    <input type="file" class="form-control d-none" id="pdf_file" name="pdf_file" 
+                                           accept=".pdf" required>
+                                </div>
+                                <div id="fileInfo" class="mt-2 d-none">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-file-pdf"></i> 
+                                        <span id="fileName"></span> 
+                                        (<span id="fileSize"></span>)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Processing Options -->
+                            <div class="mb-3">
+                                <h6>Processing Options</h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="autoClassify" checked>
+                                    <label class="form-check-label" for="autoClassify">
+                                        Enable automatic charge classification using ML
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="saveUnknown" checked>
+                                    <label class="form-check-label" for="saveUnknown">
+                                        Save unknown charges for manual review
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <a href="{{ url_for('advanced_pdf.advanced_pdf_dashboard') }}" 
+                                   class="btn btn-secondary me-md-2">
+                                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                                </a>
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="fas fa-upload"></i> Upload and Process
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Processing Progress -->
+                        <div id="processingProgress" class="mt-3 d-none">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6>Processing PDF...</h6>
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 100%"></div>
+                                    </div>
+                                    <small class="text-muted">
+                                        This may take a few moments depending on the PDF size and complexity.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions Card -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle"></i> How It Works
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-1"></i> Text Extraction</h6>
+                                <p class="small">
+                                    The system extracts all text content from your PDF using advanced OCR techniques.
+                                </p>
+                                
+                                <h6><i class="fas fa-2"></i> Charge Identification</h6>
+                                <p class="small">
+                                    Uses pattern recognition to identify charges, amounts, and descriptions.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-3"></i> ML Classification</h6>
+                                <p class="small">
+                                    Machine learning models classify charges into categories like freight, services, etc.
+                                </p>
+                                
+                                <h6><i class="fas fa-4"></i> Results & Review</h6>
+                                <p class="small">
+                                    View extracted charges and review any unknown items for manual classification.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <strong>Note:</strong> For best results, ensure PDFs contain clear, readable text. 
+                            Scanned images may require additional processing time.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('pdf_file');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const processingProgress = document.getElementById('processingProgress');
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files;
+                showFileInfo(files[0]);
+            }
+        });
+
+        // File selection
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                showFileInfo(e.target.files[0]);
+            }
+        });
+
+        // Show file information
+        function showFileInfo(file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.remove('d-none');
+            
+            // Try to extract invoice number from filename
+            const invoiceMatch = file.name.match(/([A-Z]\d{7,})/);
+            if (invoiceMatch) {
+                document.getElementById('invoice_no').value = invoiceMatch[1];
+            }
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Form submission
+        uploadForm.addEventListener('submit', (e) => {
+            if (fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Please select a PDF file to upload.');
+                return;
+            }
+
+            // Show processing indicator
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            processingProgress.classList.remove('d-none');
+        });
+    </script>
+        </div>
+    </div>
+</div>
+{% endblock %}

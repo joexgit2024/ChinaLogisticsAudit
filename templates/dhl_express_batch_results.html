@@ -1,0 +1,950 @@
+{% extends "base.html" %}
+
+{% block title %}DHL Express Batch Audit Results{% endblock %}
+
+{% block head %}
+<style>
+    .table-container {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .search-filters-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px 8px 0 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .global-search {
+        position: relative;
+    }
+    
+    .global-search input {
+        padding-left: 40px;
+        border-radius: 25px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s;
+    }
+    
+    .global-search input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    
+    .global-search .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+    
+    .filter-controls {
+        display: none;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #dee2e6;
+    }
+    
+    .filter-controls.show {
+        display: block;
+    }
+    
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 30px !important;
+        transition: background-color 0.2s;
+    }
+    
+    .sortable-header:hover {
+        background-color: rgba(0,123,255,0.1);
+    }
+    
+    .sort-icon {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+    
+    .sortable-header.sorted .sort-icon {
+        opacity: 1;
+        color: #007bff;
+    }
+    
+    .filter-icon {
+        position: absolute;
+        right: 25px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0.5;
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+    
+    .filter-icon:hover {
+        opacity: 1;
+        color: #007bff;
+    }
+    
+    .filterable-header {
+        position: relative;
+        padding-right: 50px !important;
+    }
+    
+    .table-stats {
+        background: #e3f2fd;
+        padding: 10px 15px;
+        border-radius: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9em;
+    }
+    
+    .pagination-controls {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 0 0 8px 8px;
+    }
+    
+    .rows-per-page {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .badge-status {
+        font-size: 0.75em;
+        padding: 0.375rem 0.75rem;
+        border-radius: 15px;
+    }
+    
+    .confidence-badge {
+        font-size: 0.7em;
+        font-weight: bold;
+        border-radius: 10px;
+        padding: 2px 8px;
+    }
+    
+    .btn-action {
+        margin: 1px;
+        padding: 4px 8px;
+        font-size: 0.75em;
+    }
+    
+    .table-responsive {
+        border-radius: 0;
+        border: none;
+    }
+    
+    .table th {
+        background-color: #343a40;
+        color: white;
+        border: none;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8em;
+        letter-spacing: 0.5px;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(0,123,255,0.05);
+    }
+    
+    .no-results {
+        text-align: center;
+        padding: 60px 20px;
+        color: #6c757d;
+    }
+    
+    .filter-dropdown {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        min-width: 200px;
+        padding: 10px;
+        display: none;
+    }
+    
+    .filter-dropdown.show {
+        display: block;
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.8em;
+        }
+        
+        .filterable-header {
+            padding-right: 35px !important;
+        }
+        
+        .sortable-header {
+            padding-right: 25px !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>
+                    <i class="fas fa-table text-primary"></i>
+                    DHL Express Batch Audit Results
+                </h1>
+                <div>
+                    <a href="{{ url_for('dhl_express.batch_audit_dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <button type="button" class="btn btn-warning" id="rerunBatchAudit" 
+                            title="Clear cached results and re-audit all invoices with updated rate cards">
+                        <i class="fas fa-sync-alt"></i> Re-run Batch Audit
+                    </button>
+                    <a href="{{ url_for('dhl_express.export_batch_audit_results') }}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Export Summary
+                    </a>
+                    <a href="{{ url_for('dhl_express.export_detailed_batch_audit_results') }}" 
+                       class="btn btn-primary" 
+                       title="Download comprehensive Excel report with line-by-line details, variance analysis, and finance recommendations">
+                        <i class="fas fa-file-excel"></i> Export Detailed for Finance
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Summary Stats -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-3">
+                                    <h4 class="text-primary">{{ total_audits }}</h4>
+                                    <small class="text-muted">Total Audited</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <h4 class="text-success">
+                                        {{ audit_results|selectattr('audit_status', 'equalto', 'PASS')|list|length }}
+                                    </h4>
+                                    <small class="text-muted">Passed</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <h4 class="text-warning">
+                                        {{ audit_results|selectattr('audit_status', 'equalto', 'REVIEW')|list|length }}
+                                    </h4>
+                                    <small class="text-muted">Review Required</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <h4 class="text-danger">
+                                        {{ audit_results|selectattr('audit_status', 'equalto', 'FAIL')|list|length }}
+                                    </h4>
+                                    <small class="text-muted">Failed</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Results Table -->
+            <div class="table-container">
+                <!-- Search and Filter Section -->
+                <div class="search-filters-section">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="global-search">
+                                <i class="fas fa-search search-icon"></i>
+                                <input type="text" id="globalSearch" class="form-control" 
+                                       placeholder="Search across all fields (Invoice No, Status, etc.)" 
+                                       value="">
+                            </div>
+                        </div>
+                        <div class="col-lg-4 text-right">
+                            <button type="button" class="btn btn-outline-secondary" id="toggleFilters">
+                                <i class="fas fa-filter"></i> Advanced Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="clearFilters">
+                                <i class="fas fa-times"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Filter Controls -->
+                    <div class="filter-controls" id="filterControls">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-control" id="statusFilter">
+                                    <option value="">All Statuses</option>
+                                    <option value="PASS">Pass</option>
+                                    <option value="REVIEW">Review Required</option>
+                                    <option value="FAIL">Failed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Confidence Range</label>
+                                <div class="d-flex">
+                                    <input type="number" class="form-control" id="confidenceMin" placeholder="Min %" min="0" max="100">
+                                    <span class="mx-2 mt-2">-</span>
+                                    <input type="number" class="form-control" id="confidenceMax" placeholder="Max %" min="0" max="100">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Variance Range ($)</label>
+                                <div class="d-flex">
+                                    <input type="number" class="form-control" id="varianceMin" placeholder="Min" step="0.01">
+                                    <span class="mx-2 mt-2">-</span>
+                                    <input type="number" class="form-control" id="varianceMax" placeholder="Max" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Audit Date Range</label>
+                                <small class="text-muted d-block">Filter by when the audit was performed</small>
+                                <input type="date" class="form-control mb-1" id="auditDateFrom" placeholder="From">
+                                <input type="date" class="form-control" id="auditDateTo" placeholder="To">
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Invoice Date Range</label>
+                                <small class="text-muted d-block">Filter by original invoice date</small>
+                                <input type="date" class="form-control mb-1" id="invoiceDateFrom" placeholder="From">
+                                <input type="date" class="form-control" id="invoiceDateTo" placeholder="To">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Table Stats Bar -->
+                <div class="table-stats">
+                    <div>
+                        <span id="filteredCount">{{ audit_results|length }}</span> of 
+                        <span id="totalCount">{{ total_audits }}</span> results
+                        <span id="filterInfo" class="ms-3 text-muted"></span>
+                    </div>
+                    <div class="rows-per-page">
+                        <label>Show:</label>
+                        <select class="form-control form-control-sm" id="rowsPerPage" style="width: auto; display: inline-block;">
+                            <option value="10">10</option>
+                            <option value="20" selected>20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>per page</span>
+                    </div>
+                </div>
+                
+                <!-- Responsive Table -->
+                {% if audit_results %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="auditTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable-header filterable-header" data-column="invoice_no">
+                                    Invoice No
+                                    <i class="fas fa-sort sort-icon"></i>
+                                    <i class="fas fa-filter filter-icon" data-filter="invoice_no"></i>
+                                </th>
+                                <th class="sortable-header" data-column="invoice_date">
+                                    Invoice Date
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="audit_date">
+                                    Audit Date
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="invoice_amount">
+                                    Invoice Amount
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="expected_amount">
+                                    Expected Amount
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="variance">
+                                    Variance
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="variance_percent">
+                                    Variance %
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header filterable-header" data-column="status">
+                                    Status
+                                    <i class="fas fa-sort sort-icon"></i>
+                                    <i class="fas fa-filter filter-icon" data-filter="status"></i>
+                                </th>
+                                <th class="sortable-header" data-column="lines_audited">
+                                    Lines Audited
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th class="sortable-header" data-column="confidence">
+                                    Confidence
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            {% for result in audit_results %}
+                            <tr data-invoice="{{ result.invoice_no }}" 
+                                data-status="{{ result.audit_status }}" 
+                                data-confidence="{{ result.confidence_score or 0 }}"
+                                data-variance="{{ result.total_variance or 0 }}"
+                                data-audit-date="{{ result.audit_timestamp[:10] if result.audit_timestamp else '' }}"
+                                data-invoice-date="{{ result.invoice_date if result.invoice_date else '' }}">
+                                <td>
+                                    <strong class="text-primary">{{ result.invoice_no }}</strong>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ result.invoice_date if result.invoice_date else 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ result.audit_timestamp[:19] if result.audit_timestamp else 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-dark font-weight-bold">${{ "%.2f"|format(result.total_invoice_amount or 0) }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-dark">${{ "%.2f"|format(result.total_expected_amount or 0) }}</span>
+                                </td>
+                                <td>
+                                    <span class="{% if result.total_variance > 0 %}text-danger font-weight-bold{% elif result.total_variance < 0 %}text-success font-weight-bold{% else %}text-muted{% endif %}">
+                                        ${{ "%.2f"|format(result.total_variance or 0) }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if result.variance_percentage and result.variance_percentage|abs > 5 %}text-warning font-weight-bold{% else %}text-muted{% endif %}">
+                                        {{ "%.1f"|format(result.variance_percentage or 0) }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if result.audit_status == 'PASS' %}
+                                        <span class="badge badge-success badge-status">
+                                            <i class="fas fa-check-circle"></i> PASS
+                                        </span>
+                                    {% elif result.audit_status == 'REVIEW' %}
+                                        <span class="badge badge-warning badge-status">
+                                            <i class="fas fa-exclamation-triangle"></i> REVIEW
+                                        </span>
+                                    {% elif result.audit_status == 'FAIL' %}
+                                        <span class="badge badge-danger badge-status">
+                                            <i class="fas fa-times-circle"></i> FAIL
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-secondary badge-status">{{ result.audit_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge badge-light">{{ result.line_items_audited or 0 }}</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress me-2" style="width: 50px; height: 15px;">
+                                            <div class="progress-bar 
+                                                {% if result.confidence_score >= 80 %}bg-success
+                                                {% elif result.confidence_score >= 60 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                role="progressbar" 
+                                                style="width: {{ (result.confidence_score or 0) }}%">
+                                            </div>
+                                        </div>
+                                        <span class="confidence-badge 
+                                            {% if result.confidence_score >= 80 %}bg-success text-white
+                                            {% elif result.confidence_score >= 60 %}bg-warning text-dark
+                                            {% else %}bg-danger text-white{% endif %}">
+                                            {{ "%.0f"|format(result.confidence_score or 0) }}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ url_for('dhl_express.audit_dhl_express_invoice', invoice_no=result.invoice_no) }}" 
+                                           class="btn btn-outline-primary btn-action" title="View Audit Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('dhl_express.view_dhl_express_invoice', invoice_no=result.invoice_no) }}" 
+                                           class="btn btn-outline-info btn-action" title="View Invoice">
+                                            <i class="fas fa-file-invoice"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Enhanced Pagination Controls -->
+                <div class="pagination-controls">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div class="pagination-info">
+                            <small class="text-muted">
+                                Showing <span id="startRecord">1</span> to <span id="endRecord">20</span> 
+                                of <span id="totalRecords">{{ audit_results|length }}</span> entries
+                            </small>
+                        </div>
+                        
+                        <nav aria-label="Table pagination">
+                            <ul class="pagination pagination-sm mb-0" id="paginationControls">
+                                <!-- Pagination will be dynamically generated -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+                
+                {% else %}
+                <div class="no-results">
+                    <i class="fas fa-clipboard-list fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No audit results found</h4>
+                    <p class="text-muted">Run a batch audit to see results here, or adjust your filters.</p>
+                    <a href="{{ url_for('dhl_express.batch_audit_dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Start Batch Audit
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Enhanced Table Functionality -->
+<script>
+class EnhancedTable {
+    constructor() {
+        this.currentPage = 1;
+        this.rowsPerPage = 20;
+        this.sortColumn = '';
+        this.sortDirection = 'asc';
+        this.filters = {};
+        this.globalFilter = '';
+        this.originalData = [];
+        this.filteredData = [];
+        
+        this.init();
+    }
+    
+    init() {
+        this.cacheOriginalData();
+        this.setupEventListeners();
+        this.applyFiltersAndSort();
+    }
+    
+    cacheOriginalData() {
+        const rows = document.querySelectorAll('#tableBody tr');
+        this.originalData = Array.from(rows).map(row => ({
+            element: row.cloneNode(true),
+            data: {
+                invoice_no: row.dataset.invoice,
+                status: row.dataset.status,
+                confidence: parseFloat(row.dataset.confidence) || 0,
+                variance: parseFloat(row.dataset.variance) || 0,
+                audit_date: row.dataset.auditDate,
+                invoice_date: row.dataset.invoiceDate,
+                auditDateObj: row.dataset.auditDate ? new Date(row.dataset.auditDate) : null,
+                invoiceDateObj: row.dataset.invoiceDate ? new Date(row.dataset.invoiceDate) : null,
+                searchText: row.textContent.toLowerCase()
+            }
+        }));
+        this.filteredData = [...this.originalData];
+    }
+    
+    setupEventListeners() {
+        // Global search
+        document.getElementById('globalSearch').addEventListener('input', 
+            this.debounce((e) => {
+                this.globalFilter = e.target.value.toLowerCase();
+                this.applyFiltersAndSort();
+            }, 300)
+        );
+        
+        // Rows per page
+        document.getElementById('rowsPerPage').addEventListener('change', (e) => {
+            this.rowsPerPage = parseInt(e.target.value);
+            this.currentPage = 1;
+            this.applyFiltersAndSort();
+        });
+        
+        // Sort headers
+        document.querySelectorAll('.sortable-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('filter-icon')) {
+                    this.handleSort(header.dataset.column);
+                }
+            });
+        });
+        
+        // Advanced filters toggle
+        document.getElementById('toggleFilters').addEventListener('click', () => {
+            const controls = document.getElementById('filterControls');
+            controls.classList.toggle('show');
+        });
+        
+        // Clear filters
+        document.getElementById('clearFilters').addEventListener('click', () => {
+            this.clearAllFilters();
+        });
+        
+        // Advanced filter controls - use both 'change' and 'input' events for real-time filtering
+                // Advanced filters
+        ['statusFilter', 'confidenceMin', 'confidenceMax', 'varianceMin', 'varianceMax', 
+         'auditDateFrom', 'auditDateTo', 'invoiceDateFrom', 'invoiceDateTo'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                // Add both change and input events for better responsiveness
+                element.addEventListener('change', () => this.applyFiltersAndSort());
+                element.addEventListener('input', 
+                    this.debounce(() => this.applyFiltersAndSort(), 300)
+                );
+            }
+        });
+    }
+    
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
+    handleSort(column) {
+        if (this.sortColumn === column) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortColumn = column;
+            this.sortDirection = 'asc';
+        }
+        
+        this.updateSortIcons();
+        this.applyFiltersAndSort();
+    }
+    
+    updateSortIcons() {
+        document.querySelectorAll('.sortable-header').forEach(header => {
+            const icon = header.querySelector('.sort-icon');
+            header.classList.remove('sorted');
+            icon.className = 'fas fa-sort sort-icon';
+            
+            if (header.dataset.column === this.sortColumn) {
+                header.classList.add('sorted');
+                icon.className = `fas fa-sort-${this.sortDirection === 'asc' ? 'up' : 'down'} sort-icon`;
+            }
+        });
+    }
+    
+    applyFiltersAndSort() {
+        console.log('Applying filters and sort...'); // Debug log
+        
+        // Apply filters
+        this.filteredData = this.originalData.filter(item => {
+            // Global search
+            if (this.globalFilter && !item.data.searchText.includes(this.globalFilter)) {
+                return false;
+            }
+            
+            // Status filter
+            const statusFilter = document.getElementById('statusFilter')?.value;
+            if (statusFilter && item.data.status !== statusFilter) {
+                return false;
+            }
+            
+            // Confidence range
+            const confMin = parseFloat(document.getElementById('confidenceMin')?.value) || 0;
+            const confMax = parseFloat(document.getElementById('confidenceMax')?.value) || 100;
+            if (item.data.confidence < confMin || item.data.confidence > confMax) {
+                return false;
+            }
+            
+            // Variance range
+            const varMin = parseFloat(document.getElementById('varianceMin')?.value);
+            const varMax = parseFloat(document.getElementById('varianceMax')?.value);
+            if (!isNaN(varMin) && item.data.variance < varMin) return false;
+            if (!isNaN(varMax) && item.data.variance > varMax) return false;
+            
+            // Audit Date range filtering
+            const auditDateFrom = document.getElementById('auditDateFrom')?.value;
+            const auditDateTo = document.getElementById('auditDateTo')?.value;
+            
+            if (auditDateFrom || auditDateTo) {
+                console.log('Audit date filtering active:', { auditDateFrom, auditDateTo, itemAuditDate: item.data.audit_date }); // Debug log
+                if (!item.data.auditDateObj) {
+                    console.log('Item has no valid audit date, excluding:', item.data.audit_date); // Debug log
+                    return false; // Skip items without valid audit dates
+                }
+                
+                if (auditDateFrom) {
+                    const fromDate = new Date(auditDateFrom);
+                    console.log('Checking audit from date:', fromDate, 'vs item audit date:', item.data.auditDateObj); // Debug log
+                    if (item.data.auditDateObj < fromDate) {
+                        console.log('Item audit date before from date, excluding'); // Debug log
+                        return false;
+                    }
+                }
+                
+                if (auditDateTo) {
+                    const toDate = new Date(auditDateTo);
+                    toDate.setHours(23, 59, 59, 999); // Include entire day
+                    console.log('Checking audit to date:', toDate, 'vs item audit date:', item.data.auditDateObj); // Debug log
+                    if (item.data.auditDateObj > toDate) {
+                        console.log('Item audit date after to date, excluding'); // Debug log
+                        return false;
+                    }
+                }
+            }
+            
+            // Invoice Date range filtering
+            const invoiceDateFrom = document.getElementById('invoiceDateFrom')?.value;
+            const invoiceDateTo = document.getElementById('invoiceDateTo')?.value;
+            
+            if (invoiceDateFrom || invoiceDateTo) {
+                console.log('Invoice date filtering active:', { invoiceDateFrom, invoiceDateTo, itemInvoiceDate: item.data.invoice_date }); // Debug log
+                if (!item.data.invoiceDateObj) {
+                    console.log('Item has no valid invoice date, excluding:', item.data.invoice_date); // Debug log
+                    return false; // Skip items without valid invoice dates
+                }
+                
+                if (invoiceDateFrom) {
+                    const fromDate = new Date(invoiceDateFrom);
+                    console.log('Checking invoice from date:', fromDate, 'vs item invoice date:', item.data.invoiceDateObj); // Debug log
+                    if (item.data.invoiceDateObj < fromDate) {
+                        console.log('Item invoice date before from date, excluding'); // Debug log
+                        return false;
+                    }
+                }
+                
+                if (invoiceDateTo) {
+                    const toDate = new Date(invoiceDateTo);
+                    toDate.setHours(23, 59, 59, 999); // Include entire day
+                    console.log('Checking invoice to date:', toDate, 'vs item invoice date:', item.data.invoiceDateObj); // Debug log
+                    if (item.data.invoiceDateObj > toDate) {
+                        console.log('Item invoice date after to date, excluding'); // Debug log
+                        return false;
+                    }
+                }
+            }
+            
+            return true;
+        });
+        
+        console.log('Filtered results:', this.filteredData.length, 'of', this.originalData.length); // Debug log
+        
+        // Apply sorting
+        if (this.sortColumn) {
+            this.filteredData.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(this.sortColumn) {
+                    case 'invoice_no':
+                        aVal = a.data.invoice_no;
+                        bVal = b.data.invoice_no;
+                        break;
+                    case 'confidence':
+                        aVal = a.data.confidence;
+                        bVal = b.data.confidence;
+                        break;
+                    case 'variance':
+                        aVal = a.data.variance;
+                        bVal = b.data.variance;
+                        break;
+                    case 'status':
+                        aVal = a.data.status;
+                        bVal = b.data.status;
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                if (aVal < bVal) return this.sortDirection === 'asc' ? -1 : 1;
+                if (aVal > bVal) return this.sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        this.updateDisplay();
+    }
+    
+    updateDisplay() {
+        const tbody = document.getElementById('tableBody');
+        const start = (this.currentPage - 1) * this.rowsPerPage;
+        const end = start + this.rowsPerPage;
+        const pageData = this.filteredData.slice(start, end);
+        
+        // Clear and populate table
+        tbody.innerHTML = '';
+        pageData.forEach(item => {
+            tbody.appendChild(item.element.cloneNode(true));
+        });
+        
+        // Update stats
+        document.getElementById('filteredCount').textContent = this.filteredData.length;
+        document.getElementById('startRecord').textContent = this.filteredData.length > 0 ? start + 1 : 0;
+        document.getElementById('endRecord').textContent = Math.min(end, this.filteredData.length);
+        document.getElementById('totalRecords').textContent = this.filteredData.length;
+        
+        // Update pagination
+        this.updatePagination();
+        
+        // Update filter info
+        this.updateFilterInfo();
+    }
+    
+    updatePagination() {
+        const totalPages = Math.ceil(this.filteredData.length / this.rowsPerPage);
+        const pagination = document.getElementById('paginationControls');
+        
+        pagination.innerHTML = '';
+        
+        if (totalPages <= 1) return;
+        
+        // Previous button
+        if (this.currentPage > 1) {
+            pagination.appendChild(this.createPageButton(this.currentPage - 1, '‹ Previous'));
+        }
+        
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || Math.abs(i - this.currentPage) <= 2) {
+                pagination.appendChild(this.createPageButton(i, i, i === this.currentPage));
+            } else if (i === 2 || i === totalPages - 1) {
+                const li = document.createElement('li');
+                li.className = 'page-item disabled';
+                li.innerHTML = '<span class="page-link">...</span>';
+                pagination.appendChild(li);
+            }
+        }
+        
+        // Next button
+        if (this.currentPage < totalPages) {
+            pagination.appendChild(this.createPageButton(this.currentPage + 1, 'Next ›'));
+        }
+    }
+    
+    createPageButton(page, text, active = false) {
+        const li = document.createElement('li');
+        li.className = `page-item ${active ? 'active' : ''}`;
+        
+        const a = document.createElement('a');
+        a.className = 'page-link';
+        a.href = '#';
+        a.textContent = text;
+        a.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.currentPage = page;
+            this.applyFiltersAndSort();
+        });
+        
+        li.appendChild(a);
+        return li;
+    }
+    
+    updateFilterInfo() {
+        const info = document.getElementById('filterInfo');
+        const activeFilters = [];
+        
+        if (this.globalFilter) activeFilters.push('Global search');
+        if (document.getElementById('statusFilter')?.value) activeFilters.push('Status');
+        if (document.getElementById('confidenceMin')?.value || document.getElementById('confidenceMax')?.value) {
+            activeFilters.push('Confidence');
+        }
+        if (document.getElementById('varianceMin')?.value || document.getElementById('varianceMax')?.value) {
+            activeFilters.push('Variance');
+        }
+        if (document.getElementById('auditDateFrom')?.value || document.getElementById('auditDateTo')?.value) {
+            activeFilters.push('Audit date range');
+        }
+        if (document.getElementById('invoiceDateFrom')?.value || document.getElementById('invoiceDateTo')?.value) {
+            activeFilters.push('Invoice date range');
+        }
+        
+        info.textContent = activeFilters.length > 0 ? `(Filtered by: ${activeFilters.join(', ')})` : '';
+    }
+    
+    clearAllFilters() {
+        document.getElementById('globalSearch').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('confidenceMin').value = '';
+        document.getElementById('confidenceMax').value = '';
+        document.getElementById('varianceMin').value = '';
+        document.getElementById('varianceMax').value = '';
+        document.getElementById('auditDateFrom').value = '';
+        document.getElementById('auditDateTo').value = '';
+        document.getElementById('invoiceDateFrom').value = '';
+        document.getElementById('invoiceDateTo').value = '';
+        
+        this.globalFilter = '';
+        this.currentPage = 1;
+        this.applyFiltersAndSort();
+    }
+}
+
+// Initialize enhanced table when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('auditTable')) {
+        new EnhancedTable();
+    }
+    
+    // Re-run batch audit button handler
+    const rerunButton = document.getElementById('rerunBatchAudit');
+    if (rerunButton) {
+        rerunButton.addEventListener('click', async () => {
+            if (!confirm('This will clear all cached audit results and re-audit all invoices with the latest rate cards. This may take several minutes. Continue?')) {
+                return;
+            }
+            
+            // Show loading state
+            const originalText = rerunButton.innerHTML;
+            rerunButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Re-auditing...';
+            rerunButton.disabled = true;
+            
+            try {
+                const response = await fetch('/dhl-express/batch-audit/rerun', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Successfully re-audited ${result.batch_result.completed} invoices!`);
+                    // Reload the page to show updated results
+                    window.location.reload();
+                } else {
+                    alert(`❌ Error: ${result.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Network error: ${error.message}`);
+            } finally {
+                // Restore button state
+                rerunButton.innerHTML = originalText;
+                rerunButton.disabled = false;
+            }
+        });
+    }
+});
+</script>
+
+{% endblock %}

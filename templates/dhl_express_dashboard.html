@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}DHL Express Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .metric-card {
+        background: linear-gradient(135deg, #FF0000 0%, #D70018 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 25px rgba(215, 0, 24, 0.15);
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    .metric-label {
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+    .nav-link {
+        color: #D70018 !important;
+        border-radius: 10px;
+        margin: 0 5px;
+    }
+    .nav-link:hover, .nav-link.active {
+        background-color: #D70018 !important;
+        color: white !important;
+    }
+    .table-hover tbody tr:hover {
+        background-color: #fff5f5;
+    }
+    .btn-dhl {
+        background-color: #D70018;
+        border-color: #D70018;
+        color: white;
+    }
+    .btn-dhl:hover {
+        background-color: #B80015;
+        border-color: #B80015;
+        color: white;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1><i class="fas fa-tachometer-alt"></i> DHL Express Dashboard</h1>
+            <p class="text-muted">Overview of DHL Express invoice processing and audit results</p>
+        </div>
+    </div>
+
+        <!-- Metrics Row -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">{{ summary.total_invoices }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-file-invoice"></i> Total Invoices
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">{{ summary.total_lines }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-list"></i> Total Line Items
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">${{ "{:,.2f}".format(summary.total_amount) }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-dollar-sign"></i> Total Amount
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <div class="metric-value">{{ summary.product_breakdown|length }}</div>
+                    <div class="metric-label">
+                        <i class="fas fa-cube"></i> Charge Types
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Breakdown -->
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie"></i> Charge Type Breakdown</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Product Description</th>
+                                        <th>Count</th>
+                                        <th>Total Amount</th>
+                                        <th>Percentage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for product in summary.product_breakdown %}
+                                    <tr>
+                                        <td>{{ product.product }}</td>
+                                        <td>{{ product.count }}</td>
+                                        <td>${{ "{:,.2f}".format(product.amount or 0) }}</td>
+                                        <td>
+                                            {% set percentage = (product.amount or 0) / summary.total_amount * 100 if summary.total_amount > 0 else 0 %}
+                                            {{ "{:.1f}%".format(percentage) }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-route"></i> Top Routes</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Route</th>
+                                        <th>AWBs</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for route in summary.route_breakdown %}
+                                    <tr>
+                                        <td>{{ route.origin }} → {{ route.destination }}</td>
+                                        <td>{{ route.shipment_count }}</td>
+                                        <td>${{ "{:,.0f}".format(route.amount or 0) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <a href="/dhl-express/upload" class="btn btn-dhl btn-lg w-100">
+                                    <i class="fas fa-upload"></i><br>
+                                    Upload Files
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="/dhl-express/dashboard" class="btn btn-info btn-lg w-100">
+                                    <i class="fas fa-monitor-waveform"></i><br>
+                                    Upload Monitoring
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="/dhl-express/batch-audit" class="btn btn-warning btn-lg w-100">
+                                    <i class="fas fa-play-circle"></i><br>
+                                    Batch Audit
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="/dhl-express/invoices" class="btn btn-outline-secondary btn-lg w-100">
+                                    <i class="fas fa-file-invoice"></i><br>
+                                    View Invoices
+                                </a>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <a href="/dhl-express/rate-cards" class="btn btn-outline-secondary btn-lg w-100">
+                                    <i class="fas fa-table"></i><br>
+                                    Rate Cards
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <a href="/dhl-express/audit-summary" class="btn btn-outline-secondary btn-lg w-100">
+                                    <i class="fas fa-search"></i><br>
+                                    Individual Audit Results
+                                </a>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <a href="/dhl-express/batch-audit/results" class="btn btn-outline-info btn-lg w-100">
+                                    <i class="fas fa-table"></i><br>
+                                    Batch Audit Results
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

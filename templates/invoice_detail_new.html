@@ -1,0 +1,498 @@
+{% extends "base.html" %}
+
+{% block title %}Invoice {{ invoice['invoice_number'] or 'Detail' }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col-12">
+            <h1 class="h3">Invoice {{ invoice['invoice_number'] or 'Detail' }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('rate_card.air_rates') }}">Air Rates</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.invoices') }}">Invoices</a></li>
+                    <li class="breadcrumb-item active">{{ invoice['invoice_number'] or 'Detail' }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+{% if invoice %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="invoiceDetailTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                            <i class="fas fa-info-circle me-2"></i>Basic Info
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="addresses-tab" data-bs-toggle="tab" data-bs-target="#addresses" type="button" role="tab">
+                            <i class="fas fa-map-marker-alt me-2"></i>Addresses
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="charges-tab" data-bs-toggle="tab" data-bs-target="#charges" type="button" role="tab">
+                            <i class="fas fa-money-bill me-2"></i>Charges
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="line-items-tab" data-bs-toggle="tab" data-bs-target="#line-items" type="button" role="tab">
+                            <i class="fas fa-boxes me-2"></i>Line Items
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="references-tab" data-bs-toggle="tab" data-bs-target="#references" type="button" role="tab">
+                            <i class="fas fa-hashtag me-2"></i>References
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="shipment-tab" data-bs-toggle="tab" data-bs-target="#shipment" type="button" role="tab">
+                            <i class="fas fa-shipping-fast me-2"></i>Shipment
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="technical-tab" data-bs-toggle="tab" data-bs-target="#technical" type="button" role="tab">
+                            <i class="fas fa-cogs me-2"></i>Technical
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="invoiceDetailTabsContent">
+                    <!-- Basic Information Tab -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Invoice Details</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Invoice Number:</td><td>{{ invoice['invoice_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Client Code:</td><td>{{ invoice['client_code'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Carrier Code:</td><td>{{ invoice['carrier_code'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Invoice Date:</td><td>{{ invoice['invoice_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Invoice Status:</td><td>{{ invoice['invoice_status'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">PRO Number:</td><td>{{ invoice['pro_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Reference Number:</td><td>{{ invoice['reference_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Bill of Lading:</td><td>{{ invoice['bill_of_lading'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Booking Number:</td><td>{{ invoice['booking_number'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Financial Summary</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Total Charges:</td><td class="fw-bold text-success">${{ "%.2f"|format(invoice['invoice_amount'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Net Charge:</td><td>${{ "%.2f"|format(invoice['net_charge'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Currency:</td><td>{{ invoice['currency'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Exchange Rate:</td><td>{{ invoice['exchange_rate'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Declared Value:</td><td>${{ "%.2f"|format(invoice['declared_value'] or 0.0) }}</td></tr>
+                                    <tr><td class="fw-bold">Check Number:</td><td>{{ invoice['check_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Check Date:</td><td>{{ invoice['check_date'] or 'N/A' }}</td></tr>
+                                </table>
+                                
+                                <h5 class="text-primary mb-3 mt-4">Status & Audit</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Status:</td><td>
+                                        {% set status = invoice['audit_status'] or 'pending' %}
+                                        {% if status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif status == 'review' or status == 'pending' %}
+                                            <span class="badge bg-warning">Pending Review</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ status.title() }}</span>
+                                        {% endif %}
+                                    </td></tr>
+                                    <tr><td class="fw-bold">Audit Exception:</td><td>{{ invoice['audit_exception_status'] or 'None' }}</td></tr>
+                                    <tr><td class="fw-bold">Audit Notes:</td><td>{{ invoice['audit_notes'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Created:</td><td>{{ invoice['created_at'][:10] if invoice['created_at'] else 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Updated:</td><td>{{ invoice['updated_at'][:10] if invoice['updated_at'] else 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Addresses Tab -->
+                    <div class="tab-pane fade" id="addresses" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Shipper Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Shipper Name:</td><td>{{ invoice['shipper_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['shipper_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['shipper_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['shipper_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['shipper_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['shipper_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['shipper_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['shipper_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Consignee Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Consignee Name:</td><td>{{ invoice['consignee_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['consignee_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['consignee_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['consignee_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['consignee_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['consignee_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['consignee_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['consignee_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Bill To Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Bill To Name:</td><td>{{ invoice['bill_to_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['bill_to_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['bill_to_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['bill_to_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['bill_to_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['bill_to_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['bill_to_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['bill_to_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Third Party Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Third Party Name:</td><td>{{ invoice['third_party_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Company:</td><td>{{ invoice['third_party_company'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 1:</td><td>{{ invoice['third_party_address1'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Address 2:</td><td>{{ invoice['third_party_address2'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">City:</td><td>{{ invoice['third_party_city'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">State:</td><td>{{ invoice['third_party_state'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">ZIP:</td><td>{{ invoice['third_party_zip'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Country:</td><td>{{ invoice['third_party_country'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charges Tab -->
+                    <div class="tab-pane fade" id="charges" role="tabpanel">
+                        {% if charges %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th>Charge Code</th>
+                                        <th>Description</th>
+                                        <th>Rate</th>
+                                        <th>Quantity</th>
+                                        <th>Unit</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for charge in charges %}
+                                    <tr>
+                                        <td class="fw-bold">{{ charge['charge_code'] or 'N/A' }}</td>
+                                        <td>{{ charge['charge_description'] or 'N/A' }}</td>
+                                        <td>${{ "%.4f"|format(charge['rate'] or 0.0) }}</td>
+                                        <td>{{ "%.2f"|format(charge['quantity'] or 0.0) }}</td>
+                                        <td>{{ charge['unit'] or 'N/A' }}</td>
+                                        <td class="text-end fw-bold">${{ "%.2f"|format(charge['amount'] or 0.0) }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-secondary">
+                                    <tr>
+                                        <th colspan="5" class="text-end">Total:</th>
+                                        <th class="text-end">${{ "%.2f"|format(invoice['invoice_amount'] or 0.0) }}</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No charge details available for this invoice.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Line Items Tab -->
+                    <div class="tab-pane fade" id="line-items" role="tabpanel">
+                        {% if line_items %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th>Line Number</th>
+                                        <th>Description</th>
+                                        <th>Weight (KG)</th>
+                                        <th>Pieces</th>
+                                        <th>Commodity</th>
+                                        <th>Hazmat</th>
+                                        <th>Package Type</th>
+                                        <th>Dimensions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in line_items %}
+                                    <tr>
+                                        <td class="fw-bold">{{ item['line_item_number'] or 'N/A' }}</td>
+                                        <td>{{ item['item_description'] or 'N/A' }}</td>
+                                        <td>{{ "%.1f"|format(item['weight'] or 0.0) }} kg</td>
+                                        <td>{{ "%.0f"|format(item['pieces'] or 0) }}</td>
+                                        <td>{{ item['commodity_code'] or 'N/A' }}</td>
+                                        <td>
+                                            {% if item['hazmat'] %}
+                                                <span class="badge bg-danger">HAZMAT</span>
+                                            {% else %}
+                                                <span class="badge bg-success">No</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ item['package_type'] or 'N/A' }}</td>
+                                        <td>{{ item['dimensions'] or 'N/A' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Weight & Volume Summary</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Total Weight:</td><td>{{ "%.1f"|format(total_weight_kg or 0.0) }} kg</td></tr>
+                                    <tr><td class="fw-bold">Total Pieces:</td><td>{{ "%.0f"|format(total_pieces or 0) }}</td></tr>
+                                    <tr><td class="fw-bold">Ship Weight:</td><td>{{ "%.1f"|format(invoice['ship_weight'] or 0.0) }} kg</td></tr>
+                                    <tr><td class="fw-bold">Volume:</td><td>{{ invoice['volume'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>No line item details available for this invoice.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- References Tab -->
+                    <div class="tab-pane fade" id="references" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Reference Numbers</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">PRO Number:</td><td>{{ invoice['pro_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Reference Number:</td><td>{{ invoice['reference_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Bill of Lading:</td><td>{{ invoice['bill_of_lading'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Booking Number:</td><td>{{ invoice['booking_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Master Bill:</td><td>{{ invoice['master_bill'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">House Bill:</td><td>{{ invoice['house_bill'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Container Number:</td><td>{{ invoice['container_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Seal Number:</td><td>{{ invoice['seal_number'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Additional References</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">PO Number:</td><td>{{ invoice['po_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Quote Number:</td><td>{{ invoice['quote_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Job Number:</td><td>{{ invoice['job_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Carrier Reference:</td><td>{{ invoice['carrier_reference'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Customer Reference:</td><td>{{ invoice['customer_reference'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Third Party Reference:</td><td>{{ invoice['third_party_reference'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Shipper Reference:</td><td>{{ invoice['shipper_reference'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Consignee Reference:</td><td>{{ invoice['consignee_reference'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Additional Reference Numbers from reference_numbers table -->
+                        {% if reference_numbers %}
+                        <div class="mt-4">
+                            <h5 class="text-primary mb-3">Additional Reference Numbers</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th>Qualifier</th>
+                                            <th>Reference Number</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ref in reference_numbers %}
+                                        <tr>
+                                            <td class="fw-bold">{{ ref['reference_qualifier'] or 'N/A' }}</td>
+                                            <td>{{ ref['reference_number'] or 'N/A' }}</td>
+                                            <td>{{ ref['description'] or 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Shipment Tab -->
+                    <div class="tab-pane fade" id="shipment" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Shipment Details</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Service Type:</td><td>{{ invoice['service_type'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Transportation Mode:</td><td>{{ invoice['transportation_mode'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Equipment Type:</td><td>{{ invoice['equipment_type'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Equipment Number:</td><td>{{ invoice['equipment_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Incoterm:</td><td>{{ invoice['incoterm'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Service Level:</td><td>{{ invoice['service_level'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Special Instructions:</td><td>{{ invoice['special_instructions'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">Dates & Times</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Service Date:</td><td>{{ invoice['service_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Pickup Date:</td><td>{{ invoice['pickup_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Delivery Date:</td><td>{{ invoice['delivery_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Ship Date:</td><td>{{ invoice['ship_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Requested Pickup:</td><td>{{ invoice['requested_pickup_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Requested Delivery:</td><td>{{ invoice['requested_delivery_date'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Estimated Transit:</td><td>{{ invoice['estimated_transit_time'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Shipment table data if available -->
+                        {% if shipments %}
+                        <div class="mt-4">
+                            <h5 class="text-primary mb-3">Shipment Records</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th>Origin</th>
+                                            <th>Destination</th>
+                                            <th>Distance</th>
+                                            <th>Transit Time</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for shipment in shipments %}
+                                        <tr>
+                                            <td>{{ shipment['origin'] or 'N/A' }}</td>
+                                            <td>{{ shipment['destination'] or 'N/A' }}</td>
+                                            <td>{{ shipment['distance'] or 'N/A' }}</td>
+                                            <td>{{ shipment['transit_time'] or 'N/A' }}</td>
+                                            <td>{{ shipment['status'] or 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Technical Tab -->
+                    <div class="tab-pane fade" id="technical" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">EDI Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Transaction Set:</td><td>{{ invoice['transaction_set'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Control Number:</td><td>{{ invoice['control_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Interchange Control:</td><td>{{ invoice['interchange_control_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Group Control:</td><td>{{ invoice['group_control_number'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Version:</td><td>{{ invoice['version'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Standard:</td><td>{{ invoice['standard'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">File Name:</td><td>{{ invoice['file_name'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">File Path:</td><td><small>{{ invoice['file_path'] or 'N/A' }}</small></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-primary mb-3">System Information</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Database ID:</td><td>{{ invoice['id'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Created At:</td><td>{{ invoice['created_at'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Updated At:</td><td>{{ invoice['updated_at'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Processing Status:</td><td>{{ invoice['processing_status'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Validation Status:</td><td>{{ invoice['validation_status'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Error Messages:</td><td>{{ invoice['error_messages'] or 'None' }}</td></tr>
+                                </table>
+                                
+                                <h5 class="text-primary mb-3 mt-4">Data Quality</h5>
+                                <table class="table table-borderless">
+                                    <tr><td class="fw-bold">Completeness Score:</td><td>{{ invoice['completeness_score'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Accuracy Score:</td><td>{{ invoice['accuracy_score'] or 'N/A' }}</td></tr>
+                                    <tr><td class="fw-bold">Data Source:</td><td>{{ invoice['data_source'] or 'N/A' }}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Audit Rules if available -->
+                        {% if audit_rules %}
+                        <div class="mt-4">
+                            <h5 class="text-primary mb-3">Applied Audit Rules</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th>Rule Name</th>
+                                            <th>Rule Type</th>
+                                            <th>Status</th>
+                                            <th>Result</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rule in audit_rules %}
+                                        <tr>
+                                            <td class="fw-bold">{{ rule['rule_name'] or 'N/A' }}</td>
+                                            <td>{{ rule['rule_type'] or 'N/A' }}</td>
+                                            <td>
+                                                {% if rule['is_active'] %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ rule['rule_result'] or 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-warning">
+            <h4 class="alert-heading">Invoice Not Found</h4>
+            <p>The requested invoice could not be found in the system.</p>
+            <hr>
+            <p class="mb-0"><a href="{{ url_for('main.invoices') }}" class="btn btn-primary">Return to Invoices</a></p>
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+
+<script>
+// Initialize Bootstrap tabs
+const triggerTabList = [].slice.call(document.querySelectorAll('#invoiceDetailTabs button'))
+triggerTabList.forEach(function (triggerEl) {
+    const tabTrigger = new bootstrap.Tab(triggerEl);
+    
+    triggerEl.addEventListener('click', function (event) {
+        event.preventDefault();
+        tabTrigger.show();
+    });
+});
+</script>
+{% endblock %}
