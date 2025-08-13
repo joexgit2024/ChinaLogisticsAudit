@@ -269,8 +269,8 @@
             
             // Regex patterns for different invoice formats
             const patterns = [
-                /D\d{7}/i,           // DGF format: D followed by 7 digits (D2159508)
-                /MELR\d{9}/i,        // DHL Express format: MELR followed by 9 digits
+                /J\d{7}/i,           // China format: J followed by 7 digits (J9835528)
+                /SUZR\d{9}/i,        // DHL Express format: SUZR followed by 9 digits (SUZR001862880)
                 /MEL\w{8,12}/i,      // General MEL format
                 /\b[A-Z]\d{7,9}\b/i, // General: Letter followed by 7-9 digits
                 /\b\d{7,10}\b/       // Fallback: 7-10 digits only

@@ -2,7 +2,7 @@
 Invoice Validation Engine
 ========================
 
-This module provides comprehensive invoice validation logic for DHL audit system.
+This module provides comprehensive invoice validation logic for China Logistics audit system.
 It performs basic field validation and business rule checks.
 """
 
@@ -83,8 +83,8 @@ class InvoiceValidator:
         'invoice_date': 'Invoice Date'
     }
     
-    # Valid currency codes
-    VALID_CURRENCIES = {'USD', 'AUD', 'EUR', 'GBP', 'CAD', 'NZD', 'SGD', 'HKD', 'JPY'}
+    # Valid currency codes - Updated for China Logistics
+    VALID_CURRENCIES = {'USD', 'CNY', 'AUD', 'EUR', 'GBP', 'CAD', 'NZD', 'SGD', 'HKD', 'JPY'}
     
     # Valid country codes (ISO 3166-1 alpha-2)
     VALID_COUNTRIES = {'AU', 'US', 'CN', 'NZ', 'GB', 'DE', 'FR', 'SG', 'HK', 'JP', 'CA', 'IN', 'TH', 'VN', 'MY'}
