@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Country Zone Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-flag me-3"></i>FedEx Country Zone Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage country-to-zone mappings and currency settings</p>
+                </div>
+                <div>
+                    <a href="/fedex/data-management" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Data Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Countries Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-flag me-2"></i>Country Zone Mappings</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if countries %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Country</th>
+                                            <th>Region</th>
+                                            <th>Sub-Region</th>
+                                            <th>Zone</th>
+                                            <th>Currency</th>
+                                            <th>Exchange Rate</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for country in countries %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-primary me-2">{{ country.country_code }}</span>
+                                                    <span class="fw-bold">{{ country.country_name }}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div>{{ country.region_name or country.region_code }}</div>
+                                                <small class="text-muted">{{ country.region_code }}</small>
+                                            </td>
+                                            <td class="text-muted">{{ country.sub_region or 'N/A' }}</td>
+                                            <td>
+                                                {% if country.zone_letter %}
+                                                    <span class="badge fedex-bg-orange text-white">{{ country.zone_letter }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if country.currency_code %}
+                                                    <span class="badge bg-success">{{ country.currency_code }}</span>
+                                                {% else %}
+                                                    <span class="text-muted">N/A</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-muted">
+                                                {% if country.exchange_rate %}
+                                                    {{ "%.4f"|format(country.exchange_rate) }}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if country.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Summary Statistics -->
+                            <div class="row mt-4">
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ countries|length }}</div>
+                                        <div class="small text-muted">Total Countries</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ countries|selectattr('active')|list|length }}</div>
+                                        <div class="small text-muted">Active Countries</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ countries|map(attribute='region_code')|unique|list|length }}</div>
+                                        <div class="small text-muted">Regions Used</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ countries|selectattr('currency_code')|list|length }}</div>
+                                        <div class="small text-muted">With Currency</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-flag display-4 mb-3"></i>
+                                    <p>No country zone mappings found. Upload rate cards to populate country data.</p>
+                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Available Regions Reference -->
+            {% if regions %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Available Regions</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                {% for region in regions %}
+                                <div class="col-lg-3 col-md-4 col-sm-6 mb-2">
+                                    <span class="badge fedex-bg-orange text-white me-2">{{ region.code }}</span>
+                                    <span class="small">{{ region.name }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+</style>
+
+{% endblock %}

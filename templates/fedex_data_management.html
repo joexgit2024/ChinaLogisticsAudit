@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Data Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-database me-3"></i>FedEx Data Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage FedEx rate cards, zones, and surcharges</p>
+                </div>
+                <div>
+                    <button id="initializeBtn" class="btn btn-outline-warning">
+                        <i class="fas fa-cog me-2"></i>Initialize Schema
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="fedex-orange display-6 mb-2">
+                                <i class="fas fa-globe"></i>
+                            </div>
+                            <h3 class="fedex-orange mb-1">{{ stats.zone_regions }}</h3>
+                            <p class="text-muted small mb-0">Zone Regions</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="fedex-orange display-6 mb-2">
+                                <i class="fas fa-flag"></i>
+                            </div>
+                            <h3 class="fedex-orange mb-1">{{ stats.country_zones }}</h3>
+                            <p class="text-muted small mb-0">Countries</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="fedex-orange display-6 mb-2">
+                                <i class="fas fa-tags"></i>
+                            </div>
+                            <h3 class="fedex-orange mb-1">{{ stats.rate_cards }}</h3>
+                            <p class="text-muted small mb-0">Rate Cards</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="fedex-orange display-6 mb-2">
+                                <i class="fas fa-shipping-fast"></i>
+                            </div>
+                            <h3 class="fedex-orange mb-1">{{ stats.service_types }}</h3>
+                            <p class="text-muted small mb-0">Services</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="fedex-orange display-6 mb-2">
+                                <i class="fas fa-plus-circle"></i>
+                            </div>
+                            <h3 class="fedex-orange mb-1">{{ stats.surcharges }}</h3>
+                            <p class="text-muted small mb-0">Surcharges</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Management Cards -->
+            <div class="row mb-4">
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-globe me-2"></i>Zone Management</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Manage zone regions and zone matrix for origin/destination routing.</p>
+                            <ul class="list-unstyled small mb-3">
+                                <li><i class="fas fa-check text-success me-2"></i>{{ stats.zone_regions }} Zone regions</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Zone matrix configuration</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Regional mappings</li>
+                            </ul>
+                            <a href="/fedex/zones" class="btn fedex-bg-orange text-white btn-sm">
+                                <i class="fas fa-edit me-2"></i>Manage Zones
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-flag me-2"></i>Country Zones</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Manage country-to-zone mappings and currency settings.</p>
+                            <ul class="list-unstyled small mb-3">
+                                <li><i class="fas fa-check text-success me-2"></i>{{ stats.country_zones }} Countries mapped</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Currency conversion rates</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Zone letter assignments</li>
+                            </ul>
+                            <a href="/fedex/countries" class="btn fedex-bg-orange text-white btn-sm">
+                                <i class="fas fa-edit me-2"></i>Manage Countries
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Rate Cards</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Manage rate cards with weight-based pricing structures.</p>
+                            <ul class="list-unstyled small mb-3">
+                                <li><i class="fas fa-check text-success me-2"></i>{{ stats.rate_cards }} Rate entries</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Weight tier pricing</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Service-specific rates</li>
+                            </ul>
+                            <a href="/fedex/rates" class="btn fedex-bg-orange text-white btn-sm">
+                                <i class="fas fa-edit me-2"></i>Manage Rates
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Surcharges</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Manage additional fees and surcharge configurations.</p>
+                            <ul class="list-unstyled small mb-3">
+                                <li><i class="fas fa-check text-success me-2"></i>{{ stats.surcharges }} Surcharge types</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Fixed & percentage rates</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Service-specific rules</li>
+                            </ul>
+                            <a href="/fedex/surcharges" class="btn fedex-bg-orange text-white btn-sm">
+                                <i class="fas fa-edit me-2"></i>Manage Surcharges
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Uploads -->
+            {% if recent_uploads %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Rate Card Uploads</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Filename</th>
+                                            <th>Upload Date</th>
+                                            <th>Status</th>
+                                            <th>Records Processed</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for upload in recent_uploads %}
+                                        <tr>
+                                            <td>
+                                                <i class="fas fa-file-excel text-success me-2"></i>
+                                                {{ upload.filename }}
+                                            </td>
+                                            <td>{{ upload.upload_date }}</td>
+                                            <td>
+                                                {% if upload.status == 'completed' %}
+                                                    <span class="badge bg-success">{{ upload.status|title }}</span>
+                                                {% elif upload.status == 'processing' %}
+                                                    <span class="badge bg-warning">{{ upload.status|title }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ upload.status|title }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ upload.records_processed or 0 }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+.fedex-bg-light { background-color: #FFF9F5; }
+.fedex-dark-orange { color: #CC5200; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const initializeBtn = document.getElementById('initializeBtn');
+    
+    initializeBtn.addEventListener('click', function() {
+        if (confirm('This will initialize the FedEx rate card database schema. Continue?')) {
+            fetch('/fedex/api/initialize-schema', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // Refresh the page to update stats
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('danger', data.error || 'Failed to initialize schema');
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error: ' + error.message);
+            });
+        }
+    });
+    
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        // Insert at top of container
+        const container = document.querySelector('.container-fluid');
+        container.insertAdjacentHTML('afterbegin', alertHtml);
+    }
+});
+</script>
+
+{% endblock %}

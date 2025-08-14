@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Surcharges Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-plus-circle me-3"></i>FedEx Surcharges Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage additional fees and surcharges for special services</p>
+                </div>
+                <div>
+                    <a href="/fedex/data-management" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Data Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Surcharge Categories -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                {% set surcharge_categories = surcharges|groupby('rate_type') %}
+                                {% for category, items in surcharge_categories %}
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded position-relative">
+                                        <div class="h5 fedex-orange mb-1">{{ items|length }}</div>
+                                        <div class="small text-muted">{{ category|title }} Surcharges</div>
+                                        <button class="btn btn-sm btn-outline-primary mt-2" onclick="filterByCategory('{{ category }}')">
+                                            View All
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Surcharges Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Surcharges</h5>
+                            <div>
+                                <select class="form-select form-select-sm" id="categoryFilter" onchange="filterSurcharges()" style="background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); color: white;">
+                                    <option value="">All Categories</option>
+                                    {% for category in surcharges|map(attribute='rate_type')|unique|list %}
+                                    <option value="{{ category }}">{{ category|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% if surcharges %}
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="surchargesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Surcharge</th>
+                                            <th>Type</th>
+                                            <th>Zones</th>
+                                            <th>Rate Structure</th>
+                                            <th>Amount</th>
+                                            <th>Currency</th>
+                                            <th>Status</th>
+                                            <th>Effective Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for surcharge in surcharges %}
+                                        <tr class="surcharge-row" data-category="{{ surcharge.rate_type }}">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-primary me-2">{{ surcharge.surcharge_code }}</span>
+                                                    <div>
+                                                        <div class="fw-bold">{{ surcharge.surcharge_name }}</div>
+                                                        {% if surcharge.surcharge_description %}
+                                                        <small class="text-muted">{{ surcharge.surcharge_description }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if 'fuel' in surcharge.surcharge_name.lower() %}
+                                                    <span class="badge bg-warning text-dark">
+                                                        <i class="fas fa-gas-pump me-1"></i>Fuel
+                                                    </span>
+                                                {% elif 'residential' in surcharge.surcharge_name.lower() %}
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-home me-1"></i>Residential
+                                                    </span>
+                                                {% elif 'delivery' in surcharge.surcharge_name.lower() %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-truck me-1"></i>Delivery
+                                                    </span>
+                                                {% elif 'oversize' in surcharge.surcharge_name.lower() or 'handling' in surcharge.surcharge_name.lower() %}
+                                                    <span class="badge bg-purple">
+                                                        <i class="fas fa-hand-paper me-1"></i>Handling
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ surcharge.rate_type|title }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-dark">All Zones</span>
+                                            </td>
+                                            <td>
+                                                {% if surcharge.rate_type == 'PERCENTAGE' %}
+                                                    <span class="badge bg-info">Percentage</span>
+                                                {% else %}
+                                                    <span class="badge bg-success">Fixed Amount</span>
+                                                {% endif %}
+                                                {% if surcharge.minimum_charge %}
+                                                    <div class="small text-muted">Min: USD {{ "%.2f"|format(surcharge.minimum_charge) }}</div>
+                                                {% endif %}
+                                                {% if surcharge.maximum_charge %}
+                                                    <div class="small text-muted">Max: USD {{ "%.2f"|format(surcharge.maximum_charge) }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">
+                                                    {% if surcharge.rate_type == 'PERCENTAGE' %}
+                                                        {{ "%.1f"|format(surcharge.rate_value) }}%
+                                                    {% else %}
+                                                        {{ "%.2f"|format(surcharge.rate_value) }}
+                                                    {% endif %}
+                                                </div>
+                                                {% if surcharge.weight_threshold %}
+                                                    <small class="text-muted">Above {{ surcharge.weight_threshold }}kg</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-dark">USD</span>
+                                            </td>
+                                            <td>
+                                                {% if surcharge.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="small text-muted">
+                                                    {{ surcharge.effective_date if surcharge.effective_date else 'N/A' }}
+                                                </div>
+                                                {% if surcharge.expiry_date %}
+                                                <div class="small text-warning">
+                                                    Expires: {{ surcharge.expiry_date }}
+                                                </div>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Surcharge Statistics -->
+                            <div class="row mt-4">
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|length }}</div>
+                                        <div class="small text-muted">Total Surcharges</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|selectattr('active')|list|length }}</div>
+                                        <div class="small text-muted">Active</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|selectattr('rate_type', 'equalto', 'PERCENTAGE')|list|length }}</div>
+                                        <div class="small text-muted">Percentage</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|rejectattr('rate_type', 'equalto', 'PERCENTAGE')|list|length }}</div>
+                                        <div class="small text-muted">Fixed Amount</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|selectattr('weight_threshold')|list|length }}</div>
+                                        <div class="small text-muted">Weight Based</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ surcharges|map(attribute='rate_type')|unique|list|length }}</div>
+                                        <div class="small text-muted">Categories</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-plus-circle display-4 mb-3"></i>
+                                    <p>No surcharges found. Upload rate card data to populate surcharge information.</p>
+                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Surcharge Calculator -->
+            {% if surcharges %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Surcharge Calculator</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Surcharge Type</label>
+                                    <select class="form-select" id="calcSurcharge">
+                                        <option value="">Select Surcharge</option>
+                                        {% for surcharge in surcharges %}
+                                        <option value="{{ surcharge.surcharge_code }}" 
+                                                data-rate="{{ surcharge.rate_value }}" 
+                                                data-percentage="{{ 'true' if surcharge.rate_type == 'PERCENTAGE' else 'false' }}"
+                                                data-weight-based="{{ 'true' if surcharge.weight_threshold else 'false' }}"
+                                                data-rate-per-kg="{{ surcharge.rate_value if surcharge.weight_threshold else 0 }}"
+                                                data-min="{{ surcharge.minimum_charge or 0 }}"
+                                                data-max="{{ surcharge.maximum_charge or 0 }}">
+                                            {{ surcharge.surcharge_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Base Amount</label>
+                                    <input type="number" class="form-control" id="calcBaseAmount" placeholder="Base amount" step="0.01">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Weight (kg)</label>
+                                    <input type="number" class="form-control" id="calcWeight" placeholder="Weight" step="0.1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Calculated Surcharge</label>
+                                    <input type="text" class="form-control" id="calcResult" readonly placeholder="Select surcharge and enter values">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Actions</label>
+                                    <button class="btn fedex-bg-orange text-white w-100" onclick="calculateSurcharge()">
+                                        <i class="fas fa-calculator me-1"></i>Calculate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+.bg-purple { background-color: #6f42c1; }
+</style>
+
+<script>
+function filterSurcharges() {
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const rows = document.querySelectorAll('.surcharge-row');
+    
+    rows.forEach(row => {
+        const category = row.getAttribute('data-category');
+        if (!categoryFilter || category === categoryFilter) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function filterByCategory(category) {
+    document.getElementById('categoryFilter').value = category;
+    filterSurcharges();
+}
+
+function calculateSurcharge() {
+    const surchargeSelect = document.getElementById('calcSurcharge');
+    const baseAmount = parseFloat(document.getElementById('calcBaseAmount').value) || 0;
+    const weight = parseFloat(document.getElementById('calcWeight').value) || 0;
+    const resultField = document.getElementById('calcResult');
+    
+    if (!surchargeSelect.value || baseAmount <= 0) {
+        resultField.value = 'Please select surcharge and enter base amount';
+        return;
+    }
+    
+    const option = surchargeSelect.selectedOptions[0];
+    const rate = parseFloat(option.getAttribute('data-rate'));
+    const isPercentage = option.getAttribute('data-percentage') === 'true';
+    const isWeightBased = option.getAttribute('data-weight-based') === 'true';
+    const ratePerKg = parseFloat(option.getAttribute('data-rate-per-kg')) || 0;
+    const minCharge = parseFloat(option.getAttribute('data-min')) || 0;
+    const maxCharge = parseFloat(option.getAttribute('data-max')) || 0;
+    
+    let surchargeAmount = 0;
+    
+    if (isPercentage) {
+        surchargeAmount = baseAmount * (rate / 100);
+    } else {
+        surchargeAmount = rate;
+    }
+    
+    if (isWeightBased && weight > 0) {
+        surchargeAmount += weight * ratePerKg;
+    }
+    
+    // Apply min/max constraints
+    if (minCharge > 0 && surchargeAmount < minCharge) {
+        surchargeAmount = minCharge;
+    }
+    if (maxCharge > 0 && surchargeAmount > maxCharge) {
+        surchargeAmount = maxCharge;
+    }
+    
+    resultField.value = surchargeAmount.toFixed(2);
+}
+
+// Auto-calculate when values change
+document.getElementById('calcSurcharge').addEventListener('change', calculateSurcharge);
+document.getElementById('calcBaseAmount').addEventListener('input', calculateSurcharge);
+document.getElementById('calcWeight').addEventListener('input', calculateSurcharge);
+</script>
+
+{% endblock %}

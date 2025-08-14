@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Zone Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-globe me-3"></i>FedEx Zone Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage zone regions and zone matrix</p>
+                </div>
+                <div>
+                    <a href="/fedex/data-management" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Data Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Zone Regions -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-globe me-2"></i>Zone Regions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Region Code</th>
+                                            <th>Region Name</th>
+                                            <th>Description</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for region in zone_regions %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge fedex-bg-orange text-white">{{ region.region_code }}</span>
+                                            </td>
+                                            <td class="fw-bold">{{ region.region_name }}</td>
+                                            <td class="text-muted">{{ region.description or 'No description' }}</td>
+                                            <td>
+                                                {% if region.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-muted small">{{ region.created_timestamp }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% if not zone_regions %}
+                            <div class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-globe display-4 mb-3"></i>
+                                    <p>No zone regions found. Initialize the schema to create default regions.</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Zone Matrix -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Zone Matrix</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if zone_matrix %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Origin</th>
+                                            <th>Destination</th>
+                                            <th>Zone Code</th>
+                                            <th>Service Type</th>
+                                            <th>Effective Date</th>
+                                            <th>Expiry Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for matrix in zone_matrix %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">{{ matrix.origin_name or matrix.origin_region }}</div>
+                                                <small class="text-muted">{{ matrix.origin_region }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ matrix.dest_name or matrix.destination_region }}</div>
+                                                <small class="text-muted">{{ matrix.destination_region }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ matrix.zone_code }}</span>
+                                            </td>
+                                            <td>{{ matrix.service_type }}</td>
+                                            <td class="text-muted small">{{ matrix.effective_date or 'N/A' }}</td>
+                                            <td class="text-muted small">{{ matrix.expiry_date or 'N/A' }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-project-diagram display-4 mb-3"></i>
+                                    <p>No zone matrix entries found. Upload rate cards to populate the matrix.</p>
+                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+</style>
+
+{% endblock %}

@@ -39,7 +39,7 @@ from app.utils.template_filters import register_filters
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['DATABASE'] = 'china_logistics_audit.db'
+app.config['DATABASE'] = 'fedex_audit.db'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable cache
 
@@ -99,6 +99,22 @@ try:
     app.register_blueprint(dhl_express_routes)
 except ImportError as e:
     print(f"Warning: Could not import DHL Express routes: {e}")
+
+# Register FedEx blueprint
+try:
+    from fedex_routes import fedex_bp
+    app.register_blueprint(fedex_bp)
+    print("FedEx routes registered")
+except ImportError as e:
+    print(f"Warning: Could not import FedEx routes: {e}")
+
+# Register FedEx Data Management blueprint
+try:
+    from fedex_data_routes import fedex_data_bp
+    app.register_blueprint(fedex_data_bp)
+    print("FedEx Data Management routes registered")
+except ImportError as e:
+    print(f"Warning: Could not import FedEx Data Management routes: {e}")
 
 # Register Authentication blueprint
 try:

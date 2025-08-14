@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-chart-pie me-3"></i>FedEx Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">Overview of FedEx invoice processing and audit results</p>
+                </div>
+                <div>
+                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white btn-lg">
+                        <i class="fas fa-plus me-2"></i>Upload Invoices
+                    </a>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row g-4 mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="p-3 rounded-circle fedex-bg-light">
+                                        <i class="fas fa-file-invoice fedex-orange fa-2x"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="small text-muted text-uppercase">Total Invoices</div>
+                                    <div class="h3 mb-0 fw-bold fedex-dark-orange">{{ "{:,}".format(summary.invoices) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="p-3 rounded-circle fedex-bg-light">
+                                        <i class="fas fa-list fedex-orange fa-2x"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="small text-muted text-uppercase">Total Lines</div>
+                                    <div class="h3 mb-0 fw-bold fedex-dark-orange">{{ "{:,}".format(summary.lines) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="p-3 rounded-circle fedex-bg-light">
+                                        <i class="fas fa-yuan-sign fedex-orange fa-2x"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="small text-muted text-uppercase">Total Amount</div>
+                                    <div class="h3 mb-0 fw-bold fedex-dark-orange">¥{{ "{:,.2f}".format(summary.total_amount_cny) }}</div>
+                                    <div class="small text-muted">CNY</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="p-3 rounded-circle fedex-bg-light">
+                                        <i class="fas fa-truck fedex-orange fa-2x"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <div class="small text-muted text-uppercase">Service Types</div>
+                                    <div class="h3 mb-0 fw-bold fedex-dark-orange">{{ summary.top_services|length }}</div>
+                                    <div class="small text-muted">Active</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Services -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>Top Services by Volume
+                            </h5>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if summary.top_services %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="border-0 fw-semibold">Service Type</th>
+                                                <th class="border-0 fw-semibold text-end">Shipments</th>
+                                                <th class="border-0 fw-semibold text-end">Total Amount (CNY)</th>
+                                                <th class="border-0 fw-semibold text-end">Avg. Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for service in summary.top_services %}
+                                            <tr>
+                                                <td class="fw-medium">
+                                                    <i class="fas fa-shipping-fast fedex-accent me-2"></i>
+                                                    {{ service.service_type or 'Unknown' }}
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="badge fedex-bg-light fedex-dark-orange">{{ "{:,}".format(service.count) }}</span>
+                                                </td>
+                                                <td class="text-end fw-medium">¥{{ "{:,.2f}".format(service.amount or 0) }}</td>
+                                                <td class="text-end text-muted">
+                                                    ¥{{ "{:,.2f}".format((service.amount or 0) / service.count if service.count > 0 else 0) }}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-inbox fedex-orange fa-3x mb-3"></i>
+                                    <h5 class="text-muted">No Service Data Available</h5>
+                                    <p class="text-muted">Upload FedEx invoices to see service breakdown</p>
+                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-upload me-2"></i>Upload First Invoice
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0 fedex-dark-orange">
+                                <i class="fas fa-bolt me-2"></i>Quick Actions
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                    <i class="fas fa-file-upload me-2"></i>Upload Invoices
+                                </a>
+                                <button class="btn btn-outline-warning" disabled>
+                                    <i class="fas fa-table me-2"></i>Manage Rate Cards
+                                    <span class="badge bg-secondary ms-2">Soon</span>
+                                </button>
+                                <button class="btn btn-outline-warning" disabled>
+                                    <i class="fas fa-search-dollar me-2"></i>Run Audit
+                                    <span class="badge bg-secondary ms-2">Soon</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-0 shadow-sm mt-3">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0 fedex-dark-orange">
+                                <i class="fas fa-info-circle me-2"></i>System Status
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small">Invoice Processing</span>
+                                <span class="badge bg-success">Online</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small">Rate Card Engine</span>
+                                <span class="badge bg-warning">Pending</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">Audit Engine</span>
+                                <span class="badge bg-warning">Pending</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

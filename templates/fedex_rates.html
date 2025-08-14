@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Rate Cards Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-credit-card me-3"></i>FedEx Rate Cards Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage service rates across all zones and weight breaks</p>
+                </div>
+                <div>
+                    <a href="/fedex/data-management" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Data Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Rate Cards Filter -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Service Type</label>
+                                    <select class="form-select" id="serviceFilter" onchange="filterRates()">
+                                        <option value="">All Services</option>
+                                        {% for service in services %}
+                                        <option value="{{ service.service_code }}">{{ service.service_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Zone</label>
+                                    <select class="form-select" id="zoneFilter" onchange="filterRates()">
+                                        <option value="">All Zones</option>
+                                        {% for zone in zones %}
+                                        <option value="{{ zone }}">Zone {{ zone }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Rate Type</label>
+                                    <select class="form-select" id="rateTypeFilter" onchange="filterRates()">
+                                        <option value="">All Types</option>
+                                        <option value="standard">Standard</option>
+                                        <option value="fuel_surcharge">Fuel Surcharge</option>
+                                        <option value="residential_surcharge">Residential</option>
+                                        <option value="oversize">Oversize</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Actions</label>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-outline-primary btn-sm" onclick="resetFilters()">
+                                            <i class="fas fa-sync me-1"></i>Reset
+                                        </button>
+                                        <button class="btn fedex-bg-orange text-white btn-sm" onclick="exportRates()">
+                                            <i class="fas fa-download me-1"></i>Export
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rate Cards Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-gradient text-white">
+                            <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Rate Cards</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if rate_cards %}
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="rateCardsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Service</th>
+                                            <th>Zone</th>
+                                            <th>Weight Range</th>
+                                            <th>Rate Type</th>
+                                            <th>Rate</th>
+                                            <th>Currency</th>
+                                            <th>Status</th>
+                                            <th>Last Updated</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rate in rate_cards %}
+                                        <tr class="rate-row" 
+                                            data-service="{{ rate.service_code }}" 
+                                            data-zone="{{ rate.zone_letter }}" 
+                                            data-type="{{ rate.rate_type }}">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-primary me-2">{{ rate.service_code }}</span>
+                                                    <div>
+                                                        <div class="fw-bold">{{ rate.service_name }}</div>
+                                                        <small class="text-muted">{{ rate.service_description }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge fedex-bg-orange text-white">{{ rate.zone_letter }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="small">
+                                                    <strong>{{ rate.weight_from }}kg</strong> - 
+                                                    {% if rate.weight_to %}
+                                                        <strong>{{ rate.weight_to }}kg</strong>
+                                                    {% else %}
+                                                        <strong>∞</strong>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if rate.rate_type == 'standard' %}
+                                                    <span class="badge bg-success">Standard</span>
+                                                {% elif rate.rate_type == 'fuel_surcharge' %}
+                                                    <span class="badge bg-warning text-dark">Fuel Surcharge</span>
+                                                {% elif rate.rate_type == 'residential_surcharge' %}
+                                                    <span class="badge bg-info">Residential</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ rate.rate_type|title }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">{{ "%.2f"|format(rate.rate) }}</div>
+                                                {% if rate.rate_per_kg %}
+                                                    <small class="text-muted">+{{ "%.2f"|format(rate.rate_per_kg) }}/kg</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-dark">{{ rate.currency_code }}</span>
+                                            </td>
+                                            <td>
+                                                {% if rate.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="small text-muted">
+                                                    {{ rate.updated_at.strftime('%Y-%m-%d') if rate.updated_at else 'N/A' }}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Rate Cards Statistics -->
+                            <div class="row mt-4">
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|length }}</div>
+                                        <div class="small text-muted">Total Rate Cards</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|selectattr('active')|list|length }}</div>
+                                        <div class="small text-muted">Active Rates</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='service_code')|unique|list|length }}</div>
+                                        <div class="small text-muted">Service Types</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center p-3 bg-light rounded">
+                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='zone_letter')|unique|list|length }}</div>
+                                        <div class="small text-muted">Zones Covered</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% else %}
+                            <div class="text-center py-4">
+                                <div class="text-muted">
+                                    <i class="fas fa-credit-card display-4 mb-3"></i>
+                                    <p>No rate cards found. Upload rate card data to populate rates.</p>
+                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Rate Lookup -->
+            {% if rate_cards %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-search me-2"></i>Quick Rate Lookup</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Service</label>
+                                    <select class="form-select" id="lookupService">
+                                        <option value="">Select Service</option>
+                                        {% for service in services %}
+                                        <option value="{{ service.service_code }}">{{ service.service_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Zone</label>
+                                    <select class="form-select" id="lookupZone">
+                                        <option value="">Select Zone</option>
+                                        {% for zone in zones %}
+                                        <option value="{{ zone }}">Zone {{ zone }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Weight (kg)</label>
+                                    <input type="number" class="form-control" id="lookupWeight" placeholder="Enter weight" step="0.1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Actions</label>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn fedex-bg-orange text-white" onclick="lookupRate()">
+                                            <i class="fas fa-search me-1"></i>Lookup
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="lookupResults" class="mt-3" style="display: none;">
+                                <div class="alert alert-info" id="lookupDisplay"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+</style>
+
+<script>
+function filterRates() {
+    const serviceFilter = document.getElementById('serviceFilter').value;
+    const zoneFilter = document.getElementById('zoneFilter').value;
+    const rateTypeFilter = document.getElementById('rateTypeFilter').value;
+    
+    const rows = document.querySelectorAll('.rate-row');
+    
+    rows.forEach(row => {
+        const service = row.getAttribute('data-service');
+        const zone = row.getAttribute('data-zone');
+        const type = row.getAttribute('data-type');
+        
+        const serviceMatch = !serviceFilter || service === serviceFilter;
+        const zoneMatch = !zoneFilter || zone === zoneFilter;
+        const typeMatch = !rateTypeFilter || type === rateTypeFilter;
+        
+        if (serviceMatch && zoneMatch && typeMatch) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function resetFilters() {
+    document.getElementById('serviceFilter').value = '';
+    document.getElementById('zoneFilter').value = '';
+    document.getElementById('rateTypeFilter').value = '';
+    filterRates();
+}
+
+function exportRates() {
+    window.location.href = '/fedex/data-management/rates/export';
+}
+
+function lookupRate() {
+    const service = document.getElementById('lookupService').value;
+    const zone = document.getElementById('lookupZone').value;
+    const weight = document.getElementById('lookupWeight').value;
+    
+    if (!service || !zone || !weight) {
+        alert('Please fill in all lookup fields');
+        return;
+    }
+    
+    // This would make an AJAX call to lookup the rate
+    fetch('/fedex/data-management/rates/lookup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            service: service,
+            zone: zone,
+            weight: parseFloat(weight)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultsDiv = document.getElementById('lookupResults');
+        const displayDiv = document.getElementById('lookupDisplay');
+        
+        if (data.success) {
+            displayDiv.innerHTML = `
+                <strong>Rate Found:</strong> ${data.rate.currency} ${data.rate.total_rate} 
+                (Base: ${data.rate.base_rate}, Per kg: ${data.rate.per_kg_rate || 0})
+            `;
+            displayDiv.className = 'alert alert-success';
+        } else {
+            displayDiv.innerHTML = `<strong>No rate found</strong> for the specified criteria.`;
+            displayDiv.className = 'alert alert-warning';
+        }
+        
+        resultsDiv.style.display = 'block';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error looking up rate');
+    });
+}
+</script>
+
+{% endblock %}
