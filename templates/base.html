@@ -19,6 +19,181 @@
     .fedex-dark-orange { color:#CC5200; }
     .fedex-light-orange { color:#FF8C42; }
     .fedex-bg-light { background:#FFF4E6 !important; color:#CC5200; }
+    
+    /* FedEx Brand Icon */
+    .fedex-brand-icon {
+        display: inline-block;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: bold;
+        font-size: 12px;
+        padding: 2px 4px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #FF6600 50%, #4B0082 50%);
+        color: white;
+        vertical-align: middle;
+    }
+    
+    .fedex-fed {
+        background: #FF6600;
+        padding: 1px 2px;
+        margin-right: 1px;
+    }
+    
+    .fedex-ex {
+        background: #4B0082;
+        padding: 1px 2px;
+    }
+    
+    /* Custom FedEx Logo Icon */
+    .fedex-logo-icon {
+        display: inline-block;
+        width: 24px;
+        height: 16px;
+        background: linear-gradient(135deg, #FF6600 0%, #4B0082 50%, #FF6600 100%);
+        border-radius: 2px;
+        position: relative;
+        margin-right: 8px;
+        font-weight: bold;
+        font-size: 10px;
+        color: white;
+        text-align: center;
+        line-height: 16px;
+        letter-spacing: -0.5px;
+    }
+    
+    .fedex-logo-icon::before {
+        content: "FedEx";
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-weight: 700;
+        font-size: 8px;
+        letter-spacing: -0.2px;
+    }
+    
+    /* Alternative simple FedEx icon */
+    .fedex-simple-icon {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        background: linear-gradient(45deg, #FF6600 0%, #4B0082 100%);
+        border-radius: 3px;
+        margin-right: 8px;
+        position: relative;
+    }
+    
+    .fedex-simple-icon::before {
+        content: "F";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    /* DHL Express Brand Icon */
+    .dhl-brand-icon {
+        display: inline-block;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: bold;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: linear-gradient(90deg, #FFCC00 0%, #FFCC00 100%);
+        color: #D40511;
+        vertical-align: middle;
+        border: 1px solid #D40511;
+        letter-spacing: 0.5px;
+    }
+    
+    .dhl-express-logo {
+        display: inline-block;
+        background: linear-gradient(135deg, #FFCC00 0%, #FFD700 100%);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: bold;
+        font-size: 10px;
+        color: #D40511;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        border: 1px solid #D40511;
+        letter-spacing: 0.3px;
+        position: relative;
+    }
+    
+    .dhl-express-logo::before {
+        content: "DHL";
+        font-weight: 900;
+    }
+    
+    /* DHL Color Utilities */
+    .dhl-red { color: #D40511; }
+    .dhl-yellow { color: #FFCC00; }
+    .dhl-bg-red { background: #D40511 !important; color: white; }
+    .dhl-bg-yellow { background: #FFCC00 !important; color: #D40511; }
+    
+    /* DHL Global Forwarding Brand Icon */
+    .dhl-global-forwarding-icon {
+        display: inline-block;
+        background: linear-gradient(135deg, #FFCC00 0%, #FFD700 100%);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: bold;
+        font-size: 9px;
+        color: #D40511;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        border: 1px solid #D40511;
+        letter-spacing: 0.2px;
+        position: relative;
+        vertical-align: middle;
+    }
+    
+    .dhl-global-forwarding-icon::before {
+        content: "DHL";
+        font-weight: 900;
+    }
+    
+    .dhl-global-forwarding-icon::after {
+        content: "Global Forwarding";
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 6px;
+        font-weight: normal;
+        white-space: nowrap;
+        color: #D40511;
+    }
+    
+    /* Simplified DHL Global Forwarding */
+    .dhl-gf-simple {
+        display: inline-block;
+        background: linear-gradient(135deg, #FFCC00 0%, #FFD700 100%);
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: bold;
+        font-size: 10px;
+        color: #D40511;
+        text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        border: 1px solid #D40511;
+        letter-spacing: 0.3px;
+        vertical-align: middle;
+    }
+    
+    .dhl-gf-simple::before {
+        content: "DHL";
+        font-weight: 900;
+        margin-right: 2px;
+    }
+    
+    .dhl-gf-simple::after {
+        content: "GF";
+        font-weight: 700;
+        font-size: 8px;
+    }
         .theme-dark .sidebar {
             background: linear-gradient(135deg, #232526 0%, #414345 100%);
             color: #e0e0e0;
@@ -382,7 +557,10 @@
                                aria-expanded="false"
                                aria-haspopup="true"
                                aria-label="FedEx Menu">
-                                <i class="fas fa-truck-plane me-2"></i> <span>FedEx</span>
+                                <span class="fedex-brand-icon me-2">
+                                    <span class="fedex-fed">Fed</span><span class="fedex-ex">Ex</span>
+                                </span>
+                                <span>FedEx</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="fedexDropdown" role="menu">
                                 <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
@@ -409,10 +587,16 @@
                                 <li><a class="dropdown-item {% if request.path == '/fedex/surcharges' %}active{% endif %}" href="/fedex/surcharges" role="menuitem">
                                     <i class="fas fa-plus-circle me-2"></i> <span>Surcharges</span>
                                 </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-file-invoice-dollar me-1"></i> <span>Invoice Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/fedex/invoices' %}active{% endif %}" href="/fedex/invoices" role="menuitem">
+                                    <i class="fas fa-list me-2"></i> <span>Invoice List</span>
+                                </a></li>
                             </ul>
                         </div>
                         
-                        <!-- Invoice Management Dropdown -->
+                        <!-- Invoice Management Dropdown - HIDDEN -->
+                        <!-- 
                         <div class="dropdown" id="invoiceDropdownContainer">
                             <a class="nav-link dropdown-toggle {% if request.endpoint in ['core.edi_invoice_dashboard', 'core.upload_file', 'invoice.invoices', 'validation.validation_dashboard', 'validation.validation_detail'] or (request.endpoint and request.endpoint.startswith('enhanced_audit.')) %}active{% endif %}"
                                href="#" role="button" id="invoiceDropdown" 
@@ -444,37 +628,16 @@
                                 </a></li>
                             </ul>
                         </div>
+                        -->
                         
-                        <!-- Rate Management Dropdown -->
-                        <div class="dropdown" id="rateDropdownContainer">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('rate_card.') or request.endpoint.startswith('ocean_rate.')) %}active{% endif %}"
-                               href="#" role="button" id="rateDropdown" 
-                               aria-expanded="false" 
-                               aria-haspopup="true"
-                               aria-label="Rate Management Menu">
-                                <i class="fas fa-dollar-sign me-2"></i> <span>Rate Management</span>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="rateDropdown" role="menu">
-                                <li><h6 class="dropdown-header"><i class="fas fa-plane me-1"></i> <span>Air Freight</span></h6></li>
-                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('rate_card.') %}active{% endif %}" href="{{ url_for('rate_card.air_rates') }}" role="menuitem">
-                                    <i class="fas fa-plane me-2"></i> <span>Air Rate Management</span>
-                                </a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><h6 class="dropdown-header"><i class="fas fa-ship me-1"></i> <span>Ocean Freight</span></h6></li>
-                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('ocean_rate.') %}active{% endif %}" href="{{ url_for('ocean_rate.dashboard') }}" role="menuitem">
-                                    <i class="fas fa-ship me-2"></i> <span>Ocean Rate Management</span>
-                                </a></li>
-                            </ul>
-                        </div>
-                        
-                        <!-- YTD Management Dropdown -->
+                        <!-- Global Forwarding Dropdown -->
                         <div class="dropdown" id="ytdDropdownContainer">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('ytd_audit.') or request.endpoint.startswith('ytd_batch_audit.') or request.endpoint.startswith('dhl_ytd.')) %}active{% endif %}"
+                            <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('ytd_audit.') or request.endpoint.startswith('ytd_batch_audit.') or request.endpoint.startswith('dhl_ytd.') or request.endpoint.startswith('rate_card.') or request.endpoint.startswith('ocean_rate.')) %}active{% endif %}"
                                href="#" role="button" id="ytdDropdown" 
                                aria-expanded="false" 
                                aria-haspopup="true"
-                               aria-label="YTD Management Menu">
-                                <i class="fas fa-calendar-check me-2"></i> <span>YTD Management</span>
+                               aria-label="Global Forwarding Menu">
+                                <span class="dhl-gf-simple me-2"></span> <span>Global Fwd</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="ytdDropdown" role="menu">
                                 <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Management</span></h6></li>
@@ -483,6 +646,14 @@
                                 </a></li>
                                 <li><a class="dropdown-item {% if request.endpoint == 'dhl_ytd.view_ytd_data' %}active{% endif %}" href="{{ url_for('dhl_ytd.view_ytd_data') }}" role="menuitem">
                                     <i class="fas fa-database me-2"></i> <span>View YTD Data</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-dollar-sign me-1"></i> <span>Rate Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('rate_card.') %}active{% endif %}" href="{{ url_for('rate_card.air_rates') }}" role="menuitem">
+                                    <i class="fas fa-plane me-2"></i> <span>Air Rate Management</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.endpoint and request.endpoint.startswith('ocean_rate.') %}active{% endif %}" href="{{ url_for('ocean_rate.dashboard') }}" role="menuitem">
+                                    <i class="fas fa-ship me-2"></i> <span>Ocean Rate Management</span>
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>
@@ -538,11 +709,6 @@
                             </ul>
                         </div>
                         
-                        <!-- Invoice Images -->
-                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('images.') %}active{% endif %}" href="{{ url_for('images.invoice_images_dashboard') }}">
-                            <i class="fas fa-images me-2"></i> <span>Invoice Images</span>
-                        </a>
-                        
                         <!-- DHL Express Dropdown -->
                         <div class="dropdown" id="dhlExpressDropdownContainer">
                             <a class="nav-link dropdown-toggle {% if '/dhl-express' in request.path %}active{% endif %}"
@@ -550,7 +716,7 @@
                                aria-expanded="false" 
                                aria-haspopup="true"
                                aria-label="DHL Express Menu">
-                                <i class="fas fa-shipping-fast me-2"></i> <span>DHL Express</span>
+                                <span class="dhl-express-logo me-2"></span> <span>DHL Express</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dhlExpressDropdown" role="menu">
                                 <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
@@ -617,6 +783,11 @@
                             </ul>
                         </div>
                     
+                        <!-- Invoice Images - Centralized upload for all carriers -->
+                        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('images.') %}active{% endif %}" href="{{ url_for('images.invoice_images_dashboard') }}" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                            <i class="fas fa-images me-2"></i> <span>Invoice Images</span>
+                        </a>
+                    
                     </nav>
                 </div>
             </div>
@@ -670,8 +841,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             const dropdowns = [
                 'fedexDropdownContainer',
-                'invoiceDropdownContainer',
-                'rateDropdownContainer', 
                 'ytdDropdownContainer',
                 'pdfDropdownContainer',
                 'dhlExpressDropdownContainer',

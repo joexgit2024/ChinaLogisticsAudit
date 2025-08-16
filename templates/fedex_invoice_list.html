@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Invoice Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-file-invoice-dollar me-3"></i>FedEx Invoice Management
+                    </h1>
+                    <p class="text-muted mb-0">Advanced invoice search, filtering, and management</p>
+                </div>
+                <div>
+                    <a href="/fedex/upload" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-upload me-2"></i>Upload More
+                    </a>
+                    <a href="/fedex/invoices/export?{{ request.query_string.decode() }}" class="btn fedex-bg-orange text-white">
+                        <i class="fas fa-download me-2"></i>Export
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Summary -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="h4 fedex-orange mb-1">{{ "{:,}".format(stats.total_invoices) }}</div>
+                    <div class="small text-muted">Total Invoices</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="h4 fedex-orange mb-1">{{ "{:,}".format(stats.total_pieces|int) }}</div>
+                    <div class="small text-muted">Total Pieces</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="h4 fedex-orange mb-1">{{ "{:,.1f}".format(stats.total_weight) }}</div>
+                    <div class="small text-muted">Total Weight (kg)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="h4 fedex-orange mb-1">¥{{ "{:,.2f}".format(stats.total_amount) }}</div>
+                    <div class="small text-muted">Total Amount (CNY)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="h4 fedex-orange mb-1">¥{{ "{:,.2f}".format(stats.avg_amount) }}</div>
+                    <div class="small text-muted">Average Amount (CNY)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Search & Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header fedex-bg-gradient text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Search & Filter
+                        <button class="btn btn-sm btn-outline-light float-end" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters">
+                            <i class="fas fa-cog me-1"></i>Advanced
+                        </button>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" id="filterForm">
+                        <div class="row g-3">
+                            <!-- Basic Search -->
+                            <div class="col-md-4">
+                                <label class="form-label">Search</label>
+                                <input type="text" class="form-control" name="search" value="{{ search }}" 
+                                       placeholder="Invoice #, AWB #, Country, Location...">
+                            </div>
+                            
+                            <!-- Service Filter -->
+                            <div class="col-md-2">
+                                <label class="form-label">Service Type</label>
+                                <select class="form-select" name="service">
+                                    <option value="">All Services</option>
+                                    {% for service in service_types %}
+                                    <option value="{{ service }}" {% if service == service_filter %}selected{% endif %}>
+                                        {{ service }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Direction Filter -->
+                            <div class="col-md-2">
+                                <label class="form-label">Direction</label>
+                                <select class="form-select" name="direction">
+                                    <option value="">All Directions</option>
+                                    {% for direction in directions %}
+                                    <option value="{{ direction }}" {% if direction == direction_filter %}selected{% endif %}>
+                                        {{ direction }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Country Filter -->
+                            <div class="col-md-2">
+                                <label class="form-label">Country</label>
+                                <select class="form-select" name="country">
+                                    <option value="">All Countries</option>
+                                    {% for country in countries %}
+                                    <option value="{{ country }}" {% if country == country_filter %}selected{% endif %}>
+                                        {{ country }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="col-md-2">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn fedex-bg-orange text-white">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                    <a href="/fedex/invoices" class="btn btn-outline-secondary">
+                                        <i class="fas fa-sync"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Filters (Collapsible) -->
+                        <div class="collapse mt-3" id="advancedFilters">
+                            <hr>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Date From</label>
+                                    <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Date To</label>
+                                    <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Min Amount (CNY)</label>
+                                    <input type="number" class="form-control" name="amount_min" value="{{ amount_min }}" step="0.01">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Max Amount (CNY)</label>
+                                    <input type="number" class="form-control" name="amount_max" value="{{ amount_max }}" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hidden fields for sorting -->
+                        <input type="hidden" name="sort_by" value="{{ sort_by }}">
+                        <input type="hidden" name="sort_order" value="{{ sort_order }}">
+                        <input type="hidden" name="per_page" value="{{ per_page }}">
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>Invoice Results 
+                        <span class="badge fedex-bg-orange text-white ms-2">{{ total_records }}</span>
+                    </h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <label class="form-label mb-0">Per Page:</label>
+                        <select class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+                            <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
+                            <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                            <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
+                            <option value="200" {% if per_page == 200 %}selected{% endif %}>200</option>
+                        </select>
+                    </div>
+                </div>
+                
+                {% if invoices %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('invoice_no')" class="text-decoration-none">
+                                        Invoice # 
+                                        {% if sort_by == 'invoice_no' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('invoice_date')" class="text-decoration-none">
+                                        Date
+                                        {% if sort_by == 'invoice_date' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>AWB Number</th>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('service_type')" class="text-decoration-none">
+                                        Service
+                                        {% if sort_by == 'service_type' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>Route</th>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('pieces')" class="text-decoration-none">
+                                        Pieces
+                                        {% if sort_by == 'pieces' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('actual_weight_kg')" class="text-decoration-none">
+                                        Weight (kg)
+                                        {% if sort_by == 'actual_weight_kg' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="javascript:void(0)" onclick="sortBy('total_awb_amount_cny')" class="text-decoration-none">
+                                        Amount (CNY)
+                                        {% if sort_by == 'total_awb_amount_cny' %}
+                                            <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-sort ms-1 text-muted"></i>
+                                        {% endif %}
+                                    </a>
+                                </th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in invoices %}
+                            <tr>
+                                <td>
+                                    <a href="/fedex/invoice/{{ invoice[1] }}" class="fw-bold text-decoration-none fedex-orange">
+                                        {{ invoice[1] }}
+                                    </a>
+                                </td>
+                                <td>{{ invoice[2] or 'N/A' }}</td>
+                                <td>
+                                    <code class="small">{{ invoice[3] or 'N/A' }}</code>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ invoice[4] or 'N/A' }}</span>
+                                    {% if invoice[5] %}
+                                        <small class="text-muted d-block">{{ invoice[5] }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="small">
+                                        <strong>{{ invoice[10] or 'N/A' }}</strong> → <strong>{{ invoice[11] or 'N/A' }}</strong>
+                                        {% if invoice[6] %}
+                                            <br><span class="badge bg-info">{{ invoice[6] }}</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-secondary">{{ invoice[7] or 0 }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <div>{{ "{:.1f}".format(invoice[8] or 0) }}</div>
+                                    {% if invoice[9] != invoice[8] %}
+                                        <small class="text-muted">Chg: {{ "{:.1f}".format(invoice[9] or 0) }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <strong class="fedex-orange">¥{{ "{:,.2f}".format(invoice[18] or 0) }}</strong>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="/fedex/invoice/{{ invoice[1] }}" class="btn btn-outline-primary" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-outline-secondary" title="Quick Summary" onclick="showQuickSummary('{{ invoice[1] }}')">
+                                            <i class="fas fa-info-circle"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                {% if total_pages > 1 %}
+                <div class="card-footer">
+                    <nav aria-label="Invoice pagination">
+                        <ul class="pagination justify-content-center mb-0">
+                            {% if current_page > 1 %}
+                                <li class="page-item">
+                                    <a class="page-link" href="javascript:void(0)" onclick="goToPage(1)">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ current_page - 1 }})">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for page_num in range([1, current_page - 2]|max, [total_pages + 1, current_page + 3]|min) %}
+                                <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ page_num }})">{{ page_num }}</a>
+                                </li>
+                            {% endfor %}
+                            
+                            {% if current_page < total_pages %}
+                                <li class="page-item">
+                                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ current_page + 1 }})">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="javascript:void(0)" onclick="goToPage({{ total_pages }})">Last</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    
+                    <div class="text-center text-muted mt-2">
+                        Showing {{ ((current_page - 1) * per_page + 1) }} to {{ [current_page * per_page, total_records]|min }} of {{ total_records }} invoices
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% else %}
+                <div class="card-body text-center py-5">
+                    <div class="text-muted">
+                        <i class="fas fa-file-invoice display-4 mb-3"></i>
+                        <p>No invoices found matching your criteria.</p>
+                        <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                            <i class="fas fa-upload me-2"></i>Upload Invoices
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Summary Modal -->
+<div class="modal fade" id="quickSummaryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Invoice Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="quickSummaryContent">
+                <div class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-orange { background-color: #FF6600; }
+.fedex-bg-gradient {
+    background: linear-gradient(135deg, #FF6600, #CC5200);
+}
+</style>
+
+<script>
+// Utility functions for table interaction
+function sortBy(column) {
+    const currentSortBy = '{{ sort_by }}';
+    const currentSortOrder = '{{ sort_order }}';
+    
+    let newSortOrder = 'asc';
+    if (currentSortBy === column && currentSortOrder === 'asc') {
+        newSortOrder = 'desc';
+    }
+    
+    updateUrl({sort_by: column, sort_order: newSortOrder, page: 1});
+}
+
+function changePerPage(perPage) {
+    updateUrl({per_page: perPage, page: 1});
+}
+
+function goToPage(page) {
+    updateUrl({page: page});
+}
+
+function updateUrl(params) {
+    const url = new URL(window.location);
+    for (const [key, value] of Object.entries(params)) {
+        url.searchParams.set(key, value);
+    }
+    window.location.href = url.toString();
+}
+
+function showQuickSummary(invoiceNo) {
+    const modal = new bootstrap.Modal(document.getElementById('quickSummaryModal'));
+    const content = document.getElementById('quickSummaryContent');
+    
+    content.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border" role="status"></div>
+            <p class="mt-2">Loading...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    fetch(`/fedex/api/invoice-summary/${invoiceNo}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                content.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+            } else {
+                content.innerHTML = `
+                    <table class="table table-sm">
+                        <tr><th>Invoice:</th><td>${data.invoice_no}</td></tr>
+                        <tr><th>Date:</th><td>${data.invoice_date || 'N/A'}</td></tr>
+                        <tr><th>Service:</th><td>${data.service_type || 'N/A'}</td></tr>
+                        <tr><th>Direction:</th><td>${data.direction || 'N/A'}</td></tr>
+                        <tr><th>Route:</th><td>${data.origin_country || 'N/A'} → ${data.dest_country || 'N/A'}</td></tr>
+                        <tr><th>Pieces:</th><td>${data.pieces || 0}</td></tr>
+                        <tr><th>Weight:</th><td>${data.weight_kg || 0} kg</td></tr>
+                        <tr><th>Amount:</th><td>¥${data.total_amount_cny || 0}</td></tr>
+                    </table>
+                    <div class="text-center mt-3">
+                        <a href="/fedex/invoice/${data.invoice_no}" class="btn fedex-bg-orange text-white">
+                            <i class="fas fa-eye me-2"></i>View Full Details
+                        </a>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            content.innerHTML = `<div class="alert alert-danger">Error loading summary</div>`;
+        });
+}
+</script>
+
+{% endblock %}
