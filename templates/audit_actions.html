@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Audit Actions</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col">
+                <a href="#" class="btn btn-primary btn-lg" id="runBatchAuditBtn">
+                    <i class="fas fa-play me-2"></i> Run Batch Audit
+                </a>
+                <small class="text-muted d-block mt-2">Audit all unaudited AWBs</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const batchAuditBtn = document.getElementById('runBatchAuditBtn');
+    
+    if (batchAuditBtn) {
+        // Prevent the button click from bubbling up to parent elements (to avoid closing dropdown)
+        batchAuditBtn.addEventListener('click', function(event) {
+            event.stopPropagation();
+            
+            // Call the batch audit function
+            runBatchAudit();
+            
+            return false;
+        });
+    }
+    
+    function runBatchAudit() {
+        // Confirm the action
+        if (!confirm('Run batch audit on all unaudited AWBs?')) {
+            return;
+        }
+        
+        // Show loading indicator
+        const btnText = batchAuditBtn.innerHTML;
+        batchAuditBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        batchAuditBtn.disabled = true;
+        
+        // Call the batch audit endpoint
+        fetch('/fedex/batch-audit/run', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                audit_type: 'all_unaudited'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                alert(`Batch audit completed successfully! Processed ${data.batch_result.audited_count} AWBs.`);
+                
+                // Reload page
+                window.location.reload();
+            } else {
+                // Show error message
+                alert('Error: ' + (data.error || 'Unknown error occurred'));
+                // Restore button
+                batchAuditBtn.innerHTML = btnText;
+                batchAuditBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error running batch audit: ' + error);
+            // Restore button
+            batchAuditBtn.innerHTML = btnText;
+            batchAuditBtn.disabled = false;
+        });
+    }
+});
+</script>
+{% endblock %}

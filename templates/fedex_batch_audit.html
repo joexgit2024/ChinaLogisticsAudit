@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Batch Audit System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-chart-line text-primary"></i>
+                FedEx Batch Audit System
+            </h1>
+            
+            <!-- Audit Status Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.total_invoices }}</h4>
+                                    <p class="card-text">Total Invoices</p>
+                                    <small class="text-light">In System</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-file-invoice fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.audited_awbs }}</h4>
+                                    <p class="card-text">Audited AWBs</p>
+                                    <small class="text-light">{{ (summary.audit_completion_rate or 0)|round(1) }}% Complete</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clipboard-check fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">{{ summary.unaudited_awbs }}</h4>
+                                    <p class="card-text">Unaudited AWBs</p>
+                                    <small class="text-light">Pending Review</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h4 class="card-title">¥{{ (summary.total_amount or 0)|round(2) }}</h4>
+                                    <p class="card-text">Total Amount</p>
+                                    <small class="text-light">All Invoices</small>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-dollar-sign fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Audit Results Summary -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-success">
+                                <i class="fas fa-check-circle"></i> PASS
+                            </h5>
+                            <h3 class="text-success">{{ summary.pass_count }}</h3>
+                            <p class="card-text">Within Tolerance</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-warning">
+                                <i class="fas fa-exclamation-circle"></i> REVIEW
+                            </h5>
+                            <h3 class="text-warning">{{ summary.review_count }}</h3>
+                            <p class="card-text">Needs Review</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-danger">
+                                <i class="fas fa-times-circle"></i> FAIL
+                            </h5>
+                            <h3 class="text-danger">{{ summary.fail_count }}</h3>
+                            <p class="card-text">Significant Variance</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card border-secondary">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-secondary">
+                                <i class="fas fa-coins"></i> Variance
+                            </h5>
+                            <h3 class="text-secondary">¥{{ (summary.total_variance or 0)|round(2) }}</h3>
+                            <p class="card-text">Total Difference</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-play-circle"></i> Audit Actions
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <button id="runBatchAudit" class="btn btn-primary btn-lg btn-block">
+                                        <i class="fas fa-play"></i> Run Batch Audit
+                                    </button>
+                                    <small class="form-text text-muted">
+                                        Audit all {{ unaudited_count }} unaudited AWBs
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <button id="rerunAllAudits" class="btn btn-warning btn-lg btn-block">
+                                        <i class="fas fa-redo"></i> Re-run All Audits
+                                    </button>
+                                    <small class="form-text text-muted">
+                                        Reprocess all invoices with updated logic
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <a href="{{ url_for('fedex_invoices.batch_audit_results') }}" class="btn btn-info btn-lg btn-block">
+                                        <i class="fas fa-table"></i> View Results
+                                    </a>
+                                    <small class="form-text text-muted">
+                                        Browse and filter audit results
+                                    </small>
+                                </div>
+                                <div class="col-md-3">
+                                    <a href="{{ url_for('fedex_invoices.export_audit_results') }}" class="btn btn-success btn-lg btn-block">
+                                        <i class="fas fa-download"></i> Export Results
+                                    </a>
+                                    <small class="form-text text-muted">
+                                        Download Excel report
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unaudited Invoices Preview -->
+            {% if unaudited_invoices %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clock"></i> Next {{ unaudited_invoices|length }} Unaudited AWBs
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice No</th>
+                                            <th>AWB Number</th>
+                                            <th>Route</th>
+                                            <th>Amount (CNY)</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for invoice in unaudited_invoices %}
+                                        <tr>
+                                            <td>{{ invoice.invoice_no }}</td>
+                                            <td>{{ invoice.awb_number }}</td>
+                                            <td>{{ invoice.route }}</td>
+                                            <td>¥{{ (invoice.amount_cny or 0)|round(2) }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary audit-single" 
+                                                        data-invoice="{{ invoice.invoice_no }}" 
+                                                        data-awb="{{ invoice.awb_number }}">
+                                                    <i class="fas fa-play"></i> Audit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div class="modal fade" id="auditProgressModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog fa-spin"></i> Running Audit
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="progress mb-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%"></div>
+                </div>
+                <p id="auditProgress">Initializing audit process...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const runBtn = document.getElementById('runBatchAudit');
+    const modalEl = document.getElementById('auditProgressModal');
+    const progressText = document.getElementById('auditProgress');
+    let modalInstance = null;
+
+    if (modalEl && window.bootstrap) {
+        modalInstance = new bootstrap.Modal(modalEl);
+    }
+
+    function showModal(text) {
+        if (progressText) progressText.textContent = text || 'Initializing audit process...';
+        if (modalInstance) modalInstance.show();
+    }
+
+    function hideModal() {
+        if (modalInstance) modalInstance.hide();
+    }
+
+    function showAlert(type, message) {
+        const container = document.querySelector('.container-fluid') || document.body;
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>`;
+        container.prepend(wrapper.firstElementChild);
+    }
+
+    async function postJSON(url, body) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body || {})
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    }
+
+    if (runBtn) {
+        runBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            runBtn.disabled = true;
+            showModal('Starting batch audit...');
+
+            try {
+                const resp = await postJSON('{{ url_for("fedex_invoices.run_batch_audit") }}', {
+                    audit_type: 'all_unaudited'
+                });
+                hideModal();
+                if (resp.success) {
+                    const r = resp.batch_result || {};
+                    const msg = `Audit completed: ${r.audited_count || 0} successful, ${r.error_count || 0} errors`;
+                    showAlert(r.error_count ? 'warning' : 'success', msg);
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showAlert('danger', 'Audit failed: ' + (resp.error || 'Unknown error'));
+                }
+            } catch (err) {
+                hideModal();
+                showAlert('danger', 'Audit failed: ' + err.message);
+            } finally {
+                runBtn.disabled = false;
+            }
+        });
+    }
+
+    // Re-run All Audits button handler
+    const rerunAllBtn = document.getElementById('rerunAllAudits');
+    if (rerunAllBtn) {
+        rerunAllBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Confirm action with user
+            if (!confirm('This will clear all existing audit results and reprocess ALL invoices. Are you sure?')) {
+                return;
+            }
+            
+            rerunAllBtn.disabled = true;
+            rerunAllBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Re-auditing All...';
+            showModal('Re-auditing all invoices with updated logic...');
+
+            try {
+                const resp = await postJSON('{{ url_for("fedex_invoices.rerun_all_audits") }}', {});
+                hideModal();
+                if (resp.success) {
+                    const msg = `Re-audit completed: ${resp.total_processed || 0} invoices processed`;
+                    showAlert('success', msg);
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    showAlert('danger', 'Re-audit failed: ' + (resp.error || 'Unknown error'));
+                }
+            } catch (err) {
+                hideModal();
+                showAlert('danger', 'Re-audit failed: ' + err.message);
+            } finally {
+                rerunAllBtn.disabled = false;
+                rerunAllBtn.innerHTML = '<i class="fas fa-redo"></i> Re-run All Audits';
+            }
+        });
+    }
+
+    // Single invoice audit buttons
+    document.querySelectorAll('.audit-single').forEach((btn) => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const invoice = btn.getAttribute('data-invoice');
+            const awb = btn.getAttribute('data-awb');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Auditing...';
+
+            try {
+                const resp = await postJSON('{{ url_for("fedex_invoices.run_batch_audit") }}', {
+                    audit_type: 'specific_invoices',
+                    invoice_list: [{ invoice_no: invoice, awb_number: awb }]
+                });
+                if (resp.success && (resp.batch_result?.audited_count || 0) > 0) {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Complete';
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-success');
+                    showAlert('success', `Audit completed for ${invoice}/${awb}`);
+                } else {
+                    btn.innerHTML = '<i class="fas fa-play"></i> Audit';
+                    btn.disabled = false;
+                    showAlert('warning', 'Audit failed for this AWB');
+                }
+            } catch (err) {
+                btn.innerHTML = '<i class="fas fa-play"></i> Audit';
+                btn.disabled = false;
+                showAlert('danger', 'Audit failed: ' + err.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

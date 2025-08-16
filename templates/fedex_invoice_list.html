@@ -272,7 +272,7 @@
                             {% for invoice in invoices %}
                             <tr>
                                 <td>
-                                    <a href="/fedex/invoice/{{ invoice[1] }}" class="fw-bold text-decoration-none fedex-orange">
+                                    <a href="/fedex/invoice/{{ invoice[1] }}/{{ invoice[3] }}" class="fw-bold text-decoration-none fedex-orange">
                                         {{ invoice[1] }}
                                     </a>
                                 </td>
@@ -308,7 +308,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="/fedex/invoice/{{ invoice[1] }}" class="btn btn-outline-primary" title="View Details">
+                                        <a href="/fedex/invoice/{{ invoice[1] }}/{{ invoice[3] }}" class="btn btn-outline-primary" title="View Details">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <button class="btn btn-outline-secondary" title="Quick Summary" onclick="showQuickSummary('{{ invoice[1] }}')">

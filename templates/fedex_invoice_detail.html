@@ -11,6 +11,7 @@
                 <div>
                     <h1 class="mb-0 fedex-orange">
                         <i class="fas fa-file-invoice me-3"></i>Invoice Detail: {{ invoice_no }}
+                        <small class="text-muted fs-6">AWB: {{ awb_number }}</small>
                     </h1>
                     <p class="text-muted mb-0">
                         Comprehensive invoice information and audit details
@@ -32,6 +33,63 @@
             </div>
         </div>
     </div>
+
+    <!-- AWB Navigation (if multiple AWBs in this invoice) -->
+    {% if total_awbs > 1 %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">AWB Navigation:</small>
+                            <strong class="ms-2">{{ current_awb_index }} of {{ total_awbs }} AWBs in this invoice</strong>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            {% if prev_awb %}
+                                <a href="/fedex/invoice/{{ invoice_no }}/{{ prev_awb }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-chevron-left me-1"></i>Previous AWB
+                                </a>
+                            {% else %}
+                                <button class="btn btn-outline-secondary" disabled>
+                                    <i class="fas fa-chevron-left me-1"></i>Previous AWB
+                                </button>
+                            {% endif %}
+                            
+                            <!-- AWB Dropdown -->
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                                    Current: {{ awb_number }}
+                                </button>
+                                <ul class="dropdown-menu">
+                                    {% for awb in all_awbs %}
+                                        <li>
+                                            <a class="dropdown-item {% if awb == awb_number %}active{% endif %}" 
+                                               href="/fedex/invoice/{{ invoice_no }}/{{ awb }}">
+                                                {{ awb }}
+                                                {% if awb == awb_number %}<i class="fas fa-check ms-2"></i>{% endif %}
+                                            </a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            
+                            {% if next_awb %}
+                                <a href="/fedex/invoice/{{ invoice_no }}/{{ next_awb }}" class="btn btn-outline-secondary">
+                                    Next AWB<i class="fas fa-chevron-right ms-1"></i>
+                                </a>
+                            {% else %}
+                                <button class="btn btn-outline-secondary" disabled>
+                                    Next AWB<i class="fas fa-chevron-right ms-1"></i>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Quick Stats Cards -->
     <div class="row mb-4">
@@ -508,8 +566,83 @@
 
 <script>
 function startAudit() {
-    // Placeholder for audit functionality
-    alert('Audit functionality will be implemented soon for invoice {{ invoice_no }}');
+    // Start audit for this specific AWB
+    const invoiceNo = '{{ invoice_no }}';
+    const awbNumber = '{{ awb_number }}';
+    
+    if (!confirm(`Start audit for Invoice ${invoiceNo} / AWB ${awbNumber}?`)) {
+        return;
+    }
+    
+    // Show loading state
+    const auditTab = document.getElementById('audit');
+    auditTab.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-spinner fa-spin display-4 text-muted mb-3"></i>
+            <h5 class="text-muted">Running Audit...</h5>
+            <p class="text-muted">Please wait while we audit this invoice.</p>
+        </div>
+    `;
+    
+    // Call the audit API
+    fetch('{{ url_for("fedex_invoices.run_batch_audit") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            audit_type: 'specific_invoices',
+            invoice_list: [{
+                invoice_no: invoiceNo,
+                awb_number: awbNumber
+            }]
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.batch_result.audited_count > 0) {
+            // Audit successful - reload the page to show results
+            showAuditSuccess(data.batch_result);
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showAuditError(data.error || 'Audit failed');
+        }
+    })
+    .catch(error => {
+        console.error('Audit error:', error);
+        showAuditError('Network error during audit');
+    });
+}
+
+function showAuditSuccess(result) {
+    const auditTab = document.getElementById('audit');
+    auditTab.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-check-circle display-4 text-success mb-3"></i>
+            <h5 class="text-success">Audit Completed Successfully!</h5>
+            <p class="text-muted">
+                ${result.audited_count} AWB(s) audited successfully.
+                ${result.error_count > 0 ? `${result.error_count} error(s) occurred.` : ''}
+            </p>
+            <p class="text-muted">Reloading page to show results...</p>
+        </div>
+    `;
+}
+
+function showAuditError(errorMessage) {
+    const auditTab = document.getElementById('audit');
+    auditTab.innerHTML = `
+        <div class="text-center py-5">
+            <i class="fas fa-exclamation-triangle display-4 text-danger mb-3"></i>
+            <h5 class="text-danger">Audit Failed</h5>
+            <p class="text-muted">${errorMessage}</p>
+            <button class="btn fedex-bg-orange text-white" onclick="startAudit()">
+                <i class="fas fa-redo me-2"></i>Try Again
+            </button>
+        </div>
+    `;
 }
 
 // Create charges breakdown chart
