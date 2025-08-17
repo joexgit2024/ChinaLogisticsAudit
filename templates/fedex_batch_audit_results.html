@@ -289,6 +289,10 @@
                                                        class="btn btn-outline-primary" title="View Details">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
+                                                    <a href="{{ url_for('fedex_invoices.fedex_audit_steps', invoice_no=result.invoice_no, awb_number=result.awb_number) }}"
+                                                       class="btn btn-outline-success" title="Audit Steps">
+                                                        <i class="fas fa-clipboard-list"></i>
+                                                    </a>
                                                     <button class="btn btn-outline-warning reaudit-btn" 
                                                             data-invoice="{{ result.invoice_no }}" 
                                                             data-awb="{{ result.awb_number }}" 

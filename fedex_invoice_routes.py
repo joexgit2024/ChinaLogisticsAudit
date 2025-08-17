@@ -3,16 +3,24 @@
 FedEx Invoice Management Routes
 ==============================
 
-Enterprise-level invoice management system with filtering, sorting, 
+Enterprise-level invoice management system with filtering, sorting,
 pagination, and detailed invoice views with tabbed organization.
 """
 
-from flask import Blueprint, request, render_template, redirect, url_for, flash, jsonify, send_file
+from flask import (
+    Blueprint,
+    request,
+    render_template,
+    redirect,
+    url_for,
+    flash,
+    jsonify,
+    send_file,
+)
 import sqlite3
 import json
 import pandas as pd
-from datetime import datetime, timedelta
-from decimal import Decimal
+from datetime import datetime
 import logging
 
 # Import the FedEx unified audit engine
@@ -29,6 +37,7 @@ logger = logging.getLogger(__name__)
 
 fedex_invoice_bp = Blueprint('fedex_invoices', __name__)
 
+ 
 @fedex_invoice_bp.route('/fedex/invoices')
 @require_auth
 def invoice_list(user_data=None):
@@ -57,8 +66,8 @@ def invoice_list(user_data=None):
     
     if search:
         where_conditions.append('''(
-            invoice_no LIKE ? OR 
-            awb_number LIKE ? OR 
+            invoice_no LIKE ? OR
+            awb_number LIKE ? OR
             origin_country LIKE ? OR
             dest_country LIKE ? OR
             origin_loc LIKE ?
@@ -100,7 +109,7 @@ def invoice_list(user_data=None):
     
     # Validate sort parameters
     valid_sort_columns = [
-        'invoice_no', 'invoice_date', 'awb_number', 'service_type', 
+        'invoice_no', 'invoice_date', 'awb_number', 'service_type',
         'direction', 'origin_country', 'dest_country', 'pieces',
         'actual_weight_kg', 'chargeable_weight_kg', 'total_awb_amount_cny'
     ]
@@ -123,45 +132,63 @@ def invoice_list(user_data=None):
     offset = (page - 1) * per_page
     
     # Get invoice data
-    data_query = f'''
-        SELECT 
-            id, invoice_no, invoice_date, awb_number, service_type, service_abbrev,
-            direction, pieces, actual_weight_kg, chargeable_weight_kg,
-            origin_country, dest_country, origin_loc, ship_date, delivery_datetime,
-            rated_amount_cny, fuel_surcharge_cny, other_surcharge_cny, 
-            total_awb_amount_cny, exchange_rate
-        FROM fedex_invoices 
-        {where_clause} 
-        {order_clause} 
-        LIMIT ? OFFSET ?
-    '''
+    data_query = (
+        'SELECT '
+        'id, invoice_no, invoice_date, awb_number, '
+        'service_type, service_abbrev, direction, pieces, '
+        'actual_weight_kg, chargeable_weight_kg, origin_country, '
+        'dest_country, '
+        'origin_loc, ship_date, delivery_datetime, rated_amount_cny, '
+        'fuel_surcharge_cny, other_surcharge_cny, total_awb_amount_cny, '
+        'exchange_rate '
+        'FROM fedex_invoices '
+        f'{where_clause} '
+        f'{order_clause} '
+        'LIMIT ? OFFSET ?'
+    )
     
     cursor.execute(data_query, params + [per_page, offset])
     invoices = cursor.fetchall()
     
     # Get filter options for dropdowns
-    cursor.execute('SELECT DISTINCT service_type FROM fedex_invoices WHERE service_type IS NOT NULL ORDER BY service_type')
+    cursor.execute(
+        'SELECT DISTINCT service_type '
+        'FROM fedex_invoices '
+        'WHERE service_type IS NOT NULL '
+        'ORDER BY service_type'
+    )
     service_types = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute('SELECT DISTINCT origin_country FROM fedex_invoices WHERE origin_country IS NOT NULL UNION SELECT DISTINCT dest_country FROM fedex_invoices WHERE dest_country IS NOT NULL ORDER BY 1')
+    cursor.execute(
+        'SELECT DISTINCT origin_country FROM fedex_invoices '
+        'WHERE origin_country IS NOT NULL '
+        'UNION '
+        'SELECT DISTINCT dest_country FROM fedex_invoices '
+        'WHERE dest_country IS NOT NULL '
+        'ORDER BY 1'
+    )
     countries = [row[0] for row in cursor.fetchall()]
     
-    cursor.execute('SELECT DISTINCT direction FROM fedex_invoices WHERE direction IS NOT NULL ORDER BY direction')
+    cursor.execute(
+        'SELECT DISTINCT direction FROM fedex_invoices '
+        'WHERE direction IS NOT NULL '
+        'ORDER BY direction'
+    )
     directions = [row[0] for row in cursor.fetchall()]
     
     # Get summary statistics
-    stats_query = f'''
-        SELECT 
-            COUNT(*) as total_invoices,
-            SUM(pieces) as total_pieces,
-            SUM(actual_weight_kg) as total_weight,
-            SUM(total_awb_amount_cny) as total_amount,
-            AVG(total_awb_amount_cny) as avg_amount,
-            MIN(invoice_date) as date_range_start,
-            MAX(invoice_date) as date_range_end
-        FROM fedex_invoices 
-        {where_clause}
-    '''
+    stats_query = (
+        'SELECT '
+        'COUNT(*) as total_invoices, '
+        'SUM(pieces) as total_pieces, '
+        'SUM(actual_weight_kg) as total_weight, '
+        'SUM(total_awb_amount_cny) as total_amount, '
+        'AVG(total_awb_amount_cny) as avg_amount, '
+        'MIN(invoice_date) as date_range_start, '
+        'MAX(invoice_date) as date_range_end '
+        'FROM fedex_invoices '
+        f'{where_clause}'
+    )
     
     cursor.execute(stats_query, params)
     stats = cursor.fetchone()
@@ -201,6 +228,7 @@ def invoice_list(user_data=None):
     
     return render_template('fedex_invoice_list.html', **template_data)
 
+ 
 @fedex_invoice_bp.route('/fedex/invoice/<invoice_no>/<awb_number>')
 @require_auth
 def invoice_detail(invoice_no, awb_number, user_data=None):
@@ -210,7 +238,10 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
     cursor = conn.cursor()
     
     # Get invoice data for specific AWB
-    cursor.execute('SELECT * FROM fedex_invoices WHERE invoice_no = ? AND awb_number = ?', (invoice_no, awb_number))
+    cursor.execute(
+        'SELECT * FROM fedex_invoices WHERE invoice_no = ? AND awb_number = ?',
+        (invoice_no, awb_number),
+    )
     row = cursor.fetchone()
     
     if not row:
@@ -225,32 +256,53 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
     invoice_data = dict(zip(columns, row))
     
     # Get all AWBs for this invoice (for navigation)
-    cursor.execute('SELECT awb_number FROM fedex_invoices WHERE invoice_no = ? ORDER BY awb_number', (invoice_no,))
+    cursor.execute(
+        'SELECT awb_number FROM fedex_invoices '
+        'WHERE invoice_no = ? ORDER BY awb_number',
+        (invoice_no,),
+    )
     all_awbs = [row[0] for row in cursor.fetchall()]
-    current_awb_index = all_awbs.index(awb_number) if awb_number in all_awbs else 0
+    current_awb_index = (
+        all_awbs.index(awb_number) if awb_number in all_awbs else 0
+    )
     
     # Determine previous and next AWB for navigation
-    prev_awb = all_awbs[current_awb_index - 1] if current_awb_index > 0 else None
-    next_awb = all_awbs[current_awb_index + 1] if current_awb_index < len(all_awbs) - 1 else None
+    prev_awb = (
+        all_awbs[current_awb_index - 1] if current_awb_index > 0 else None
+    )
+    next_awb = (
+        all_awbs[current_awb_index + 1]
+        if current_awb_index < len(all_awbs) - 1
+        else None
+    )
     
     # Parse raw JSON if available
     raw_data = None
     if invoice_data.get('raw_json'):
         try:
             raw_data = json.loads(invoice_data['raw_json'])
-        except:
+        except Exception:
             raw_data = None
     
     # Get related invoices (same AWB or similar route)
-    cursor.execute('''
-        SELECT invoice_no, invoice_date, service_type, direction, total_awb_amount_cny
-        FROM fedex_invoices 
-        WHERE (awb_number = ? OR (origin_country = ? AND dest_country = ?)) 
-        AND invoice_no != ?
-        ORDER BY invoice_date DESC
-        LIMIT 10
-    ''', (invoice_data['awb_number'], invoice_data['origin_country'], 
-          invoice_data['dest_country'], invoice_no))
+    cursor.execute(
+        (
+            'SELECT invoice_no, invoice_date, service_type, direction, '
+            'total_awb_amount_cny '
+            'FROM fedex_invoices '
+            'WHERE (awb_number = ? OR '
+            '(origin_country = ? AND dest_country = ?)) '
+            'AND invoice_no != ? '
+            'ORDER BY invoice_date DESC '
+            'LIMIT 10'
+        ),
+        (
+            invoice_data['awb_number'],
+            invoice_data['origin_country'],
+            invoice_data['dest_country'],
+            invoice_no,
+        ),
+    )
     
     related_invoices = cursor.fetchall()
     
@@ -267,7 +319,7 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
         if audit_details_raw:
             try:
                 audit_details = json.loads(audit_details_raw)
-            except:
+            except Exception:
                 audit_details = None
         
         # Build comprehensive audit results
@@ -281,14 +333,27 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
             # Calculate additional metrics
             'invoiced_amount': invoice_data.get('total_awb_amount_cny'),
             'variance_percentage': 0,
-            'status_color': 'success' if audit_status == 'PASS' else ('warning' if audit_status in ['OVERCHARGE', 'UNDERCHARGE'] else 'danger'),
-            'status_display': 'REVIEW' if audit_status in ['OVERCHARGE', 'UNDERCHARGE'] else audit_status
+            'status_color': (
+                'success' if audit_status == 'PASS' else (
+                    'warning' if audit_status in ['OVERCHARGE', 'UNDERCHARGE']
+                    else 'danger'
+                )
+            ),
+            'status_display': (
+                'REVIEW' if audit_status in ['OVERCHARGE', 'UNDERCHARGE']
+                else audit_status
+            )
         }
         
         # Calculate variance percentage
-        if audit_results['invoiced_amount'] and audit_results['invoiced_amount'] > 0:
+        if (
+            audit_results['invoiced_amount']
+            and audit_results['invoiced_amount'] > 0
+        ):
             variance_amount = audit_results['variance_cny'] or 0
-            audit_results['variance_percentage'] = (variance_amount / audit_results['invoiced_amount']) * 100
+            audit_results['variance_percentage'] = (
+                (variance_amount / audit_results['invoiced_amount']) * 100
+            )
         
         # Add audit steps breakdown if available in details
         if audit_details and isinstance(audit_details, dict):
@@ -298,16 +363,26 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
             if 'zone' in audit_details:
                 audit_results['steps'].append({
                     'step': 'Zone Mapping',
-                    'description': f"Origin: {invoice_data.get('origin_country')} → Destination: {invoice_data.get('dest_country')}",
+                    'description': (
+                        'Origin: '
+                        f"{invoice_data.get('origin_country')}"
+                        ' → Destination: '
+                        f"{invoice_data.get('dest_country')}"
+                    ),
                     'result': f"Zone: {audit_details['zone']}",
                     'status': 'success'
                 })
             
-            # Rate lookup step  
+            # Rate lookup step
             if 'rate_per_kg' in audit_details:
                 audit_results['steps'].append({
                     'step': 'Rate Lookup',
-                    'description': f"Service: {invoice_data.get('service_type')}, Weight: {invoice_data.get('chargeable_weight_kg')}kg",
+                    'description': (
+                        'Service: '
+                        f"{invoice_data.get('service_type')}, "
+                        'Weight: '
+                        f"{invoice_data.get('chargeable_weight_kg')}kg"
+                    ),
                     'result': f"Rate: ¥{audit_details['rate_per_kg']}/kg",
                     'status': 'success'
                 })
@@ -316,17 +391,21 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
             if 'base_cost' in audit_details:
                 audit_results['steps'].append({
                     'step': 'Base Cost Calculation',
-                    'description': f"Rate × Chargeable Weight",
+                    'description': 'Rate × Chargeable Weight',
                     'result': f"¥{audit_details['base_cost']}",
                     'status': 'success'
                 })
             
             # Surcharges step
             if 'surcharges' in audit_details:
-                surcharge_total = sum(audit_details['surcharges'].values()) if isinstance(audit_details['surcharges'], dict) else 0
+                surcharge_total = (
+                    sum(audit_details['surcharges'].values())
+                    if isinstance(audit_details['surcharges'], dict)
+                    else 0
+                )
                 audit_results['steps'].append({
                     'step': 'Surcharges Applied',
-                    'description': f"Additional fees and surcharges",
+                    'description': 'Additional fees and surcharges',
                     'result': f"¥{surcharge_total}",
                     'status': 'info'
                 })
@@ -334,8 +413,11 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
             # Final comparison
             audit_results['steps'].append({
                 'step': 'Final Comparison',
-                'description': f"Expected vs Invoiced Amount",
-                'result': f"Variance: ¥{audit_results['variance_cny']} ({audit_results['variance_percentage']:.2f}%)",
+                'description': 'Expected vs Invoiced Amount',
+                'result': (
+                    f"Variance: ¥{audit_results['variance_cny']} ("
+                    f"{audit_results['variance_percentage']:.2f}%"
+                ),
                 'status': audit_results['status_color']
             })
     
@@ -360,8 +442,145 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
                          audit_status=audit_status,
                          has_invoice_image=has_invoice_image)
 
+# New: Detailed 8-step audit view
+
+@fedex_invoice_bp.route('/fedex/audit-steps/<invoice_no>/<awb_number>')
+@require_auth
+def fedex_audit_steps(invoice_no, awb_number, user_data=None):
+    """Show a transparent, step-by-step audit breakdown for a specific AWB."""
+    engine = FedExUnifiedAudit()
+    result = engine.audit_single_awb(invoice_no, awb_number, verbose=False)
+    if not result.get('success'):
+        flash(result.get('error', 'Audit failed'), 'error')
+        return redirect(
+            url_for(
+                'fedex_invoices.invoice_detail',
+                invoice_no=invoice_no,
+                awb_number=awb_number,
+            )
+        )
+
+    # Fetch minimal invoice fields for display and to enrich rate details
+    conn = sqlite3.connect('fedex_audit.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        (
+            'SELECT service_type, service_abbrev, origin_country, dest_country, '
+            'total_awb_amount_cny, exchange_rate '
+            'FROM fedex_invoices WHERE invoice_no = ? AND awb_number = ? LIMIT 1'
+        ),
+        (invoice_no, awb_number),
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    service_type = row[0] if row else None
+    service_abbrev = row[1] if row else None
+    origin_country = row[2] if row else result.get('origin_country')
+    dest_country = row[3] if row else result.get('dest_country')
+    claimed_cny = row[4] if row else result.get('claimed_cny')
+    exchange_rate = row[5] if row else result.get('exchange_rate')
+
+    # Try to get per-kg details if applicable
+    perkg_detail = None
+    try:
+        eff_service = (service_abbrev or service_type or '').strip()
+        rate_info = engine.get_fedex_rate(
+            result['chargeable_weight_kg'],
+            result['zone'],
+            service_type=eff_service,
+        )
+        if rate_info and rate_info.get('is_per_kg'):
+            perkg_detail = {
+                'rate_per_kg': rate_info.get('rate_per_kg'),
+                'chargeable_weight': result['chargeable_weight_kg']
+            }
+    except Exception:
+        perkg_detail = None
+
+    # Build the 8 steps for the UI
+    steps = [
+        {
+            'title': '1) Zone mapping',
+            'desc': f"{origin_country} → {dest_country}",
+            'result': f"Zone {result['zone']}"
+        },
+        {
+            'title': '2) Weight determination',
+            'desc': (
+                'Use chargeable weight when available; '
+                'apply FedEx rounding rules'
+            ),
+            'result': (
+                f"Chargeable: {result['chargeable_weight_kg']} kg (Actual: "
+                f"{result['actual_weight_kg']} kg)"
+            ),
+        },
+        {
+            'title': '3) Base rate lookup',
+            'desc': f"Service: {service_abbrev or service_type}",
+            'result': (
+                (
+                    f"${perkg_detail['rate_per_kg']:.2f}/kg × "
+                    f"{perkg_detail['chargeable_weight']}kg = "
+                    f"${result['base_cost_usd']:.2f}"
+                )
+                if perkg_detail and perkg_detail.get('rate_per_kg') is not None
+                else (
+                    f"${result['base_cost_usd']:.2f} "
+                    f"(rate type: {result['rate_type']})"
+                )
+            ),
+        },
+        {
+            'title': '4) Fuel surcharge',
+            'desc': 'Applied at 25.5% of base',
+            'result': f"${result['fuel_surcharge_usd']:.2f}"
+        },
+        {
+            'title': '5) Subtotal (USD)',
+            'desc': 'Base + Fuel surcharge',
+            'result': f"${result['subtotal_usd']:.2f}"
+        },
+        {
+            'title': '6) Currency conversion',
+            'desc': f"USD → CNY at FX {exchange_rate}",
+            'result': f"¥{result['subtotal_cny']:.2f}"
+        },
+        {
+            'title': '7) VAT (6%)',
+            'desc': 'VAT applied to CNY subtotal',
+            'result': f"¥{result['vat_cny']:.2f}"
+        },
+        {
+            'title': '8) Final total & variance',
+            'desc': 'Compare expected vs invoiced',
+            'result': (
+                f"Expected: ¥{result['total_expected_cny']:.2f} | "
+                f"Claimed: ¥{claimed_cny:.2f} | "
+                f"Variance: ¥{result['variance_cny']:.2f} "
+                f"({result['variance_percent']:+.1f}%) — "
+                f"{result['audit_status']}"
+            ),
+        },
+    ]
+
+    return render_template(
+        'fedex_audit_steps.html',
+        invoice_no=invoice_no,
+        awb_number=awb_number,
+        service_type=service_type,
+        service_abbrev=service_abbrev,
+        origin_country=origin_country,
+        dest_country=dest_country,
+        claimed_cny=claimed_cny,
+        exchange_rate=exchange_rate,
+        result=result,
+        steps=steps
+    )
+
 @fedex_invoice_bp.route('/fedex/invoice/<invoice_no>')
-@require_auth 
+@require_auth
 def invoice_detail_redirect(invoice_no, user_data=None):
     """Redirect old invoice URLs to first AWB for backward compatibility"""
     
@@ -369,7 +588,13 @@ def invoice_detail_redirect(invoice_no, user_data=None):
     cursor = conn.cursor()
     
     # Get first AWB for this invoice
-    cursor.execute('SELECT awb_number FROM fedex_invoices WHERE invoice_no = ? ORDER BY awb_number LIMIT 1', (invoice_no,))
+    cursor.execute(
+        (
+            'SELECT awb_number FROM fedex_invoices '
+            'WHERE invoice_no = ? ORDER BY awb_number LIMIT 1'
+        ),
+        (invoice_no,),
+    )
     row = cursor.fetchone()
     conn.close()
     
@@ -378,7 +603,13 @@ def invoice_detail_redirect(invoice_no, user_data=None):
         return redirect(url_for('fedex_invoices.invoice_list'))
     
     # Redirect to specific AWB URL
-    return redirect(url_for('fedex_invoices.invoice_detail', invoice_no=invoice_no, awb_number=row[0]))
+    return redirect(
+        url_for(
+            'fedex_invoices.invoice_detail',
+            invoice_no=invoice_no,
+            awb_number=row[0],
+        )
+    )
 
 @fedex_invoice_bp.route('/fedex/invoices/export')
 @require_auth
@@ -1025,12 +1256,15 @@ def batch_audit_results(user_data=None):
     
     if status_filter != 'all':
         # Map filter values to database values
+        # Note: UNDERCHARGE should be treated as PASS in the UI
         if status_filter.upper() == 'REVIEW':
-            where_clause += " AND audit_status IN (?, ?)"
-            params.extend(['OVERCHARGE', 'UNDERCHARGE'])
-        elif status_filter.upper() == 'PASS':
+            # Only OVERCHARGE is considered REVIEW in UI
             where_clause += " AND audit_status = ?"
-            params.append('PASS')
+            params.append('OVERCHARGE')
+        elif status_filter.upper() == 'PASS':
+            # Include both PASS and UNDERCHARGE in PASS bucket
+            where_clause += " AND audit_status IN (?, ?)"
+            params.extend(['PASS', 'UNDERCHARGE'])
         elif status_filter.upper() == 'FAIL':
             where_clause += " AND audit_status = ?"
             params.append('FAIL')
@@ -1053,7 +1287,8 @@ def batch_audit_results(user_data=None):
     
     # Calculate offset and pagination
     if datatables_mode:
-        # In DataTables mode, return all results (DataTables handles pagination client-side)
+        # In DataTables mode, return all results
+        # (DataTables handles pagination client-side)
         offset = 0
         limit_clause = ""
         per_page = total_count  # Set to total count for pagination display
@@ -1062,18 +1297,22 @@ def batch_audit_results(user_data=None):
         offset = (page - 1) * per_page
         limit_clause = "LIMIT ? OFFSET ?"
     
-    total_pages = max(1, (total_count + per_page - 1) // per_page) if per_page > 0 else 1
+    total_pages = (
+        max(1, (total_count + per_page - 1) // per_page)
+        if per_page > 0 else 1
+    )
     
     # Get audit results
-    results_query = f"""
-        SELECT invoice_no, awb_number, service_type, origin_country, dest_country, 
-               actual_weight_kg, chargeable_weight_kg, total_awb_amount_cny, expected_cost_cny, variance_cny, 
-               audit_status, audit_timestamp, audit_details
-        FROM fedex_invoices 
-        {where_clause}
-        {order_clause}
-        {limit_clause}
-    """
+    results_query = (
+        'SELECT invoice_no, awb_number, service_type, origin_country, '
+        'dest_country, actual_weight_kg, chargeable_weight_kg, '
+        'total_awb_amount_cny, expected_cost_cny, variance_cny, '
+        'audit_status, audit_timestamp, audit_details '
+        'FROM fedex_invoices '
+        f'{where_clause} '
+        f'{order_clause} '
+        f'{limit_clause}'
+    )
     
     if datatables_mode:
         # Return all results for DataTables
@@ -1094,25 +1333,29 @@ def batch_audit_results(user_data=None):
         
         results.append({
             'invoice_no': row[0],
-            'awb_number': row[1], 
+            'awb_number': row[1],
             'service_type': row[2],
             'origin_country': row[3],
             'dest_country': row[4],
             'actual_weight_kg': row[5],
             'chargeable_weight_kg': row[6],
-            'invoiced_amount': row[7],  # Map total_awb_amount_cny to invoiced_amount
-            'expected_amount': row[8],  # Map expected_cost_cny to expected_amount
+            'invoiced_amount': row[7],  # total_awb_amount_cny
+            'expected_amount': row[8],  # expected_cost_cny
             'variance': row[9],         # Map variance_cny to variance
             'audit_status': row[10],
             'audit_timestamp': row[11],
             'audit_details': row[12],
             
             # Template-specific mappings
-            'status': 'REVIEW' if row[10] in ['OVERCHARGE', 'UNDERCHARGE'] else row[10],  # Map to filter-compatible values
-            'detailed_status': row[10],     # Keep original for color differentiation
-            'route': route,             # Template expects 'route' 
-            'actual_weight': row[5],    # Template expects 'actual_weight' not 'actual_weight_kg'
-            'chargeable_weight': row[6], # Use chargeable weight from database
+            # Treat UNDERCHARGE as PASS for UI status
+            'status': (
+                'PASS' if row[10] in ['PASS', 'UNDERCHARGE']
+                else ('REVIEW' if row[10] == 'OVERCHARGE' else row[10])
+            ),
+            'detailed_status': row[10],  # Original status for color
+            'route': route,
+            'actual_weight': row[5],
+            'chargeable_weight': row[6],  # Use chargeable weight
             'variance_amount': row[9],   # Template expects 'variance_amount'
             'variance_percentage': variance_percentage,
             
@@ -1123,32 +1366,34 @@ def batch_audit_results(user_data=None):
         })
     
     # Get summary statistics
-    cursor.execute('''
-        SELECT audit_status, COUNT(*), SUM(total_awb_amount_cny), SUM(variance_cny)
-        FROM fedex_invoices 
-        WHERE audit_status IS NOT NULL 
-        GROUP BY audit_status
-    ''')
+    cursor.execute(
+        'SELECT audit_status, COUNT(*), SUM(total_awb_amount_cny), '
+        'SUM(variance_cny) FROM fedex_invoices '
+        'WHERE audit_status IS NOT NULL '
+        'GROUP BY audit_status'
+    )
     status_data = cursor.fetchall()
     
     # Initialize counters
     pass_count = 0
-    review_count = 0  
+    review_count = 0
     fail_count = 0
     total_amount = 0
     total_variance = 0
     
     for status, count, amount, variance in status_data:
-        if status == 'PASS':
-            pass_count = count
+        if status in ['PASS', 'UNDERCHARGE']:
+            # UNDERCHARGE contributes to PASS bucket
+            pass_count += count
             total_amount += amount or 0
             total_variance += variance or 0
-        elif status in ['OVERCHARGE', 'UNDERCHARGE']:
+        elif status == 'OVERCHARGE':
+            # Only OVERCHARGE is REVIEW
             review_count += count
-            total_amount += amount or 0  
+            total_amount += amount or 0
             total_variance += variance or 0
         elif status == 'FAIL':
-            fail_count = count
+            fail_count += count
             total_amount += amount or 0
             total_variance += variance or 0
     

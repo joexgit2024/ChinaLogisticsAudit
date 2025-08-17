@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Audit Steps - {{ invoice_no }} / {{ awb_number }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+      <div>
+        <h1 class="mb-0 fedex-orange">
+          <i class="fas fa-clipboard-list me-3"></i>Audit Steps
+        </h1>
+        <div class="text-muted">Invoice {{ invoice_no }} · AWB {{ awb_number }}</div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('fedex_invoices.invoice_detail', invoice_no=invoice_no, awb_number=awb_number) }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-2"></i>Back to Invoice
+        </a>
+        <a href="{{ url_for('fedex_invoices.invoice_list') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-list me-2"></i>All Invoices
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Route</div>
+          <div class="fw-bold">{{ origin_country }} → {{ dest_country }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Service</div>
+          <div class="fw-bold">{{ service_abbrev or service_type or 'N/A' }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Claimed (CNY)</div>
+          <div class="fw-bold fedex-orange">¥{{ "{:,.2f}".format(claimed_cny or 0) }}</div>
+          {% if exchange_rate is not none %}
+            <div class="small text-muted">FX: {{ "{:.10f}".format(exchange_rate) }}</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted">Audit Status</div>
+          <div>
+            <span class="badge {% if result.audit_status == 'PASS' %}bg-success{% elif result.audit_status in ['OVERCHARGE','UNDERCHARGE'] %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+              {{ result.audit_status }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header fedex-bg-gradient text-white">
+          <h5 class="mb-0"><i class="fas fa-stream me-2"></i>Eight-step audit breakdown</h5>
+        </div>
+        <div class="card-body">
+          <ol class="list-group list-group-numbered">
+            {% for step in steps %}
+            <li class="list-group-item">
+              <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">{{ step.title }}</h6>
+              </div>
+              {% if step.desc %}<div class="small text-muted">{{ step.desc }}</div>{% endif %}
+              <div class="mt-1"><strong>{{ step.result }}</strong></div>
+            </li>
+            {% endfor %}
+          </ol>
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+          <a class="btn btn-outline-secondary" href="{{ url_for('fedex_invoices.invoice_detail', invoice_no=invoice_no, awb_number=awb_number) }}">
+            <i class="fas fa-eye me-2"></i>Invoice Detail
+          </a>
+          <a class="btn fedex-bg-orange text-white" href="{{ url_for('fedex_invoices.invoice_list') }}">
+            <i class="fas fa-list me-2"></i>Back to List
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.fedex-orange { color: #FF6600; }
+.fedex-bg-gradient { background: linear-gradient(135deg, #FF6600, #CC5200); }
+</style>
+{% endblock %}
