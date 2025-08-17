@@ -210,7 +210,7 @@
                                             <td>{{ invoice.invoice_no }}</td>
                                             <td>{{ invoice.awb_number }}</td>
                                             <td>{{ invoice.route }}</td>
-                                            <td>¥{{ (invoice.amount_cny or 0)|round(2) }}</td>
+                                            <td>¥{{ (invoice.amount or 0)|round(2) }}</td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary audit-single" 
                                                         data-invoice="{{ invoice.invoice_no }}" 
@@ -310,8 +310,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 hideModal();
                 if (resp.success) {
                     const r = resp.batch_result || {};
-                    const msg = `Audit completed: ${r.audited_count || 0} successful, ${r.error_count || 0} errors`;
-                    showAlert(r.error_count ? 'warning' : 'success', msg);
+                    const msg = `Audit completed: ${r.successful_audits || 0} successful, ${r.failed_audits || 0} failed`;
+                    showAlert((r.failed_audits || 0) ? 'warning' : 'success', msg);
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
                     showAlert('danger', 'Audit failed: ' + (resp.error || 'Unknown error'));
@@ -371,11 +371,12 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Auditing...';
 
             try {
-                const resp = await postJSON('{{ url_for("fedex_invoices.run_batch_audit") }}', {
-                    audit_type: 'specific_invoices',
-                    invoice_list: [{ invoice_no: invoice, awb_number: awb }]
+                // Call dedicated single-AWB audit API for clearer results
+                const resp = await postJSON('{{ url_for("fedex_invoices.audit_single_awb_api") }}', {
+                    invoice_no: invoice,
+                    awb_number: awb
                 });
-                if (resp.success && (resp.batch_result?.audited_count || 0) > 0) {
+                if (resp.success) {
                     btn.innerHTML = '<i class="fas fa-check"></i> Complete';
                     btn.classList.remove('btn-outline-primary');
                     btn.classList.add('btn-success');
@@ -383,7 +384,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     btn.innerHTML = '<i class="fas fa-play"></i> Audit';
                     btn.disabled = false;
-                    showAlert('warning', 'Audit failed for this AWB');
+                    const det = resp.details ? ` (${resp.details.error || ''})` : '';
+                    showAlert('warning', 'Audit failed for this AWB' + det);
                 }
             } catch (err) {
                 btn.innerHTML = '<i class="fas fa-play"></i> Audit';

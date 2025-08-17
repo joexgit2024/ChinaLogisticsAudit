@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Rate Cards Management{% endblock %}
+
+{% block head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.bootstrap5.min.css">
+
+<style>
+    .fedex-orange { color: #ff6600; }
+    .fedex-bg-orange { background-color: #ff6600; }
+    .rate-badge {
+        font-size: 0.85em;
+        padding: 0.4em 0.6em;
+    }
+    .currency-rate {
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .weight-range {
+        color: #7f8c8d;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="mb-0 fedex-orange">
+                        <i class="fas fa-credit-card me-3"></i>FedEx Rate Cards Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage service rates across all zones and weight breaks</p>
+                </div>
+                <div>
+                    <a href="/fedex/data-management" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Data Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            {% if rate_cards %}
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-database fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|length }}</div>
+                            <div class="small text-muted">Total Rate Cards</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-shipping-fast fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='service_type')|unique|list|length }}</div>
+                            <div class="small text-muted">Service Types</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-globe fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='zone_code')|unique|list|length }}</div>
+                            <div class="small text-muted">Zones Covered</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-tags fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='rate_type')|unique|list|length }}</div>
+                            <div class="small text-muted">Rate Types</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Rate Cards Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header fedex-bg-orange text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-credit-card me-2"></i>Rate Cards
+                                {% if rate_cards %}
+                                    <span class="badge bg-light text-dark ms-2">{{ total_rates }} total</span>
+                                {% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if rate_cards %}
+                            <div class="table-responsive">
+                                <table class="table table-hover table-sm" id="rateCardsTable" style="width:100%">
+                                    <thead>
+                                        <tr>
+                                            <th>Rate Card</th>
+                                            <th>Service</th>
+                                            <th>Route</th>
+                                            <th>Zone</th>
+                                            <th>Weight Range (kg)</th>
+                                            <th>Rate Type</th>
+                                            <th>Rate (USD)</th>
+                                            <th>Effective Date</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for rate in rate_cards %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-primary rate-badge">{{ rate.rate_card_name }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success rate-badge">{{ rate.service_type }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="weight-range">
+                                                    {{ rate.origin_region }} → {{ rate.destination_region }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge fedex-bg-orange text-white rate-badge">{{ rate.zone_code }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="weight-range">
+                                                    {{ rate.weight_from }}
+                                                    {% if rate.weight_to %}
+                                                        - {{ rate.weight_to }}
+                                                    {% else %}
+                                                        +
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if rate.rate_type == 'OL' %}
+                                                    <span class="badge bg-info rate-badge">Overweight</span>
+                                                {% elif rate.rate_type == 'PAX' %}
+                                                    <span class="badge bg-warning rate-badge">Package</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary rate-badge">{{ rate.rate_type }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="currency-rate">${{ "%.2f"|format(rate.rate_usd) }}</div>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ rate.effective_date }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    <button class="btn btn-outline-primary" title="Edit Rate">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" title="Delete Rate">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-credit-card display-4 text-muted mb-3"></i>
+                                <h5 class="text-muted">No rate cards found</h5>
+                                <p class="text-muted">Upload rate card data to populate rates.</p>
+                                <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                    <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                </a>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- DataTables JavaScript -->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/responsive.bootstrap5.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    {% if rate_cards %}
+    // Initialize DataTables
+    $('#rateCardsTable').DataTable({
+        responsive: true,
+        pageLength: 50,
+        lengthMenu: [[25, 50, 100, 200, -1], [25, 50, 100, 200, "All"]],
+        order: [[0, 'asc'], [1, 'asc'], [4, 'asc']], // Sort by rate card, service, weight
+        columnDefs: [
+            {
+                targets: [6], // Rate column
+                className: 'text-end'
+            },
+            {
+                targets: [8], // Actions column
+                orderable: false,
+                searchable: false
+            }
+        ],
+        language: {
+            search: "Search rate cards:",
+            lengthMenu: "Show _MENU_ rate cards per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ rate cards",
+            infoEmpty: "Showing 0 to 0 of 0 rate cards",
+            infoFiltered: "(filtered from _MAX_ total rate cards)",
+            paginate: {
+                first: "First",
+                last: "Last", 
+                next: "Next",
+                previous: "Previous"
+            }
+        },
+        dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-5"i><"col-sm-7"p>>'
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}

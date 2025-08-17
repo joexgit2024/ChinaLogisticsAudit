@@ -2,6 +2,11 @@
 
 {% block title %}FedEx Zone Management{% endblock %}
 
+{% block head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -78,39 +83,43 @@
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
                         <div class="card-header fedex-bg-gradient text-white">
-                            <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Zone Matrix</h5>
+                            <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Zone Matrix ({{ zone_matrix|length }} entries)</h5>
                         </div>
                         <div class="card-body">
                             {% if zone_matrix %}
                             <div class="table-responsive">
-                                <table class="table table-hover">
+                                <table class="table table-hover table-sm" id="zoneMatrixTable">
                                     <thead>
                                         <tr>
-                                            <th>Origin</th>
-                                            <th>Destination</th>
-                                            <th>Zone Code</th>
-                                            <th>Service Type</th>
-                                            <th>Effective Date</th>
-                                            <th>Expiry Date</th>
+                                            <th>ID</th>
+                                            <th>Origin Country</th>
+                                            <th>Destination Region</th>
+                                            <th>Zone Letter</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for matrix in zone_matrix %}
                                         <tr>
+                                            <td class="text-muted">{{ matrix.id }}</td>
                                             <td>
-                                                <div class="fw-bold">{{ matrix.origin_name or matrix.origin_region }}</div>
-                                                <small class="text-muted">{{ matrix.origin_region }}</small>
+                                                <span class="fw-bold">{{ matrix.origin_country }}</span>
                                             </td>
                                             <td>
-                                                <div class="fw-bold">{{ matrix.dest_name or matrix.destination_region }}</div>
-                                                <small class="text-muted">{{ matrix.destination_region }}</small>
+                                                <span class="text-primary">{{ matrix.destination_region }}</span>
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary">{{ matrix.zone_code }}</span>
+                                                <span class="badge bg-primary fs-6">{{ matrix.zone_letter }}</span>
                                             </td>
-                                            <td>{{ matrix.service_type }}</td>
-                                            <td class="text-muted small">{{ matrix.effective_date or 'N/A' }}</td>
-                                            <td class="text-muted small">{{ matrix.expiry_date or 'N/A' }}</td>
+                                            <td>
+                                                {% if matrix.active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-muted small">{{ matrix.created_timestamp }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -141,6 +150,67 @@
 .fedex-bg-gradient {
     background: linear-gradient(135deg, #FF6600, #CC5200);
 }
+
+/* DataTables custom styling */
+.dataTables_wrapper .dataTables_length select {
+    width: auto !important;
+    display: inline-block !important;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+    margin-left: 0.5em !important;
+}
+
+table.dataTable tbody td {
+    padding: 0.5rem !important;
+    vertical-align: middle !important;
+}
+
+table.dataTable thead th {
+    padding: 0.75rem 0.5rem !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    font-weight: 600 !important;
+}
 </style>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- DataTables JavaScript -->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTables for Zone Matrix
+    $('#zoneMatrixTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[25, 50, 100, -1], [25, 50, 100, "All"]],
+        order: [[1, 'asc']], // Sort by Origin Country by default
+        columnDefs: [
+            {
+                targets: [0], // ID column
+                className: 'text-center'
+            },
+            {
+                targets: [3], // Zone Letter column
+                className: 'text-center'
+            },
+            {
+                targets: [4], // Status column
+                className: 'text-center'
+            }
+        ],
+        language: {
+            search: "Search zone matrix:",
+            lengthMenu: "Show _MENU_ entries per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            infoEmpty: "Showing 0 to 0 of 0 entries",
+            infoFiltered: "(filtered from _MAX_ total entries)"
+        }
+    });
+});
+</script>
 
 {% endblock %}

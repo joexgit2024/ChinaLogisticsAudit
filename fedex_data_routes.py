@@ -6,7 +6,7 @@ FedEx Data Management Routes
 Flask routes for managing FedEx rate cards, zones, and surcharges.
 """
 
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, send_file, Response
 import sqlite3
 import json
 from datetime import datetime
@@ -83,8 +83,8 @@ def zones_management(user_data=None):
         # Get zone regions
         cursor.execute('''
             SELECT id, region_code, region_name, description, active, created_timestamp
-            FROM fedex_zone_regions 
-            ORDER BY region_name
+            FROM fedex_zone_regions
+            ORDER BY region_code
         ''')
         zone_regions = [
             {
@@ -100,25 +100,21 @@ def zones_management(user_data=None):
         
         # Get zone matrix
         cursor.execute('''
-            SELECT zm.id, zm.origin_region, zm.destination_region, zm.zone_code, 
-                   zm.service_type, zm.effective_date, zm.expiry_date,
-                   or1.region_name as origin_name, dr1.region_name as dest_name
+            SELECT zm.id, zm.origin_country, zm.destination_region, zm.zone_letter, 
+                   zm.active, zm.created_timestamp
             FROM fedex_zone_matrix zm
-            LEFT JOIN fedex_zone_regions or1 ON zm.origin_region = or1.region_code
-            LEFT JOIN fedex_zone_regions dr1 ON zm.destination_region = dr1.region_code
-            ORDER BY zm.origin_region, zm.destination_region
+            ORDER BY zm.origin_country, zm.destination_region
         ''')
         zone_matrix = [
             {
                 'id': row[0],
-                'origin_region': row[1],
+                'origin_country': row[1],
                 'destination_region': row[2],
-                'zone_code': row[3],
-                'service_type': row[4],
-                'effective_date': row[5],
-                'expiry_date': row[6],
-                'origin_name': row[7],
-                'dest_name': row[8]
+                'zone_letter': row[3],
+                'active': bool(row[4]),
+                'created_timestamp': row[5],
+                'origin_name': row[1],  # Use origin_country as display name
+                'dest_name': row[2]     # Use destination_region as display name
             }
             for row in cursor.fetchall()
         ]
@@ -174,10 +170,6 @@ def countries_management(user_data=None):
 def rates_management(user_data=None):
     """Rate cards management"""
     
-    page = int(request.args.get('page', 1))
-    per_page = 50
-    offset = (page - 1) * per_page
-    
     with sqlite3.connect('fedex_audit.db') as conn:
         cursor = conn.cursor()
         
@@ -185,17 +177,16 @@ def rates_management(user_data=None):
         cursor.execute("SELECT COUNT(*) FROM fedex_rate_cards")
         total_rates = cursor.fetchone()[0]
         
-        # Get rate cards with pagination
+        # Get all rate cards (DataTables handles pagination client-side)
         cursor.execute('''
             SELECT id, rate_card_name, service_type, origin_region, destination_region,
                    zone_code, weight_from, weight_to, rate_usd, rate_type,
                    effective_date, expiry_date, created_timestamp
             FROM fedex_rate_cards 
             ORDER BY rate_card_name, weight_from
-            LIMIT ? OFFSET ?
-        ''', (per_page, offset))
+        ''')
         
-        rates = [
+        rate_cards = [
             {
                 'id': row[0],
                 'rate_card_name': row[1],
@@ -214,15 +205,122 @@ def rates_management(user_data=None):
             for row in cursor.fetchall()
         ]
         
-        # Pagination info
-        total_pages = (total_rates + per_page - 1) // per_page
+        # Get unique services for filter
+        cursor.execute('SELECT DISTINCT service_type FROM fedex_rate_cards ORDER BY service_type')
+        services = [{'service_code': row[0], 'service_name': row[0]} for row in cursor.fetchall()]
+        
+        # Get unique zones for filter  
+        cursor.execute('SELECT DISTINCT zone_code FROM fedex_rate_cards ORDER BY zone_code')
+        zones = [row[0] for row in cursor.fetchall()]
         
         return render_template('fedex_rates.html', 
-                             rates=rates,
-                             page=page,
-                             total_pages=total_pages,
-                             total_rates=total_rates,
-                             per_page=per_page)
+                             rate_cards=rate_cards,
+                             services=services,
+                             zones=zones,
+                             total_rates=total_rates)
+
+@fedex_data_bp.route('/fedex/rates/export')
+@require_auth
+def export_rates(user_data=None):
+    """Export rate cards to Excel or CSV.
+    Query param: format=xlsx|csv (default xlsx)
+    """
+    fmt = request.args.get('format', 'xlsx').lower()
+    # Fetch data
+    with sqlite3.connect('fedex_audit.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT rate_card_name, service_type, origin_region, destination_region,
+                   zone_code, weight_from, IFNULL(weight_to, ''), rate_type, rate_usd, effective_date
+            FROM fedex_rate_cards 
+            ORDER BY rate_card_name, weight_from
+        ''')
+        rows = cursor.fetchall()
+
+    headers = [
+        'Rate Card', 'Service', 'Origin Region', 'Destination Region', 'Zone',
+        'Weight From (kg)', 'Weight To (kg)', 'Rate Type', 'Rate (USD)', 'Effective Date'
+    ]
+
+    if fmt == 'csv':
+        import csv
+        from io import StringIO
+        sio = StringIO()
+        writer = csv.writer(sio)
+        writer.writerow(headers)
+        for r in rows:
+            writer.writerow(r)
+        data = sio.getvalue()
+        sio.close()
+        return Response(
+            data,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f"attachment; filename=fedex_rate_cards_{datetime.now().date()}.csv"
+            }
+        )
+
+    # Try to create a real XLSX via openpyxl, else fall back to HTML .xls
+    try:
+        from io import BytesIO
+        from openpyxl import Workbook
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'FedEx Rate Cards'
+
+        # Write header
+        ws.append(headers)
+        # Style header (basic bold)
+        for cell in ws[1]:
+            cell.font = cell.font.copy(bold=True)
+
+        # Write rows
+        for r in rows:
+            ws.append(list(r))
+
+        # Auto-fit widths by max text length per column (cap at 50)
+        for col_idx in range(1, len(headers) + 1):
+            max_len = len(str(headers[col_idx - 1]))
+            for row_idx in range(2, ws.max_row + 1):
+                val = ws.cell(row=row_idx, column=col_idx).value
+                if val is None:
+                    continue
+                l = len(str(val))
+                if l > max_len:
+                    max_len = l
+            ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, 50)
+
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        return send_file(
+            bio,
+            as_attachment=True,
+            download_name=f"fedex_rate_cards_{datetime.now().date()}.xlsx",
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception:
+        # Fallback: Excel-compatible HTML table with .xls extension
+        from io import BytesIO
+        def esc(x):
+            s = '' if x is None else str(x)
+            return s.replace('&', '&amp;').replace('<', '&lt;')
+        thead = ''.join(f'<th>{esc(h)}</th>' for h in headers)
+        tbody = ''.join('<tr>' + ''.join(f'<td>{esc(c)}</td>' for c in row) + '</tr>' for row in rows)
+        html = f"""
+        <html><head><meta charset='utf-8'>
+        <style>table{{border-collapse:collapse}} td,th{{border:1px solid #ccc;padding:4px;white-space:nowrap;}}</style>
+        </head><body><table><thead><tr>{thead}</tr></thead><tbody>{tbody}</tbody></table></body></html>
+        """.strip()
+        bio = BytesIO(html.encode('utf-8'))
+        return send_file(
+            bio,
+            as_attachment=True,
+            download_name=f"fedex_rate_cards_{datetime.now().date()}.xls",
+            mimetype='application/vnd.ms-excel'
+        )
 
 @fedex_data_bp.route('/fedex/surcharges')
 @require_auth

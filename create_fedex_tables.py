@@ -1,7 +1,10 @@
 import sqlite3
 
 # Create FedEx tables and insert sample data for testing
-conn = sqlite3.connect('china_logistics_audit.db')
+import sqlite3
+
+# Connect to database
+conn = sqlite3.connect('fedex_audit.db')
 cursor = conn.cursor()
 
 # Create FedEx invoice table

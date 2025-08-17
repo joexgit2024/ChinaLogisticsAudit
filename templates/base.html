@@ -592,6 +592,14 @@
                                 <li><a class="dropdown-item {% if request.path == '/fedex/invoices' %}active{% endif %}" href="/fedex/invoices" role="menuitem">
                                     <i class="fas fa-list me-2"></i> <span>Invoice List</span>
                                 </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-chart-line me-1"></i> <span>Audit & Analysis</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit' %}active{% endif %}" href="{{ url_for('fedex_invoices.batch_audit_dashboard') }}" role="menuitem">
+                                    <i class="fas fa-play-circle me-2"></i> <span>Batch Audit</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit/results' %}active{% endif %}" href="{{ url_for('fedex_invoices.batch_audit_results') }}" role="menuitem">
+                                    <i class="fas fa-table me-2"></i> <span>Audit Results</span>
+                                </a></li>
                             </ul>
                         </div>
                         
@@ -810,7 +818,9 @@
             </div>
     </div>
     
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/audit_actions.js') }}"></script>
     <script>
         // Theme toggle logic
         document.addEventListener('DOMContentLoaded', function() {
@@ -931,6 +941,15 @@
             
             // Close dropdowns when clicking outside
             document.addEventListener('click', function(e) {
+                // Check if the clicked element is the Run Batch Audit button or its child element
+                const isRunBatchAuditButton = e.target.id === 'runBatchAuditBtn' || 
+                                            e.target.closest('#runBatchAuditBtn');
+                
+                // If it's the Run Batch Audit button, don't close any dropdowns
+                if (isRunBatchAuditButton) {
+                    return;
+                }
+                
                 dropdowns.forEach(dropdownId => {
                     const container = document.getElementById(dropdownId);
                     const toggle = container.querySelector('.dropdown-toggle');

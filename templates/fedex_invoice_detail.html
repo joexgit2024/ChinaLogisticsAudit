@@ -2,6 +2,82 @@
 
 {% block title %}FedEx Invoice Detail - {{ invoice_no }}{% endblock %}
 
+{% block head %}
+<style>
+    .timeline {
+        position: relative;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 60px;
+        margin-bottom: 30px;
+    }
+    
+    .timeline-item:not(:last-child)::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 40px;
+        bottom: -30px;
+        width: 2px;
+        background: #dee2e6;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+    }
+    
+    .timeline-content h6 {
+        color: #495057;
+        margin-bottom: 8px;
+    }
+    
+    .fedex-orange {
+        color: #ff6600 !important;
+    }
+    
+    .fedex-bg-orange {
+        background-color: #ff6600 !important;
+    }
+    
+    .bg-success .timeline-content {
+        border-left-color: #28a745;
+    }
+    
+    .bg-info .timeline-content {
+        border-left-color: #17a2b8;
+    }
+    
+    .bg-warning .timeline-content {
+        border-left-color: #ffc107;
+    }
+    
+    .bg-danger .timeline-content {
+        border-left-color: #dc3545;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header Section -->
@@ -440,15 +516,122 @@
                         <div class="tab-pane fade" id="audit" role="tabpanel">
                             <div class="row">
                                 <div class="col-12">
-                                    {% if has_audit_result %}
+                                    {% if has_audit_result and audit_results %}
                                         <h5 class="fedex-orange mb-3">
                                             <i class="fas fa-check-circle me-2"></i>Audit Results
                                         </h5>
-                                        <!-- Audit results will be displayed here when available -->
-                                        <div class="alert alert-success">
-                                            <h6>Audit Completed Successfully</h6>
-                                            <p>Audit results will be displayed here once the audit functionality is implemented.</p>
+                                        
+                                        <!-- Audit Summary Card -->
+                                        <div class="card mb-4">
+                                            <div class="card-header bg-light">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-6">
+                                                        <h6 class="mb-0">
+                                                            <i class="fas fa-clipboard-check me-2"></i>Audit Summary
+                                                        </h6>
+                                                    </div>
+                                                    <div class="col-md-6 text-end">
+                                                        <span class="badge bg-{{ audit_results.status_color }} fs-6">
+                                                            {{ audit_results.status_display }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-3">
+                                                        <div class="text-center p-3 border rounded">
+                                                            <i class="fas fa-file-invoice-dollar text-primary fs-4 mb-2"></i>
+                                                            <h6 class="mb-1">Invoiced Amount</h6>
+                                                            <h5 class="text-primary mb-0">¥{{ "%.2f"|format(audit_results.invoiced_amount or 0) }}</h5>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="text-center p-3 border rounded">
+                                                            <i class="fas fa-calculator text-info fs-4 mb-2"></i>
+                                                            <h6 class="mb-1">Expected Amount</h6>
+                                                            <h5 class="text-info mb-0">¥{{ "%.2f"|format(audit_results.expected_cost_cny or 0) }}</h5>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="text-center p-3 border rounded">
+                                                            <i class="fas fa-chart-line {% if audit_results.variance_cny > 0 %}text-danger{% elif audit_results.variance_cny < 0 %}text-success{% else %}text-secondary{% endif %} fs-4 mb-2"></i>
+                                                            <h6 class="mb-1">Variance</h6>
+                                                            <h5 class="{% if audit_results.variance_cny > 0 %}text-danger{% elif audit_results.variance_cny < 0 %}text-success{% else %}text-secondary{% endif %} mb-0">
+                                                                {% if audit_results.variance_cny > 0 %}+{% endif %}¥{{ "%.2f"|format(audit_results.variance_cny or 0) }}
+                                                            </h5>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="text-center p-3 border rounded">
+                                                            <i class="fas fa-percentage {% if audit_results.variance_percentage > 1 %}text-danger{% elif audit_results.variance_percentage < -1 %}text-success{% else %}text-secondary{% endif %} fs-4 mb-2"></i>
+                                                            <h6 class="mb-1">Variance %</h6>
+                                                            <h5 class="{% if audit_results.variance_percentage > 1 %}text-danger{% elif audit_results.variance_percentage < -1 %}text-success{% else %}text-secondary{% endif %} mb-0">
+                                                                {% if audit_results.variance_percentage > 0 %}+{% endif %}{{ "%.2f"|format(audit_results.variance_percentage) }}%
+                                                            </h5>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="row mt-3">
+                                                    <div class="col-12">
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-clock me-1"></i>
+                                                            Audited on: {{ audit_results.audit_timestamp or 'Unknown' }}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                        
+                                        <!-- Audit Steps Timeline -->
+                                        {% if audit_results.steps %}
+                                        <div class="card">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0">
+                                                    <i class="fas fa-list-ol me-2"></i>Audit Process Steps
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="timeline">
+                                                    {% for step in audit_results.steps %}
+                                                    <div class="timeline-item">
+                                                        <div class="timeline-marker bg-{{ step.status }}">
+                                                            {% if step.status == 'success' %}
+                                                                <i class="fas fa-check text-white"></i>
+                                                            {% elif step.status == 'info' %}
+                                                                <i class="fas fa-info text-white"></i>
+                                                            {% elif step.status == 'warning' %}
+                                                                <i class="fas fa-exclamation text-white"></i>
+                                                            {% else %}
+                                                                <i class="fas fa-times text-white"></i>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="timeline-content">
+                                                            <h6 class="mb-1">{{ step.step }}</h6>
+                                                            <p class="text-muted mb-1">{{ step.description }}</p>
+                                                            <strong class="text-{{ step.status }}">{{ step.result }}</strong>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Raw Audit Details (if available) -->
+                                        {% if audit_results.details %}
+                                        <div class="card mt-4">
+                                            <div class="card-header bg-light">
+                                                <h6 class="mb-0">
+                                                    <i class="fas fa-code me-2"></i>Technical Details
+                                                </h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <pre class="bg-light p-3 rounded"><code>{{ audit_results.details | tojson(indent=2) }}</code></pre>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        
                                     {% else %}
                                         <div class="text-center py-5">
                                             <i class="fas fa-search-dollar display-4 text-muted mb-3"></i>

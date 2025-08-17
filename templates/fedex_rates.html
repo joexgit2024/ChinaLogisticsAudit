@@ -2,6 +2,33 @@
 
 {% block title %}FedEx Rate Cards Management{% endblock %}
 
+{% block head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.3.6/css/buttons.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.bootstrap5.min.css">
+
+<!-- XLSX for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+    .fedex-orange { color: #ff6600; }
+    .fedex-bg-orange { background-color: #ff6600; }
+    .rate-badge {
+        font-size: 0.85em;
+        padding: 0.4em 0.6em;
+    }
+    .currency-rate {
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    .weight-range {
+        color: #7f8c8d;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -20,139 +47,130 @@
                 </div>
             </div>
 
-            <!-- Rate Cards Filter -->
+            <!-- Statistics Cards -->
+            {% if rate_cards %}
             <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-3">
-                                    <label class="form-label">Service Type</label>
-                                    <select class="form-select" id="serviceFilter" onchange="filterRates()">
-                                        <option value="">All Services</option>
-                                        {% for service in services %}
-                                        <option value="{{ service.service_code }}">{{ service.service_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Zone</label>
-                                    <select class="form-select" id="zoneFilter" onchange="filterRates()">
-                                        <option value="">All Zones</option>
-                                        {% for zone in zones %}
-                                        <option value="{{ zone }}">Zone {{ zone }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Rate Type</label>
-                                    <select class="form-select" id="rateTypeFilter" onchange="filterRates()">
-                                        <option value="">All Types</option>
-                                        <option value="standard">Standard</option>
-                                        <option value="fuel_surcharge">Fuel Surcharge</option>
-                                        <option value="residential_surcharge">Residential</option>
-                                        <option value="oversize">Oversize</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Actions</label>
-                                    <div class="d-flex gap-2">
-                                        <button class="btn btn-outline-primary btn-sm" onclick="resetFilters()">
-                                            <i class="fas fa-sync me-1"></i>Reset
-                                        </button>
-                                        <button class="btn fedex-bg-orange text-white btn-sm" onclick="exportRates()">
-                                            <i class="fas fa-download me-1"></i>Export
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-database fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|length }}</div>
+                            <div class="small text-muted">Total Rate Cards</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-shipping-fast fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='service_type')|unique|list|length }}</div>
+                            <div class="small text-muted">Service Types</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-globe fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='zone_code')|unique|list|length }}</div>
+                            <div class="small text-muted">Zones Covered</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-tags fedex-orange fa-2x mb-2"></i>
+                            <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='rate_type')|unique|list|length }}</div>
+                            <div class="small text-muted">Rate Types</div>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <!-- Rate Cards Table -->
             <div class="row">
                 <div class="col-12">
                     <div class="card border-0 shadow-sm">
-                        <div class="card-header fedex-bg-gradient text-white">
-                            <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Rate Cards</h5>
+                        <div class="card-header fedex-bg-orange text-white">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-credit-card me-2"></i>Rate Cards
+                                    {% if rate_cards %}
+                                        <span class="badge bg-light text-dark ms-2">{{ total_rates }} total</span>
+                                    {% endif %}
+                                </h5>
+                                {% if rate_cards %}
+                                <div>
+                                                <a class="btn btn-light btn-sm me-2" href="{{ url_for('fedex_data.export_rates', format='xlsx') }}" download
+                                                    title="Download Excel (.xlsx)">
+                                        <i class="fas fa-file-excel me-1"></i>Export Excel
+                                    </a>
+                                    <button type="button" class="btn btn-outline-light btn-sm" onclick="exportToCSV()">
+                                        <i class="fas fa-file-csv me-1"></i>Export CSV
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="card-body">
                             {% if rate_cards %}
                             <div class="table-responsive">
-                                <table class="table table-hover" id="rateCardsTable">
+                                <table class="table table-hover table-sm" id="rateCardsTable" style="width:100%">
                                     <thead>
                                         <tr>
+                                            <th>Rate Card</th>
                                             <th>Service</th>
+                                            <th>Route</th>
                                             <th>Zone</th>
-                                            <th>Weight Range</th>
+                                            <th>Weight Range (kg)</th>
                                             <th>Rate Type</th>
-                                            <th>Rate</th>
-                                            <th>Currency</th>
-                                            <th>Status</th>
-                                            <th>Last Updated</th>
+                                            <th>Rate (USD)</th>
+                                            <th>Effective Date</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for rate in rate_cards %}
-                                        <tr class="rate-row" 
-                                            data-service="{{ rate.service_code }}" 
-                                            data-zone="{{ rate.zone_letter }}" 
-                                            data-type="{{ rate.rate_type }}">
+                                        <tr>
                                             <td>
-                                                <div class="d-flex align-items-center">
-                                                    <span class="badge bg-primary me-2">{{ rate.service_code }}</span>
-                                                    <div>
-                                                        <div class="fw-bold">{{ rate.service_name }}</div>
-                                                        <small class="text-muted">{{ rate.service_description }}</small>
-                                                    </div>
+                                                <span class="badge bg-primary rate-badge">{{ rate.rate_card_name }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success rate-badge">{{ rate.service_type }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="weight-range">
+                                                    {{ rate.origin_region }} → {{ rate.destination_region }}
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge fedex-bg-orange text-white">{{ rate.zone_letter }}</span>
+                                                <span class="badge fedex-bg-orange text-white rate-badge">{{ rate.zone_code }}</span>
                                             </td>
                                             <td>
-                                                <div class="small">
-                                                    <strong>{{ rate.weight_from }}kg</strong> - 
+                                                <div class="weight-range">
+                                                    {{ rate.weight_from }}
                                                     {% if rate.weight_to %}
-                                                        <strong>{{ rate.weight_to }}kg</strong>
+                                                        - {{ rate.weight_to }}
                                                     {% else %}
-                                                        <strong>∞</strong>
+                                                        +
                                                     {% endif %}
                                                 </div>
                                             </td>
                                             <td>
-                                                {% if rate.rate_type == 'standard' %}
-                                                    <span class="badge bg-success">Standard</span>
-                                                {% elif rate.rate_type == 'fuel_surcharge' %}
-                                                    <span class="badge bg-warning text-dark">Fuel Surcharge</span>
-                                                {% elif rate.rate_type == 'residential_surcharge' %}
-                                                    <span class="badge bg-info">Residential</span>
+                                                {% if rate.rate_type == 'OL' %}
+                                                    <span class="badge bg-info rate-badge">Overweight</span>
+                                                {% elif rate.rate_type == 'PAX' %}
+                                                    <span class="badge bg-warning rate-badge">Package</span>
                                                 {% else %}
-                                                    <span class="badge bg-secondary">{{ rate.rate_type|title }}</span>
+                                                    <span class="badge bg-secondary rate-badge">{{ rate.rate_type }}</span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <div class="fw-bold">{{ "%.2f"|format(rate.rate) }}</div>
-                                                {% if rate.rate_per_kg %}
-                                                    <small class="text-muted">+{{ "%.2f"|format(rate.rate_per_kg) }}/kg</small>
-                                                {% endif %}
+                                                <div class="currency-rate">${{ "%.2f"|format(rate.rate_usd) }}</div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-dark">{{ rate.currency_code }}</span>
-                                            </td>
-                                            <td>
-                                                {% if rate.active %}
-                                                    <span class="badge bg-success">Active</span>
-                                                {% else %}
-                                                    <span class="badge bg-secondary">Inactive</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                <div class="small text-muted">
-                                                    {{ rate.updated_at.strftime('%Y-%m-%d') if rate.updated_at else 'N/A' }}
-                                                </div>
+                                                <small class="text-muted">{{ rate.effective_date }}</small>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -160,192 +178,216 @@
                                 </table>
                             </div>
                             
-                            <!-- Rate Cards Statistics -->
-                            <div class="row mt-4">
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-light rounded">
-                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|length }}</div>
-                                        <div class="small text-muted">Total Rate Cards</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-light rounded">
-                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|selectattr('active')|list|length }}</div>
-                                        <div class="small text-muted">Active Rates</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-light rounded">
-                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='service_code')|unique|list|length }}</div>
-                                        <div class="small text-muted">Service Types</div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-light rounded">
-                                        <div class="h4 fedex-orange mb-1">{{ rate_cards|map(attribute='zone_letter')|unique|list|length }}</div>
-                                        <div class="small text-muted">Zones Covered</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
                             {% else %}
-                            <div class="text-center py-4">
-                                <div class="text-muted">
-                                    <i class="fas fa-credit-card display-4 mb-3"></i>
-                                    <p>No rate cards found. Upload rate card data to populate rates.</p>
-                                    <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
-                                        <i class="fas fa-upload me-2"></i>Upload Rate Cards
-                                    </a>
-                                </div>
+                            <div class="text-center py-5">
+                                <i class="fas fa-credit-card display-4 text-muted mb-3"></i>
+                                <h5 class="text-muted">No rate cards found</h5>
+                                <p class="text-muted">Upload rate card data to populate rates.</p>
+                                <a href="/fedex/upload" class="btn fedex-bg-orange text-white">
+                                    <i class="fas fa-upload me-2"></i>Upload Rate Cards
+                                </a>
                             </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Quick Rate Lookup -->
-            {% if rate_cards %}
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header">
-                            <h6 class="mb-0"><i class="fas fa-search me-2"></i>Quick Rate Lookup</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-3">
-                                <div class="col-md-3">
-                                    <label class="form-label">Service</label>
-                                    <select class="form-select" id="lookupService">
-                                        <option value="">Select Service</option>
-                                        {% for service in services %}
-                                        <option value="{{ service.service_code }}">{{ service.service_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Zone</label>
-                                    <select class="form-select" id="lookupZone">
-                                        <option value="">Select Zone</option>
-                                        {% for zone in zones %}
-                                        <option value="{{ zone }}">Zone {{ zone }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Weight (kg)</label>
-                                    <input type="number" class="form-control" id="lookupWeight" placeholder="Enter weight" step="0.1">
-                                </div>
-                                <div class="col-md-3">
-                                    <label class="form-label">Actions</label>
-                                    <div class="d-flex gap-2">
-                                        <button class="btn fedex-bg-orange text-white" onclick="lookupRate()">
-                                            <i class="fas fa-search me-1"></i>Lookup
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="lookupResults" class="mt-3" style="display: none;">
-                                <div class="alert alert-info" id="lookupDisplay"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-.fedex-orange { color: #FF6600; }
-.fedex-bg-orange { background-color: #FF6600; }
-.fedex-bg-gradient {
-    background: linear-gradient(135deg, #FF6600, #CC5200);
-}
-</style>
+{% block scripts %}
+<!-- DataTables JavaScript -->
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.3.6/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/responsive.bootstrap5.min.js"></script>
 
 <script>
-function filterRates() {
-    const serviceFilter = document.getElementById('serviceFilter').value;
-    const zoneFilter = document.getElementById('zoneFilter').value;
-    const rateTypeFilter = document.getElementById('rateTypeFilter').value;
-    
-    const rows = document.querySelectorAll('.rate-row');
-    
-    rows.forEach(row => {
-        const service = row.getAttribute('data-service');
-        const zone = row.getAttribute('data-zone');
-        const type = row.getAttribute('data-type');
-        
-        const serviceMatch = !serviceFilter || service === serviceFilter;
-        const zoneMatch = !zoneFilter || zone === zoneFilter;
-        const typeMatch = !rateTypeFilter || type === rateTypeFilter;
-        
-        if (serviceMatch && zoneMatch && typeMatch) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
-    });
-}
-
-function resetFilters() {
-    document.getElementById('serviceFilter').value = '';
-    document.getElementById('zoneFilter').value = '';
-    document.getElementById('rateTypeFilter').value = '';
-    filterRates();
-}
-
-function exportRates() {
-    window.location.href = '/fedex/data-management/rates/export';
-}
-
-function lookupRate() {
-    const service = document.getElementById('lookupService').value;
-    const zone = document.getElementById('lookupZone').value;
-    const weight = document.getElementById('lookupWeight').value;
-    
-    if (!service || !zone || !weight) {
-        alert('Please fill in all lookup fields');
-        return;
-    }
-    
-    // This would make an AJAX call to lookup the rate
-    fetch('/fedex/data-management/rates/lookup', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
+document.addEventListener('DOMContentLoaded', function() {
+    {% if rate_cards %}
+    // Initialize DataTables
+    $('#rateCardsTable').DataTable({
+        responsive: true,
+        pageLength: 50,
+        lengthMenu: [[25, 50, 100, 200, -1], [25, 50, 100, 200, "All"]],
+        order: [[0, 'asc'], [1, 'asc'], [4, 'asc']], // Sort by rate card, service, weight
+        columnDefs: [
+            {
+                targets: [6], // Rate column
+                className: 'text-end'
+            }
+        ],
+        language: {
+            search: "Search rate cards:",
+            lengthMenu: "Show _MENU_ rate cards per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ rate cards",
+            infoEmpty: "Showing 0 to 0 of 0 rate cards",
+            infoFiltered: "(filtered from _MAX_ total rate cards)",
+            paginate: {
+                first: "First",
+                last: "Last", 
+                next: "Next",
+                previous: "Previous"
+            }
         },
-        body: JSON.stringify({
-            service: service,
-            zone: zone,
-            weight: parseFloat(weight)
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        const resultsDiv = document.getElementById('lookupResults');
-        const displayDiv = document.getElementById('lookupDisplay');
-        
-        if (data.success) {
-            displayDiv.innerHTML = `
-                <strong>Rate Found:</strong> ${data.rate.currency} ${data.rate.total_rate} 
-                (Base: ${data.rate.base_rate}, Per kg: ${data.rate.per_kg_rate || 0})
-            `;
-            displayDiv.className = 'alert alert-success';
-        } else {
-            displayDiv.innerHTML = `<strong>No rate found</strong> for the specified criteria.`;
-            displayDiv.className = 'alert alert-warning';
-        }
-        
-        resultsDiv.style.display = 'block';
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error looking up rate');
+        dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-5"i><"col-sm-7"p>>'
     });
-}
-</script>
+    {% endif %}
 
+    // Export functions (defined globally)
+    window.exportToExcel = function() {
+        try {
+            // Prefer reliable server-side export to avoid browser/CDN issues
+            var a = document.createElement('a');
+            a.href = '/fedex/rates/export?format=xlsx';
+            a.setAttribute('download', '');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return;
+        } catch (error) {
+            console.error('Server export failed, falling back to client-side Excel:', error);
+        }
+
+        // Fallback to client-side generation if server route is unavailable
+        try {
+            var spinner = document.createElement('div');
+            spinner.id = 'excelExportSpinner';
+            spinner.style.position = 'fixed';
+            spinner.style.top = '20px';
+            spinner.style.right = '20px';
+            spinner.style.zIndex = '2000';
+            spinner.style.padding = '8px 12px';
+            spinner.style.borderRadius = '6px';
+            spinner.style.background = '#000000cc';
+            spinner.style.color = '#fff';
+            spinner.style.fontSize = '13px';
+            spinner.textContent = 'Generating Excel…';
+            document.body.appendChild(spinner);
+
+            var dt = $('#rateCardsTable').DataTable();
+
+            // Headers from DOM
+            var headers = [];
+            $('#rateCardsTable thead th').each(function(){ headers.push($(this).text().trim()); });
+
+            // Get all rows via DataTables API (includes non-DOM pages)
+            var rows = dt.rows({ search: 'applied' }).data().toArray();
+            var tmpDiv = document.createElement('div');
+            var aoa = [headers];
+            for (var r = 0; r < rows.length; r++) {
+                var row = rows[r];
+                var clean = [];
+                for (var c = 0; c < row.length; c++) {
+                    tmpDiv.innerHTML = row[c];
+                    clean.push(tmpDiv.textContent.trim());
+                }
+                aoa.push(clean);
+            }
+
+            // If XLSX is available, use it with auto-fit columns
+            if (typeof XLSX !== 'undefined' && XLSX && XLSX.utils) {
+                var ws = XLSX.utils.aoa_to_sheet(aoa);
+                var colWidths = headers.map(function(h, idx){
+                    var maxLen = h.length;
+                    for (var i = 1; i < aoa.length; i++) {
+                        var val = (aoa[i][idx] || '').toString();
+                        if (val.length > maxLen) maxLen = val.length;
+                    }
+                    return { wch: Math.min(maxLen + 2, 50) };
+                });
+                ws['!cols'] = colWidths;
+
+                var wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'FedEx Rate Cards');
+                var wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                var blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'fedex_rate_cards_' + new Date().toISOString().slice(0,10) + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+            } else {
+                // Fallback: build an Excel-compatible HTML file (.xls)
+                var html = '<html><head><meta charset="utf-8" />' +
+                           '<style>table{border-collapse:collapse} td,th{border:1px solid #ccc;padding:4px;white-space:nowrap;}</style>' +
+                           '</head><body><table><thead><tr>' +
+                           headers.map(function(h){ return '<th>' + h.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</th>'; }).join('') +
+                           '</tr></thead><tbody>' +
+                           aoa.slice(1).map(function(row){
+                               return '<tr>' + row.map(function(cell){
+                                   var v = (cell == null ? '' : String(cell)).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+                                   return '<td>' + v + '</td>';
+                               }).join('') + '</tr>';
+                           }).join('') +
+                           '</tbody></table></body></html>';
+
+                var blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'fedex_rate_cards_' + new Date().toISOString().slice(0,10) + '.xls';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+            }
+
+            // Done
+            document.body.removeChild(spinner);
+        } catch (error) {
+            console.error('Excel export error:', error);
+            try { var sp = document.getElementById('excelExportSpinner'); if (sp) document.body.removeChild(sp); } catch(e){}
+            alert('Excel export failed. Falling back to CSV. Error: ' + (error && error.message ? error.message : error));
+            if (typeof window.exportToCSV === 'function') {
+                window.exportToCSV();
+            }
+        }
+    };
+
+    window.exportToCSV = function() {
+        var table = $('#rateCardsTable').DataTable();
+        
+        // Get table headers
+        var headers = [];
+        $('#rateCardsTable thead th').each(function() {
+            headers.push('"' + $(this).text().trim().replace(/"/g, '""') + '"');
+        });
+        
+        // Get table data
+        var csvContent = headers.join(",") + "\n";
+        table.rows({ search: 'applied' }).every(function() {
+            var rowData = [];
+            $(this.node()).find('td').each(function() {
+                // Clean text content and escape quotes
+                var cellText = $(this).text().trim().replace(/"/g, '""');
+                rowData.push('"' + cellText + '"');
+            });
+            csvContent += rowData.join(",") + "\n";
+        });
+        
+        // Download CSV
+        var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', 'fedex_rate_cards_' + new Date().toISOString().slice(0,10) + '.csv');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+});
+</script>
 {% endblock %}

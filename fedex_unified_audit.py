@@ -22,42 +22,76 @@ class FedExUnifiedAudit:
         self.vat_rate = 0.06  # 6%
     
     def get_zone_mapping(self, origin_country, dest_country):
-        """Get zone mapping for country pair"""
+        """Get zone mapping for country pair using DB view when available; fallback to safe heuristics."""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
+        origin_raw = (origin_country or '').strip()
+        dest_raw = (dest_country or '').strip()
+        origin_cc = origin_raw.upper()
+        dest_cc = dest_raw.upper()
+
         try:
-            # Map short codes to full names
-            country_mapping = {
-                'US': 'United States, PR',
-                'HK': 'Hong Kong',
-                'CN': 'China',
-                'JP': 'Japan'
+            # Map ISO country codes to names used in fedex_zone_matrix (origin name column)
+            iso_to_name = {
+                'US': 'United States, PR', 'PR': 'United States, PR',
+                'HK': 'Hong Kong', 'CN': 'China', 'JP': 'Japan', 'KR': 'South Korea',
+                'IT': 'Italy', 'IE': 'Ireland', 'DE': 'Germany', 'FR': 'France', 'GB': 'United Kingdom',
+                'UK': 'United Kingdom', 'NL': 'Netherlands', 'BE': 'Belgium', 'ES': 'Spain', 'PT': 'Portugal',
+                'CH': 'Switzerland', 'AT': 'Austria', 'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark',
+                'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic', 'SK': 'Slovakia', 'HU': 'Hungary',
+                'RO': 'Romania', 'BG': 'Bulgaria', 'GR': 'Greece', 'LT': 'Lithuania', 'LV': 'Latvia',
+                'EE': 'Estonia', 'SG': 'Singapore', 'MY': 'Malaysia', 'TH': 'Thailand', 'TW': 'Taiwan',
+                'PH': 'Philippines', 'VN': 'Vietnam', 'AE': 'United Arab Emirates', 'SA': 'Saudi Arabia',
+                'IN': 'India', 'MX': 'Mexico', 'CA': 'Canada', 'AU': 'Australia', 'NZ': 'New Zealand'
             }
-            
-            full_origin = country_mapping.get(origin_country, origin_country)
-            
-            cursor.execute('''
-                SELECT zone_letter FROM fedex_zone_matrix 
-                WHERE origin_country = ? AND destination_region LIKE ?
-            ''', (full_origin, f'%{dest_country}%'))
-            
-            result = cursor.fetchone()
-            if result:
-                return result[0]
-            
-            # Fallback mappings based on known FedEx zones
+            full_origin = iso_to_name.get(origin_cc, origin_raw)
+
+            # 1) Prefer the DB view if present (fedex_zone_lookup: origin_country name + destination_country ISO)
+            try:
+                cursor.execute('''
+                    SELECT zone_letter FROM fedex_zone_lookup
+                    WHERE origin_country = ? AND destination_country = ?
+                    LIMIT 1
+                ''', (full_origin, dest_cc))
+                row = cursor.fetchone()
+                if row and row[0]:
+                    return row[0]
+            except sqlite3.Error:
+                # View missing or schema mismatch; continue to fallback
+                pass
+
+            # 2) Fallback to direct matrix using destination region names when obvious (e.g., CN -> 'China')
+            dest_region_guess = {
+                'CN': 'China', 'HK': 'China',
+                'JP': 'NPAC', 'KR': 'NPAC',
+                'SG': 'Asia One', 'MY': 'Asia One', 'TH': 'Asia One', 'TW': 'Asia One',
+                'AU': 'Asia Two', 'NZ': 'Asia Two', 'ID': 'Asia Two', 'PH': 'Asia Two', 'VN': 'Asia Two',
+                'US': 'US, AK, HI, PR', 'PR': 'US, AK, HI, PR', 'CA': 'Canada',
+                'AE': 'Middle East', 'SA': 'IQ, AF, SA', 'IN': 'India Sub.'
+            }.get(dest_cc, None)
+
+            if dest_region_guess:
+                cursor.execute('''
+                    SELECT zone_letter FROM fedex_zone_matrix
+                    WHERE origin_country = ? AND destination_region = ?
+                    LIMIT 1
+                ''', (full_origin, dest_region_guess))
+                result = cursor.fetchone()
+                if result and result[0]:
+                    return result[0]
+
+            # 3) Last-resort hardcoded pairs for common routes
             zone_map = {
-                ('US', 'CN'): 'F',
-                ('HK', 'CN'): 'A', 
-                ('JP', 'CN'): 'B',
-                ('United States, PR', 'CN'): 'F',
-                ('Hong Kong', 'CN'): 'A'
+                ('US', 'CN'): 'F', ('United States, PR', 'China'): 'F',
+                ('HK', 'CN'): 'A', ('Hong Kong', 'China'): 'A',
+                ('JP', 'CN'): 'B', ('Japan', 'China'): 'B',
+                ('IT', 'CN'): 'L', ('Italy', 'China'): 'L',
+                ('IE', 'CN'): 'L', ('Ireland', 'China'): 'L'
             }
-            
-            zone = zone_map.get((origin_country, dest_country)) or zone_map.get((full_origin, dest_country))
+            zone = zone_map.get((origin_cc, dest_cc)) or zone_map.get((full_origin, 'China'))
             return zone if zone else 'UNKNOWN'
-            
+
         finally:
             conn.close()
 
@@ -70,46 +104,59 @@ class FedExUnifiedAudit:
             # Under 21kg: round up to next 0.5kg increment
             return math.ceil(actual_weight * 2) / 2
 
+    def _normalize_service(self, service_type: str):
+        s = (service_type or '').upper()
+        if 'ECONOMY' in s or s == 'IE':
+            return 'ECONOMY_EXPRESS', ('IE', 'IEKG')
+        # default to Priority
+        return 'PRIORITY_EXPRESS', ('IP', 'IPKG')
+
     def get_fedex_rate(self, chargeable_weight, zone, service_type='PRIORITY_EXPRESS'):
-        """Get FedEx rate for weight and zone"""
+        """Get FedEx rate for weight and zone (service aware)"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
         try:
+            norm_service, (fixed_rate_type, perkg_rate_type) = self._normalize_service(service_type)
+            # Round to nearest 0.5 per FedEx rules for <= 21kg
+            cw = chargeable_weight
+            if cw <= 21:
+                cw = (int(cw * 2 + 0.0001) / 2.0)
+            
             # For packages <= 20.5kg, use IP rates
-            if chargeable_weight <= 20.5:
+            if cw <= 20.5:
                 cursor.execute('''
                     SELECT rate_usd FROM fedex_rate_cards
                     WHERE service_type = ? AND zone_code = ? 
                     AND weight_from = ? AND weight_to = ?
-                    AND rate_type = 'IP'
+                    AND rate_type = ?
                     LIMIT 1
-                ''', (service_type, zone, chargeable_weight, chargeable_weight))
+                ''', (norm_service, zone, cw, cw, fixed_rate_type))
                 
                 result = cursor.fetchone()
                 if result:
                     return {
                         'rate_usd': float(result[0]),
-                        'rate_type': 'IP',
+                        'rate_type': fixed_rate_type,
                         'is_per_kg': False
                     }
             
             # For heavyweight packages (>20kg), use per-kg IPKG rates
-            if chargeable_weight > 20:
+            if cw > 20:
                 cursor.execute('''
                     SELECT rate_usd FROM fedex_rate_cards
                     WHERE service_type = ? AND zone_code = ? 
-                    AND rate_type = 'IPKG'
+                    AND rate_type = ?
                     LIMIT 1
-                ''', (service_type, zone))
+                ''', (norm_service, zone, perkg_rate_type))
                 
                 result = cursor.fetchone()
                 if result:
                     rate_per_kg = float(result[0])
-                    total_rate = rate_per_kg * chargeable_weight
+                    total_rate = rate_per_kg * cw
                     return {
                         'rate_usd': total_rate,
-                        'rate_type': 'IPKG',
+                        'rate_type': perkg_rate_type,
                         'rate_per_kg': rate_per_kg,
                         'is_per_kg': True
                     }
@@ -129,8 +176,9 @@ class FedExUnifiedAudit:
         try:
             # Get AWB details from database
             cursor.execute('''
-                SELECT awb_number, origin_country, dest_country, actual_weight_kg, 
-                       total_awb_amount_cny, service_type, exchange_rate
+                SELECT awb_number, origin_country, dest_country, actual_weight_kg,
+                       chargeable_weight_kg, total_awb_amount_cny, service_type, exchange_rate,
+                       service_abbrev
                 FROM fedex_invoices 
                 WHERE invoice_no = ? AND awb_number = ?
             ''', (invoice_no, awb_number))
@@ -139,7 +187,7 @@ class FedExUnifiedAudit:
             if not awb_data:
                 return {'success': False, 'error': f'AWB {awb_number} not found in invoice {invoice_no}'}
             
-            awb_num, origin, dest, actual_weight, claimed_cny, service_type, exchange_rate = awb_data
+            awb_num, origin, dest, actual_weight, chargeable_weight_db, claimed_cny, service_type, exchange_rate, service_abbrev = awb_data
             
             if verbose:
                 print(f"\n🔍 AUDITING AWB: {awb_num}")
@@ -152,21 +200,27 @@ class FedExUnifiedAudit:
             if verbose:
                 print(f"📍 Zone: {origin} → {dest} = Zone {zone}")
             
-            # Step 2: Weight rounding
-            chargeable_weight = self.round_weight_for_billing(actual_weight)
+            # Step 2: Determine chargeable weight (prefer DB chargeable weight)
+            calc_weight = chargeable_weight_db if (chargeable_weight_db and chargeable_weight_db > 0) else actual_weight
+            chargeable_weight = self.round_weight_for_billing(calc_weight)
             if verbose:
-                weight_rule = ">21kg → full kg" if actual_weight > 21 else "≤21kg → 0.5kg increment"
-                print(f"⚖️  Weight: {actual_weight}kg → {chargeable_weight}kg ({weight_rule})")
+                weight_rule = ">21kg → full kg" if calc_weight > 21 else "≤21kg → 0.5kg increment"
+                print(f"⚖️  Weight: {calc_weight}kg → {chargeable_weight}kg ({weight_rule})")
             
-            # Step 3: Rate lookup
-            rate_info = self.get_fedex_rate(chargeable_weight, zone)
+            # Step 3: Rate lookup (use actual service type from invoice)
+            # Prefer concise service abbreviation (e.g., IE/IP) if available for normalization
+            effective_service = (service_abbrev or service_type or '').strip()
+            rate_info = self.get_fedex_rate(chargeable_weight, zone, service_type=effective_service)
             if not rate_info:
+                norm_service, (fixed_rt, perkg_rt) = self._normalize_service(effective_service)
                 return {
-                    'success': False, 
-                    'error': f'No rate found for {chargeable_weight}kg in zone {zone}',
+                    'success': False,
+                    'error': f'No rate found for {chargeable_weight}kg in zone {zone} (service {effective_service} → {norm_service}, try {fixed_rt}/{perkg_rt})',
                     'awb_number': awb_num,
                     'zone': zone,
-                    'chargeable_weight': chargeable_weight
+                    'chargeable_weight': chargeable_weight,
+                    'normalized_service': norm_service,
+                    'expected_rate_types': [fixed_rt, perkg_rt]
                 }
             
             base_cost_usd = rate_info['rate_usd']
@@ -369,6 +423,112 @@ class FedExUnifiedAudit:
             return False
         finally:
             conn.close()
+    
+    def audit_batch_invoices(self, invoice_list, verbose=False):
+        """
+        Audit multiple invoices in batch
+        
+        Args:
+            invoice_list: List of invoice numbers to audit
+            verbose: Whether to print detailed output
+            
+        Returns:
+            Dict with batch audit results
+        """
+        print(f"DEBUG: audit_batch_invoices called with {len(invoice_list)} invoices: {invoice_list}")
+        
+        if verbose:
+            print(f"🚀 Starting batch audit for {len(invoice_list)} invoices")
+        
+        results = {
+            'success': True,
+            'total_invoices': len(invoice_list),
+            'successful_audits': 0,
+            'failed_audits': 0,
+            'errors': [],
+            'invoice_results': [],
+            'total_variance': 0
+        }
+        
+        for invoice_no in invoice_list:
+            try:
+                print(f"DEBUG: Processing invoice {invoice_no}")
+                
+                if verbose:
+                    print(f"\n📋 Auditing invoice: {invoice_no}")
+                
+                # Audit this invoice
+                print(f"DEBUG: Calling audit_invoice for {invoice_no}")
+                invoice_result = self.audit_invoice(invoice_no, verbose=verbose)
+                print(f"DEBUG: audit_invoice returned: {invoice_result.get('success', False)}")
+                
+                if invoice_result['success']:
+                    # Update database with results
+                    print(f"DEBUG: Calling update_audit_results for {invoice_no}")
+                    if self.update_audit_results(invoice_result):
+                        results['successful_audits'] += 1
+                        results['total_variance'] += invoice_result.get('total_variance_cny', 0)
+                        results['invoice_results'].append({
+                            'invoice_no': invoice_no,
+                            'status': 'success',
+                            'awb_count': invoice_result.get('awb_count', 0),
+                            'variance': invoice_result.get('total_variance_cny', 0)
+                        })
+                        
+                        if verbose:
+                            print(f"✅ Successfully audited invoice {invoice_no}")
+                    else:
+                        results['failed_audits'] += 1
+                        error_msg = f"Failed to save audit results for invoice {invoice_no}"
+                        results['errors'].append(error_msg)
+                        results['invoice_results'].append({
+                            'invoice_no': invoice_no,
+                            'status': 'failed',
+                            'error': error_msg
+                        })
+                        
+                        if verbose:
+                            print(f"❌ {error_msg}")
+                else:
+                    results['failed_audits'] += 1
+                    error_msg = f"Audit failed for invoice {invoice_no}: {invoice_result.get('error', 'Unknown error')}"
+                    results['errors'].append(error_msg)
+                    results['invoice_results'].append({
+                        'invoice_no': invoice_no,
+                        'status': 'failed',
+                        'error': error_msg
+                    })
+                    
+                    if verbose:
+                        print(f"❌ {error_msg}")
+                        
+            except Exception as e:
+                results['failed_audits'] += 1
+                error_msg = f"Exception auditing invoice {invoice_no}: {str(e)}"
+                results['errors'].append(error_msg)
+                results['invoice_results'].append({
+                    'invoice_no': invoice_no,
+                    'status': 'error',
+                    'error': error_msg
+                })
+                
+                print(f"DEBUG: Exception in audit_batch_invoices for {invoice_no}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                
+                if verbose:
+                    print(f"💥 {error_msg}")
+        
+        # Set overall success status
+        results['success'] = results['failed_audits'] == 0
+        
+        if verbose:
+            print(f"\n📊 Batch audit completed:")
+            print(f"   ✅ Successful: {results['successful_audits']}")
+            print(f"   ❌ Failed: {results['failed_audits']}")
+            print(f"   💰 Total variance: ¥{results['total_variance']:.2f}")
+        
+        return results
 
 def test_unified_audit():
     """Test both single AWB and batch invoice audit"""
