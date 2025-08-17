@@ -33,13 +33,16 @@ class FedExUnifiedAudit:
 
         try:
             # Map ISO country codes to names used in fedex_zone_matrix (origin name column)
+            # IMPORTANT: Use origin names that match fedex_zone_matrix exactly.
+            # Some rows use specific casing (e.g., 'Czech republic').
+            # We'll also do case-insensitive SQL compares as a safety net.
             iso_to_name = {
                 'US': 'United States, PR', 'PR': 'United States, PR',
                 'HK': 'Hong Kong', 'CN': 'China', 'JP': 'Japan', 'KR': 'South Korea',
                 'IT': 'Italy', 'IE': 'Ireland', 'DE': 'Germany', 'FR': 'France', 'GB': 'United Kingdom',
                 'UK': 'United Kingdom', 'NL': 'Netherlands', 'BE': 'Belgium', 'ES': 'Spain', 'PT': 'Portugal',
                 'CH': 'Switzerland', 'AT': 'Austria', 'SE': 'Sweden', 'NO': 'Norway', 'DK': 'Denmark',
-                'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech Republic', 'SK': 'Slovakia', 'HU': 'Hungary',
+                'FI': 'Finland', 'PL': 'Poland', 'CZ': 'Czech republic', 'SK': 'Slovakia', 'HU': 'Hungary',
                 'RO': 'Romania', 'BG': 'Bulgaria', 'GR': 'Greece', 'LT': 'Lithuania', 'LV': 'Latvia',
                 'EE': 'Estonia', 'SG': 'Singapore', 'MY': 'Malaysia', 'TH': 'Thailand', 'TW': 'Taiwan',
                 'PH': 'Philippines', 'VN': 'Vietnam', 'AE': 'United Arab Emirates', 'SA': 'Saudi Arabia',
@@ -51,7 +54,7 @@ class FedExUnifiedAudit:
             try:
                 cursor.execute('''
                     SELECT zone_letter FROM fedex_zone_lookup
-                    WHERE origin_country = ? AND destination_country = ?
+                    WHERE LOWER(origin_country) = LOWER(?) AND destination_country = ?
                     LIMIT 1
                 ''', (full_origin, dest_cc))
                 row = cursor.fetchone()
@@ -74,7 +77,7 @@ class FedExUnifiedAudit:
             if dest_region_guess:
                 cursor.execute('''
                     SELECT zone_letter FROM fedex_zone_matrix
-                    WHERE origin_country = ? AND destination_region = ?
+                    WHERE LOWER(origin_country) = LOWER(?) AND destination_region = ?
                     LIMIT 1
                 ''', (full_origin, dest_region_guess))
                 result = cursor.fetchone()

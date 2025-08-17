@@ -116,6 +116,70 @@
                         </div>
                         <div class="card-body">
                             {% if rate_cards %}
+                            <!-- Filter Controls -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title mb-3">
+                                                <i class="fas fa-filter me-2"></i>Filter Options
+                                                <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearAllFilters()">
+                                                    <i class="fas fa-times me-1"></i>Clear All
+                                                </button>
+                                            </h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-3">
+                                                    <label for="filterRateCard" class="form-label small">Rate Card</label>
+                                                    <select class="form-select form-select-sm" id="filterRateCard">
+                                                        <option value="">All Rate Cards</option>
+                                                        {% for rate_card in rate_cards|map(attribute='rate_card_name')|unique|sort %}
+                                                        <option value="{{ rate_card }}">{{ rate_card }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="filterService" class="form-label small">Service</label>
+                                                    <select class="form-select form-select-sm" id="filterService">
+                                                        <option value="">All Services</option>
+                                                        {% for service in rate_cards|map(attribute='service_type')|unique|sort %}
+                                                        <option value="{{ service }}">{{ service }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="filterZone" class="form-label small">Zone</label>
+                                                    <select class="form-select form-select-sm" id="filterZone">
+                                                        <option value="">All Zones</option>
+                                                        {% for zone in rate_cards|map(attribute='zone_code')|unique|sort %}
+                                                        <option value="{{ zone }}">{{ zone }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="filterRateType" class="form-label small">Rate Type</label>
+                                                    <select class="form-select form-select-sm" id="filterRateType">
+                                                        <option value="">All Types</option>
+                                                        {% for rate_type in rate_cards|map(attribute='rate_type')|unique|sort %}
+                                                        <option value="{{ rate_type }}">{{ rate_type }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label for="filterWeightRange" class="form-label small">Weight Range</label>
+                                                    <input type="text" class="form-control form-control-sm" id="filterWeightRange" placeholder="e.g. 5, 10-15">
+                                                </div>
+                                                <div class="col-md-1">
+                                                    <label class="form-label small">&nbsp;</label>
+                                                    <button type="button" class="btn btn-primary btn-sm d-block" id="applyFilters">
+                                                        <i class="fas fa-filter me-1"></i>Apply
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <div class="table-responsive">
                                 <table class="table table-hover table-sm" id="rateCardsTable" style="width:100%">
                                     <thead>
@@ -132,7 +196,7 @@
                                     </thead>
                                     <tbody>
                                         {% for rate in rate_cards %}
-                                        <tr>
+                                        <tr data-rate-card="{{ rate.rate_card_name }}" data-service="{{ rate.service_type }}" data-zone="{{ rate.zone_code }}" data-rate-type="{{ rate.rate_type }}">
                                             <td>
                                                 <span class="badge bg-primary rate-badge">{{ rate.rate_card_name }}</span>
                                             </td>
@@ -160,7 +224,7 @@
                                             <td>
                                                 {% if rate.rate_type == 'OL' %}
                                                     <span class="badge bg-info rate-badge">Overweight</span>
-                                                {% elif rate.rate_type == 'PAX' %}
+                                                {% elif rate.rate_type == 'PAK' %}
                                                     <span class="badge bg-warning rate-badge">Package</span>
                                                 {% else %}
                                                     <span class="badge bg-secondary rate-badge">{{ rate.rate_type }}</span>
@@ -211,7 +275,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     {% if rate_cards %}
     // Initialize DataTables
-    $('#rateCardsTable').DataTable({
+    var table = $('#rateCardsTable').DataTable({
         responsive: true,
         pageLength: 50,
         lengthMenu: [[25, 50, 100, 200, -1], [25, 50, 100, 200, "All"]],
@@ -223,7 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         ],
         language: {
-            search: "Search rate cards:",
             lengthMenu: "Show _MENU_ rate cards per page",
             info: "Showing _START_ to _END_ of _TOTAL_ rate cards",
             infoEmpty: "Showing 0 to 0 of 0 rate cards",
@@ -235,10 +298,162 @@ document.addEventListener('DOMContentLoaded', function() {
                 previous: "Previous"
             }
         },
-        dom: '<"row"<"col-sm-6"l><"col-sm-6"f>>' +
+        dom: '<"row"<"col-sm-6"l><"col-sm-6">>' +
              '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-5"i><"col-sm-7"p>>'
     });
+
+    // Define the applyFilters function locally first
+    function applyFilters() {
+        console.log('=== APPLY FILTERS FUNCTION CALLED ===');
+        
+    var rateCardFilter   = (document.getElementById('filterRateCard').value || '').trim();
+    var serviceFilter    = (document.getElementById('filterService').value || '').trim();
+    var zoneFilter       = (document.getElementById('filterZone').value || '').trim();
+    var rateTypeFilter   = (document.getElementById('filterRateType').value || '').trim();
+    var weightRangeFilter= (document.getElementById('filterWeightRange').value || '').trim();
+
+        console.log('Filter values:', {
+            rateCard: rateCardFilter,
+            service: serviceFilter, 
+            zone: zoneFilter,
+            rateType: rateTypeFilter,
+            weightRange: weightRangeFilter
+        });
+
+        // Check if table exists and has data
+        var tableData = table.data();
+        console.log('Table has', tableData.length, 'total rows');
+        if (tableData.length > 0) {
+            console.log('First row raw data:', tableData[0]);
+        }
+
+        // Use a single custom search function for all filters
+        $.fn.dataTable.ext.search.length = 0;
+        if (rateCardFilter || serviceFilter || zoneFilter || rateTypeFilter || weightRangeFilter) {
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                // Apply only to our specific table
+                if (settings.nTable && settings.nTable.id !== 'rateCardsTable') {
+                    return true;
+                }
+
+                var rowNode = table.row(dataIndex).node();
+                var attrRateCard = (rowNode.getAttribute('data-rate-card') || '').trim();
+                var attrService  = (rowNode.getAttribute('data-service') || '').trim();
+                var attrZone     = (rowNode.getAttribute('data-zone') || '').trim();
+                var attrType     = (rowNode.getAttribute('data-rate-type') || '').trim();
+                function cellText(html) {
+                    var tmp = document.createElement('div');
+                    tmp.innerHTML = html == null ? '' : String(html);
+                    return tmp.textContent.trim();
+                }
+
+                var rateCard    = attrRateCard || cellText(data[0]);
+                var service     = attrService  || cellText(data[1]);
+                var zone        = attrZone     || cellText(data[3]);
+                var weightRange =               cellText(data[4]);
+                var rateType    = attrType     || cellText(data[5]);
+
+                // Debug first few rows to verify extraction
+                if (dataIndex < 3) {
+                    console.log('Row['+dataIndex+'] extracted:', { rateCard, service, zone, rateType, weightRange });
+                }
+
+                // Normalize for comparison
+                function norm(s){ return (s||'').toString().trim().toUpperCase(); }
+                var nRateCard = norm(rateCard);
+                var nService  = norm(service);
+                var nZone     = norm(zone);
+                var nType     = norm(rateType);
+
+                if (rateCardFilter && nRateCard !== norm(rateCardFilter)) return false;
+                if (serviceFilter && nService !== norm(serviceFilter)) return false;
+                if (zoneFilter && nZone !== norm(zoneFilter)) return false;
+
+                if (rateTypeFilter) {
+                    // reverse map labels to codes
+                    var actualRateType = nType;
+                    if (nType === 'OVERWEIGHT') actualRateType = 'OL';
+                    else if (nType === 'PACKAGE') actualRateType = 'PAK';
+                    if (norm(actualRateType) !== norm(rateTypeFilter)) return false;
+                }
+
+                if (weightRangeFilter) {
+                    var filterValue = weightRangeFilter.trim();
+                    if (!matchesWeightFilter(weightRange, filterValue)) return false;
+                }
+
+                return true;
+            });
+        }
+        
+        // Redraw the table
+        table.draw();
+    }
+
+    // Add event listener for Apply Filters button
+    document.getElementById('applyFilters').addEventListener('click', function() {
+        console.log('=== APPLY BUTTON CLICKED ===');
+        var rateCardFilter = document.getElementById('filterRateCard').value;
+        var serviceFilter = document.getElementById('filterService').value;
+        var zoneFilter = document.getElementById('filterZone').value;
+        var rateTypeFilter = document.getElementById('filterRateType').value;
+        var weightRangeFilter = document.getElementById('filterWeightRange').value;
+        
+        console.log('Filters selected:', {
+            rateCard: rateCardFilter,
+            service: serviceFilter,
+            zone: zoneFilter,
+            rateType: rateTypeFilter,
+            weightRange: weightRangeFilter
+        });
+        
+        applyFilters();
+    });
+
+    // Also make it available globally for the Clear button
+    window.applyFilters = applyFilters;
+
+    window.matchesWeightFilter = function(weightRange, filterValue) {
+        try {
+            // Parse the weight range from table (e.g., "5 - 10", "20 +")
+            var rangeMatch = weightRange.match(/(\d+(?:\.\d+)?)\s*-?\s*(\d+(?:\.\d+)?)?/);
+            if (!rangeMatch) return false;
+
+            var rangeStart = parseFloat(rangeMatch[1]);
+            var rangeEnd = rangeMatch[2] ? parseFloat(rangeMatch[2]) : rangeStart;
+
+            // Parse filter value
+            if (filterValue.includes('-')) {
+                // Range filter (e.g., "5-10")
+                var filterParts = filterValue.split('-');
+                var filterStart = parseFloat(filterParts[0].trim());
+                var filterEnd = parseFloat(filterParts[1].trim());
+                
+                // Check for overlap
+                return rangeStart <= filterEnd && rangeEnd >= filterStart;
+            } else {
+                // Single weight filter (e.g., "5")
+                var targetWeight = parseFloat(filterValue);
+                return rangeStart <= targetWeight && rangeEnd >= targetWeight;
+            }
+        } catch (e) {
+            return true; // If parsing fails, include the row
+        }
+    };
+
+    window.clearAllFilters = function() {
+        document.getElementById('filterRateCard').value = '';
+        document.getElementById('filterService').value = '';
+        document.getElementById('filterZone').value = '';
+        document.getElementById('filterRateType').value = '';
+        document.getElementById('filterWeightRange').value = '';
+
+    // Clear ALL filters and redraw
+    $.fn.dataTable.ext.search.length = 0;
+        table.draw();
+    };
+
     {% endif %}
 
     // Export functions (defined globally)
