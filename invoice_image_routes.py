@@ -25,54 +25,81 @@ def allowed_file(filename):
 
 @image_routes.route('/invoice-images/upload', methods=['GET', 'POST'])
 def upload_invoice_image():
-    """Upload page for invoice images"""
+    """Upload page for invoice images - supports multiple files"""
     if request.method == 'POST':
         try:
             # Get form data
-            invoice_number = request.form.get('invoice_number', '').strip().upper()
             invoice_type = request.form.get('invoice_type', '')
             description = request.form.get('description', '')
             uploaded_by = request.form.get('uploaded_by', 'web_user')
             
-            # Validate inputs
-            if not invoice_number:
-                flash('Invoice number is required', 'error')
+            # Validate invoice type including FEDEX
+            if invoice_type not in ['DHL_EXPRESS', 'FEDEX', 'DGF']:
+                flash('Please select a valid carrier type (DHL Express, FedEx, or DGF)', 'error')
                 return render_template('invoice_images/upload.html')
             
-            if invoice_type not in ['DHL_EXPRESS', 'DGF']:
-                flash('Please select a valid invoice type', 'error')
+            # Get files from request
+            files = request.files.getlist('files')
+            invoice_numbers = request.form.getlist('invoice_numbers')
+            
+            if not files or len(files) == 0:
+                flash('No files selected', 'error')
                 return render_template('invoice_images/upload.html')
             
-            # Check if file was uploaded
-            if 'file' not in request.files:
-                flash('No file selected', 'error')
+            if len(files) != len(invoice_numbers):
+                flash('Number of files must match number of invoice numbers', 'error')
                 return render_template('invoice_images/upload.html')
             
-            file = request.files['file']
-            if file.filename == '':
-                flash('No file selected', 'error')
-                return render_template('invoice_images/upload.html')
+            # Process each file
+            successful_uploads = []
+            failed_uploads = []
             
-            # Validate file type
-            if not allowed_file(file.filename):
-                flash(f'File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}', 'error')
-                return render_template('invoice_images/upload.html')
+            for i, (file, invoice_number) in enumerate(zip(files, invoice_numbers)):
+                # Validate individual file
+                if not file or file.filename == '':
+                    failed_uploads.append(f'File {i+1}: No file selected')
+                    continue
+                
+                invoice_number = invoice_number.strip().upper()
+                if not invoice_number:
+                    failed_uploads.append(f'File {i+1} ({file.filename}): Invoice number is required')
+                    continue
+                
+                # Validate file type
+                if not allowed_file(file.filename):
+                    failed_uploads.append(f'File {i+1} ({file.filename}): File type not allowed. Allowed types: {", ".join(ALLOWED_EXTENSIONS)}')
+                    continue
+                
+                try:
+                    # Optional: Validate invoice exists in database
+                    validate_invoice = request.form.get('validate_invoice', 'on') == 'on'
+                    if validate_invoice:
+                        if not validate_invoice_exists(invoice_number, invoice_type):
+                            # Just log as warning but continue
+                            flash(f'Invoice {invoice_number} not found in {invoice_type} database - uploaded anyway', 'warning')
+                    
+                    # Save the image
+                    result = save_invoice_image(invoice_number, invoice_type, file, uploaded_by, description)
+                    
+                    if result['success']:
+                        successful_uploads.append(f'{invoice_number} ({file.filename})')
+                    else:
+                        failed_uploads.append(f'{invoice_number} ({file.filename}): {result["error"]}')
+                        
+                except Exception as e:
+                    failed_uploads.append(f'{invoice_number} ({file.filename}): {str(e)}')
             
-            # Optional: Validate invoice exists in database
-            validate_invoice = request.form.get('validate_invoice', 'on') == 'on'
-            if validate_invoice:
-                if not validate_invoice_exists(invoice_number, invoice_type):
-                    flash(f'Invoice {invoice_number} not found in {invoice_type} database', 'warning')
-                    # Allow upload anyway, but show warning
+            # Show results
+            if successful_uploads:
+                flash(f'Successfully uploaded {len(successful_uploads)} image(s): {", ".join(successful_uploads)}', 'success')
             
-            # Save the image
-            result = save_invoice_image(invoice_number, invoice_type, file, uploaded_by, description)
+            if failed_uploads:
+                for error in failed_uploads:
+                    flash(f'Upload failed: {error}', 'error')
             
-            if result['success']:
-                flash(f'Image uploaded successfully for invoice {invoice_number}', 'success')
+            if successful_uploads and not failed_uploads:
                 return redirect(url_for('images.invoice_images_dashboard'))
             else:
-                flash(f'Upload failed: {result["error"]}', 'error')
                 return render_template('invoice_images/upload.html')
                 
         except Exception as e:

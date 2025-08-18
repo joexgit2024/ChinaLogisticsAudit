@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Upload Invoice Image{% endblock %}
+{% block title %}Upload Invoice Images{% endblock %}
 
 {% block content %}
 <style>
@@ -37,34 +37,46 @@
             padding: 20px;
             margin-bottom: 20px;
         }
-    .type-option {
-        padding: 15px;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-align: center;
-    }
-    .type-option:hover {
-        border-color: #0d6efd;
-        background: #f8f9fa;
-    }
-    .type-option.selected {
-        border-color: #0d6efd;
-        background: #e7f3ff;
-    }
-    .form-section {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
+        .type-option {
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        .type-option:hover {
+            border-color: #0d6efd;
+            background: #f8f9fa;
+        }
+        .type-option.selected {
+            border-color: #0d6efd;
+            background: #e7f3ff;
+        }
+        .form-section {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .file-preview-card {
+            height: 100%;
+            transition: transform 0.2s ease;
+        }
+        .file-preview-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .dragover {
+            background-color: #e7f3ff !important;
+            border-color: #0d6efd !important;
+        }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0">
-        <i class="fas fa-upload me-2"></i>Upload Invoice Image
+        <i class="fas fa-upload me-2"></i>Upload Invoice Images
     </h1>
     <a href="{{ url_for('images.invoice_images_dashboard') }}" class="btn btn-outline-primary">
         <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
@@ -96,10 +108,10 @@
                     <div class="invoice-type-selector">
                         <h5 class="mb-3"><i class="fas fa-tag me-2"></i>Invoice Type</h5>
                         <p class="text-muted mb-3">
-                            <strong>Please select whether this upload belongs to DHL Express or DGF invoices</strong>
+                            <strong>Please select the carrier type for your invoice images</strong>
                         </p>
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="type-option" onclick="selectInvoiceType('DHL_EXPRESS')">
                                     <input type="radio" name="invoice_type" value="DHL_EXPRESS" id="dhl_express" required style="display: none;">
                                     <i class="fas fa-shipping-fast fa-2x text-success mb-2"></i>
@@ -107,7 +119,15 @@
                                     <small class="text-muted">DHL Express invoices</small>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <div class="type-option" onclick="selectInvoiceType('FEDEX')">
+                                    <input type="radio" name="invoice_type" value="FEDEX" id="fedex" required style="display: none;">
+                                    <i class="fas fa-plane fa-2x text-warning mb-2"></i>
+                                    <h6>FedEx</h6>
+                                    <small class="text-muted">FedEx invoices</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="type-option" onclick="selectInvoiceType('DGF')">
                                     <input type="radio" name="invoice_type" value="DGF" id="dgf" required style="display: none;">
                                     <i class="fas fa-file-invoice fa-2x text-info mb-2"></i>
@@ -118,46 +138,44 @@
                         </div>
                     </div>
 
-                    <!-- Invoice Number -->
-                    <div class="form-section">
-                        <h5 class="mb-3"><i class="fas fa-hashtag me-2"></i>Invoice Number</h5>
-                        <div class="mb-3">
-                            <label for="invoice_number" class="form-label">Invoice Number *</label>
-                            <input type="text" class="form-control" id="invoice_number" name="invoice_number" 
-                                   placeholder="Enter invoice number (e.g., MELR001510911)" required>
-                            <div class="form-text">
-                                Enter the exact invoice number as it appears on the invoice
-                            </div>
+                    <!-- Invoice Numbers (Dynamic based on file count) -->
+                    <div class="form-section" id="invoiceNumbersSection" style="display: none;">
+                        <h5 class="mb-3"><i class="fas fa-hashtag me-2"></i>Invoice Numbers</h5>
+                        <div class="alert alert-warning" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Important:</strong> Enter the invoice number for each file in the same order as uploaded.
                         </div>
+                        <div id="invoiceNumberInputs"></div>
                     </div>
 
                     <!-- File Upload -->
                     <div class="form-section">
-                        <h5 class="mb-3"><i class="fas fa-file-upload me-2"></i>Upload Image</h5>
+                        <h5 class="mb-3"><i class="fas fa-file-upload me-2"></i>Upload Images</h5>
+                        <div class="alert alert-info" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Multiple Upload:</strong> You can upload multiple invoice images at once. Each image should be for a single invoice.
+                        </div>
                         
                         <!-- Drag & Drop Zone -->
-                        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('file').click()">
+                        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('files').click()">
                             <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                             <h5>Drag & Drop or Click to Upload</h5>
                             <p class="text-muted mb-0">Supported formats: JPG, PNG, PDF, TIFF</p>
-                            <p class="text-muted">Maximum file size: 10 MB</p>
+                            <p class="text-muted">Maximum file size: 10 MB per file</p>
+                            <p class="text-info"><strong>Multiple files supported!</strong></p>
                         </div>
                         
-                        <input type="file" class="form-control d-none" id="file" name="file" 
-                               accept=".jpg,.jpeg,.png,.pdf,.tiff,.tif" required>
+                        <input type="file" class="form-control d-none" id="files" name="files" 
+                               accept=".jpg,.jpeg,.png,.pdf,.tiff,.tif" multiple required>
                         
-                        <!-- File Preview -->
-                        <div id="filePreview" class="preview-container" style="display: none;">
+                        <!-- Files Preview -->
+                        <div id="filesPreview" class="preview-container" style="display: none;">
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle me-2"></i>
-                                <span id="fileName"></span>
-                                <button type="button" class="btn-close float-end" onclick="clearFile()"></button>
+                                <span id="fileCount">0 files selected</span>
+                                <button type="button" class="btn-close float-end" onclick="clearFiles()"></button>
                             </div>
-                            <img id="previewImage" class="file-preview" style="display: none;">
-                            <div id="pdfPreview" style="display: none;">
-                                <i class="fas fa-file-pdf fa-5x text-danger mb-2"></i>
-                                <p class="text-muted">PDF file selected</p>
-                            </div>
+                            <div id="filesList" class="row"></div>
                         </div>
                     </div>
 
@@ -174,7 +192,7 @@
                     <!-- Submit Button -->
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
-                            <i class="fas fa-upload me-2"></i>Upload Invoice Image
+                            <i class="fas fa-upload me-2"></i>Upload Invoice Images
                         </button>
                         <a href="{{ url_for('images.invoice_images_dashboard') }}" class="btn btn-outline-secondary">
                             <i class="fas fa-times me-2"></i>Cancel
@@ -187,6 +205,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Global variables
+        let selectedFiles = [];
+        
         // Invoice type selection
         function selectInvoiceType(type) {
             // Clear previous selections
@@ -199,162 +220,193 @@
             document.querySelector(`input[value="${type}"]`).closest('.type-option').classList.add('selected');
         }
 
-        // File upload handling
+        // File handling
+        document.getElementById('files').addEventListener('change', function(e) {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and drop functionality
         const uploadZone = document.getElementById('uploadZone');
-        const fileInput = document.getElementById('file');
-        const filePreview = document.getElementById('filePreview');
-        const fileName = document.getElementById('fileName');
-        const previewImage = document.getElementById('previewImage');
-        const pdfPreview = document.getElementById('pdfPreview');
-
-        // Drag and drop events
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.classList.add('dragover');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
         });
-
-        uploadZone.addEventListener('dragleave', (e) => {
+        
+        function preventDefaults(e) {
             e.preventDefault();
-            uploadZone.classList.remove('dragover');
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.add('dragover'), false);
         });
-
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.classList.remove('dragover');
-            
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, () => uploadZone.classList.remove('dragover'), false);
+        });
+        
+        uploadZone.addEventListener('drop', function(e) {
             const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                handleFileSelect(files[0]);
-            }
+            document.getElementById('files').files = files;
+            handleFiles(files);
         });
 
-        // File input change
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
-            }
-        });
-
-        function handleFileSelect(file) {
-            fileName.textContent = file.name;
-            filePreview.style.display = 'block';
-            uploadZone.style.display = 'none';
-
-            // Extract potential invoice number from filename using regex
-            extractInvoiceNumberFromFilename(file.name);
-
-            // Show appropriate preview
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewImage.style.display = 'block';
-                    pdfPreview.style.display = 'none';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                previewImage.style.display = 'none';
-                pdfPreview.style.display = 'block';
-            }
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            displayFilesPreview();
+            generateInvoiceNumberInputs();
         }
 
-        function extractInvoiceNumberFromFilename(filename) {
-            const invoiceNumberInput = document.getElementById('invoice_number');
+        function displayFilesPreview() {
+            const filesPreview = document.getElementById('filesPreview');
+            const fileCount = document.getElementById('fileCount');
+            const filesList = document.getElementById('filesList');
             
-            // Skip if user has already entered an invoice number
-            if (invoiceNumberInput.value.trim() !== '') {
+            if (selectedFiles.length === 0) {
+                filesPreview.style.display = 'none';
                 return;
             }
             
+            fileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected`;
+            filesPreview.style.display = 'block';
+            
+            // Clear previous previews
+            filesList.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileDiv = document.createElement('div');
+                fileDiv.className = 'col-md-6 col-lg-4 mb-3';
+                
+                const fileCard = document.createElement('div');
+                fileCard.className = 'card file-preview-card';
+                fileCard.innerHTML = `
+                    <div class="card-body text-center">
+                        <div class="file-icon mb-2">
+                            ${getFileIcon(file.type)}
+                        </div>
+                        <h6 class="card-title text-truncate">${file.name}</h6>
+                        <small class="text-muted">${formatFileSize(file.size)}</small>
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="removeFile(${index})">
+                            <i class="fas fa-times"></i> Remove
+                        </button>
+                    </div>
+                `;
+                
+                fileDiv.appendChild(fileCard);
+                filesList.appendChild(fileDiv);
+            });
+        }
+
+        function getFileIcon(fileType) {
+            if (fileType.startsWith('image/')) {
+                return '<i class="fas fa-image fa-2x text-primary"></i>';
+            } else if (fileType === 'application/pdf') {
+                return '<i class="fas fa-file-pdf fa-2x text-danger"></i>';
+            } else {
+                return '<i class="fas fa-file fa-2x text-secondary"></i>';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            
+            // Update file input
+            const dt = new DataTransfer();
+            selectedFiles.forEach(file => dt.items.add(file));
+            document.getElementById('files').files = dt.files;
+            
+            displayFilesPreview();
+            generateInvoiceNumberInputs();
+        }
+
+        function clearFiles() {
+            selectedFiles = [];
+            document.getElementById('files').value = '';
+            document.getElementById('filesPreview').style.display = 'none';
+            document.getElementById('invoiceNumbersSection').style.display = 'none';
+        }
+
+        function generateInvoiceNumberInputs() {
+            const section = document.getElementById('invoiceNumbersSection');
+            const inputsContainer = document.getElementById('invoiceNumberInputs');
+            
+            if (selectedFiles.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            inputsContainer.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'mb-3';
+                
+                // Try to extract invoice number from filename
+                const extractedNumber = extractInvoiceNumberFromFilename(file.name);
+                
+                inputGroup.innerHTML = `
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-hashtag"></i>
+                        </span>
+                        <input type="text" class="form-control" name="invoice_numbers" 
+                               placeholder="Invoice number for ${file.name}" required
+                               value="${extractedNumber || ''}"
+                               data-file-index="${index}">
+                        <span class="input-group-text bg-light">
+                            <small class="text-muted">${file.name}</small>
+                        </span>
+                    </div>
+                    ${extractedNumber ? '<small class="text-success"><i class="fas fa-magic"></i> Auto-detected from filename</small>' : ''}
+                `;
+                inputsContainer.appendChild(inputGroup);
+            });
+        }
+
+        function extractInvoiceNumberFromFilename(filename) {
             // Regex patterns for different invoice formats
             const patterns = [
                 /J\d{7}/i,           // China format: J followed by 7 digits (J9835528)
-                /SUZR\d{9}/i,        // DHL Express format: SUZR followed by 9 digits (SUZR001862880)
+                /SUZR\d{8,10}/i,     // DHL Express format: SUZR followed by 8-10 digits
                 /MEL\w{8,12}/i,      // General MEL format
                 /\b[A-Z]\d{7,9}\b/i, // General: Letter followed by 7-9 digits
                 /\b\d{7,10}\b/       // Fallback: 7-10 digits only
             ];
             
-            let extractedNumber = null;
-            
-            // Try each pattern in order of preference
             for (const pattern of patterns) {
                 const match = filename.match(pattern);
                 if (match) {
-                    extractedNumber = match[0].toUpperCase();
-                    break;
+                    return match[0].toUpperCase();
                 }
             }
             
-            // If we found a potential invoice number, populate the field
-            if (extractedNumber) {
-                invoiceNumberInput.value = extractedNumber;
-                
-                // Add visual feedback with a small animation
-                invoiceNumberInput.style.backgroundColor = '#e7f3ff';
-                invoiceNumberInput.style.border = '2px solid #0d6efd';
-                
-                // Show a small notification
-                const notification = document.createElement('div');
-                notification.className = 'alert alert-info alert-dismissible fade show mt-2';
-                notification.innerHTML = `
-                    <i class="fas fa-magic me-2"></i>
-                    <small>Auto-detected invoice number: <strong>${extractedNumber}</strong> from filename. You can edit if needed.</small>
-                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
-                `;
-                
-                // Insert notification after the invoice number input
-                const invoiceSection = invoiceNumberInput.closest('.form-section');
-                invoiceSection.appendChild(notification);
-                
-                // Auto-remove notification after 5 seconds
-                setTimeout(() => {
-                    if (notification && notification.parentNode) {
-                        notification.remove();
-                    }
-                }, 5000);
-                
-                // Reset input styling after 2 seconds
-                setTimeout(() => {
-                    invoiceNumberInput.style.backgroundColor = '';
-                    invoiceNumberInput.style.border = '';
-                }, 2000);
-            }
+            return null;
         }
 
-        function clearFile() {
-            fileInput.value = '';
-            filePreview.style.display = 'none';
-            uploadZone.style.display = 'block';
-            previewImage.style.display = 'none';
-            pdfPreview.style.display = 'none';
-        }
-
-        // Form submission with invoice type check
+        // Form submission validation
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             // Check if invoice type is selected
-            const dhlChecked = document.getElementById('dhl_express').checked;
-            const dgfChecked = document.getElementById('dgf').checked;
-            
-            if (!dhlChecked && !dgfChecked) {
-                e.preventDefault(); // Prevent form submission
+            const invoiceType = document.querySelector('input[name="invoice_type"]:checked');
+            if (!invoiceType) {
+                e.preventDefault();
                 
-                // Remove any existing alert
-                const existingAlert = document.getElementById('invoiceTypeAlert');
-                if (existingAlert) {
-                    existingAlert.remove();
-                }
-                
-                // Create and show alert
+                // Show alert
                 const alertDiv = document.createElement('div');
-                alertDiv.id = 'invoiceTypeAlert';
                 alertDiv.className = 'alert alert-danger alert-dismissible fade show';
                 alertDiv.role = 'alert';
                 alertDiv.innerHTML = `
                     <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Invoice Type Required!</strong> 
-                    Please select whether this upload belongs to DHL Express or DGF invoices before uploading.
+                    <strong>Carrier Type Required!</strong> 
+                    Please select whether this upload belongs to DHL Express, FedEx, or DGF invoices before uploading.
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 `;
                 

@@ -21,7 +21,7 @@ def create_image_table():
         CREATE TABLE IF NOT EXISTS invoice_images (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             invoice_number VARCHAR(50) NOT NULL,
-            invoice_type VARCHAR(20) NOT NULL CHECK (invoice_type IN ('DHL_EXPRESS', 'DGF')),
+            invoice_type VARCHAR(20) NOT NULL CHECK (invoice_type IN ('DHL_EXPRESS', 'FEDEX', 'DGF')),
             image_filename VARCHAR(255) NOT NULL,
             image_path VARCHAR(500) NOT NULL,
             original_filename VARCHAR(255),
@@ -49,6 +49,7 @@ def create_image_table():
     
     # Create subdirectories for organization
     os.makedirs(f'{upload_dir}/dhl_express', exist_ok=True)
+    os.makedirs(f'{upload_dir}/fedex', exist_ok=True)
     os.makedirs(f'{upload_dir}/dgf', exist_ok=True)
     
     conn.commit()
@@ -91,7 +92,7 @@ def save_invoice_image(invoice_number: str, invoice_type: str, file, uploaded_by
     """Save an uploaded invoice image"""
     try:
         # Validate invoice type
-        if invoice_type not in ['DHL_EXPRESS', 'DGF']:
+        if invoice_type not in ['DHL_EXPRESS', 'FEDEX', 'DGF']:
             return {'success': False, 'error': 'Invalid invoice type'}
         
         # Create filename with timestamp to avoid conflicts
@@ -101,8 +102,15 @@ def save_invoice_image(invoice_number: str, invoice_type: str, file, uploaded_by
         new_filename = f"{invoice_type.lower()}_{safe_invoice}_{timestamp}{file_ext}"
         
         # Determine storage path
-        subdir = 'dhl_express' if invoice_type == 'DHL_EXPRESS' else 'dgf'
+        if invoice_type == 'DHL_EXPRESS':
+            subdir = 'dhl_express'
+        elif invoice_type == 'FEDEX':
+            subdir = 'fedex'
+        else:  # DGF
+            subdir = 'dgf'
+        
         upload_dir = f'uploads/invoice_images/{subdir}'
+        os.makedirs(upload_dir, exist_ok=True)  # Ensure directory exists
         file_path = os.path.join(upload_dir, new_filename)
         
         # Save file
@@ -180,18 +188,30 @@ def validate_invoice_exists(invoice_number: str, invoice_type: str) -> bool:
     conn = sqlite3.connect('dhl_audit.db')
     cursor = conn.cursor()
     
-    if invoice_type == 'DHL_EXPRESS':
-        cursor.execute('SELECT 1 FROM dhl_express_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
-    elif invoice_type == 'DGF':
-        cursor.execute('SELECT 1 FROM dhl_ytd_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
-    else:
+    try:
+        if invoice_type == 'DHL_EXPRESS':
+            # Try both Chinese and legacy tables
+            cursor.execute('SELECT 1 FROM dhl_express_china_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
+            result = cursor.fetchone()
+            if not result:
+                cursor.execute('SELECT 1 FROM dhl_express_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
+                result = cursor.fetchone()
+        elif invoice_type == 'FEDEX':
+            cursor.execute('SELECT 1 FROM fedex_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
+            result = cursor.fetchone()
+        elif invoice_type == 'DGF':
+            cursor.execute('SELECT 1 FROM dhl_ytd_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
+            result = cursor.fetchone()
+        else:
+            result = None
+            
         conn.close()
+        return result is not None
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error validating invoice {invoice_number}: {e}")
         return False
-    
-    result = cursor.fetchone()
-    conn.close()
-    
-    return result is not None
 
 if __name__ == "__main__":
     create_image_table()
