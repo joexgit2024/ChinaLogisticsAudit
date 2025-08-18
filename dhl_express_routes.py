@@ -106,102 +106,154 @@ def upload_dhl_express_files(user_data=None):
                         sheet_names = wb.sheetnames
                         wb.close()
                         
-                        # Check if it's AU Domestic rate card
-                        au_domestic_sheets = ['AU Zones TD Dom', 'AU Matrix TD Dom', 'AU TD Dom']
-                        if all(sheet in sheet_names for sheet in au_domestic_sheets):
-                            # Process as AU Domestic rate card
+                        # Check if it's CN (Chinese) International rate card
+                        cn_international_sheets = ['CN TD Exp WW', 'CN TD Imp WW']
+                        if any(sheet in sheet_names for sheet in cn_international_sheets):
+                            # Process as Chinese International rate card
                             try:
-                                from enhanced_au_domestic_loader import EnhancedAUDomesticRateCardLoader
+                                from dhl_express_china_rate_card_loader import DHLExpressChinaRateCardLoader
                                 
-                                loader = EnhancedAUDomesticRateCardLoader()
-                                result = loader.load_rate_card(
-                                    file_path, 
-                                    uploaded_by=user_data.get('username', 'system') if user_data else 'system',
-                                    replace_existing=True
-                                )
+                                loader = DHLExpressChinaRateCardLoader()
+                                result = loader.load_complete_rate_cards(file_path)
                                 
-                                if result['status'] == 'success':
+                                if result['success']:
                                     file_result = {
                                         'filename': filename,
-                                        'type': 'au_domestic_rate_card',
+                                        'type': 'cn_international_rate_card',
                                         'result': {
                                             'success': True,
-                                            'message': 'AU Domestic rate card loaded successfully',
+                                            'message': 'Chinese International rate card loaded successfully',
                                             'details': {
-                                                'zones_loaded': result['zones_loaded'],
-                                                'matrix_loaded': result['matrix_loaded'],
-                                                'rates_loaded': result['rates_loaded'],
-                                                'mode': 'replace_existing'
+                                                'import_rates_loaded': result['import_rates_loaded'],
+                                                'export_rates_loaded': result['export_rates_loaded'],
+                                                'sections_processed': result['sections_processed'],
+                                                'currency': 'CNY'
                                             },
-                                            'records_processed': f"Zones: {result['zones_loaded']}, Matrix: {result['matrix_loaded']}, Rates: {result['rates_loaded']}"
+                                            'records_processed': f"Import: {result['import_rates_loaded']}, Export: {result['export_rates_loaded']}"
                                         }
                                     }
                                 else:
                                     file_result = {
                                         'filename': filename,
-                                        'type': 'au_domestic_rate_card',
+                                        'type': 'cn_international_rate_card',
                                         'result': {
                                             'success': False,
-                                            'message': 'AU Domestic rate card loading failed',
-                                            'error': '; '.join(result['errors']) if result['errors'] else 'Unknown error'
+                                            'message': 'Chinese International rate card loading failed',
+                                            'error': result.get('error', 'Unknown error')
                                         }
                                     }
                                     
-                            except Exception as au_domestic_error:
+                            except Exception as cn_rate_error:
                                 file_result = {
                                     'filename': filename,
-                                    'type': 'au_domestic_rate_card',
+                                    'type': 'cn_international_rate_card',
                                     'result': {
                                         'success': False,
-                                        'message': f'AU Domestic rate card loading failed: {str(au_domestic_error)}',
-                                        'error': str(au_domestic_error),
-                                        'error_type': type(au_domestic_error).__name__
+                                        'message': f'Chinese International rate card loading failed: {str(cn_rate_error)}',
+                                        'error': str(cn_rate_error),
+                                        'error_type': type(cn_rate_error).__name__
                                     }
                                 }
-                        else:
-                            # Process as international rate card Excel using comprehensive fixed loader
+                        
+                        # Check if it's Chinese invoice file (has Table1 sheet with DHL invoice data)
+                        elif 'Table1' in sheet_names:
+                            # Check if it looks like a Chinese DHL invoice
                             try:
-                                from comprehensive_fixed_rate_card_loader import ComprehensiveFixedRateCardLoader
-                                
-                                loader = ComprehensiveFixedRateCardLoader()
-                                # Load both Export and Import sheets
-                                result_export = loader.load_rate_card_from_excel(file_path, 'Export', 'AU TD Exp WW')
-                                result_import = loader.load_rate_card_from_excel(file_path, 'Import', 'AU TD Imp WW')
-                                result = result_export and result_import
-                                
-                                if result:
-                                    file_result = {
-                                        'filename': filename,
-                                        'type': 'rate_card_excel',
-                                        'result': {
-                                            'success': True,
-                                            'message': 'International rate card loaded successfully using comprehensive fixed loader (no duplicates)',
-                                            'details': {'export_loaded': result_export, 'import_loaded': result_import},
-                                            'records_processed': 'Export and Import rate cards processed'
+                                # Quick peek at the structure
+                                test_df = pd.read_excel(file_path, sheet_name='Table1', nrows=1)
+                                expected_columns = ['Air waybill', 'Invoice Number', 'BCU Total', 'LCU Total']
+                                if all(col in test_df.columns for col in expected_columns):
+                                    # Process as Chinese invoice
+                                    from dhl_express_china_invoice_loader import DHLExpressChinaInvoiceLoader
+                                    
+                                    loader = DHLExpressChinaInvoiceLoader()
+                                    result = loader.load_invoices_from_excel(file_path, 
+                                                                            user_data.get('username', 'unknown') if user_data else 'system')
+                                    
+                                    if result['success']:
+                                        file_result = {
+                                            'filename': filename,
+                                            'type': 'cn_invoice',
+                                            'result': {
+                                                'success': True,
+                                                'message': 'Chinese DHL invoices loaded successfully',
+                                                'details': {
+                                                    'records_loaded': result['records_loaded'],
+                                                    'total_records': result['total_records'],
+                                                    'upload_id': result['upload_id']
+                                                },
+                                                'records_processed': result['records_loaded']
+                                            }
                                         }
-                                    }
+                                    else:
+                                        file_result = {
+                                            'filename': filename,
+                                            'type': 'cn_invoice',
+                                            'result': {
+                                                'success': False,
+                                                'message': 'Chinese DHL invoice loading failed',
+                                                'error': result.get('error', 'Unknown error')
+                                            }
+                                        }
                                 else:
                                     file_result = {
                                         'filename': filename,
-                                        'type': 'rate_card_excel',
+                                        'type': 'table1_unknown',
                                         'result': {
                                             'success': False,
-                                            'message': 'International rate card loading failed with comprehensive loader',
-                                            'error': 'No data returned from comprehensive loader'
+                                            'message': 'Table1 sheet found but does not appear to be a DHL invoice format',
+                                            'error': f'Expected columns: {expected_columns}, Found: {list(test_df.columns)[:10]}'
                                         }
                                     }
                                     
-                            except Exception as rate_card_error:
+                            except Exception as invoice_error:
                                 file_result = {
                                     'filename': filename,
-                                    'type': 'rate_card_excel',
+                                    'type': 'cn_invoice_error',
                                     'result': {
                                         'success': False,
-                                        'message': f'Comprehensive rate card loading failed: {str(rate_card_error)}',
-                                        'error': str(rate_card_error),
-                                        'error_type': type(rate_card_error).__name__
+                                        'message': f'Chinese invoice processing failed: {str(invoice_error)}',
+                                        'error': str(invoice_error),
+                                        'error_type': type(invoice_error).__name__
                                     }
                                 }
+                        
+                        # Check if it's AU Domestic rate card (legacy support)
+                        elif 'AU Zones TD Dom' in sheet_names or 'AU Matrix TD Dom' in sheet_names:
+                            file_result = {
+                                'filename': filename,
+                                'type': 'au_domestic_rate_card',
+                                'result': {
+                                    'success': False,
+                                    'message': 'AU Domestic rate cards are no longer supported. Please upload Chinese rate cards.',
+                                    'error': 'This system now only supports Chinese DHL Express rate cards'
+                                }
+                            }
+                        
+                        # Check if it's AU International rate card (legacy support)
+                        elif 'AU TD Exp WW' in sheet_names or 'AU TD Imp WW' in sheet_names:
+                            file_result = {
+                                'filename': filename,
+                                'type': 'au_international_rate_card',
+                                'result': {
+                                    'success': False,
+                                    'message': 'AU International rate cards are no longer supported. Please upload Chinese rate cards.',
+                                    'error': 'This system now only supports Chinese DHL Express rate cards'
+                                }
+                            }
+                        
+                        else:
+                            # Unknown Excel file type
+                            file_result = {
+                                'filename': filename,
+                                'type': 'unknown_excel',
+                                'result': {
+                                    'success': False,
+                                    'message': 'Unknown Excel file format. Expected Chinese DHL Express rate cards (CN TD Exp WW/CN TD Imp WW sheets) or Chinese invoices (Table1 sheet).',
+                                    'error': f'Sheet names found: {", ".join(sheet_names)}',
+                                    'expected_sheets': cn_international_sheets + ['Table1 (for invoices)']
+                                }
+                            }
                         
                     except Exception as detection_error:
                         file_result = {
@@ -392,36 +444,73 @@ def list_dhl_express_invoices(user_data=None):
     """List all DHL Express invoices"""
     engine = DHLExpressAuditEngine()
     
-    # Get invoices from database
+    # Get invoices from database (now using Chinese invoice table)
     import sqlite3
     conn = sqlite3.connect(engine.db_path)
     cursor = conn.cursor()
     
-    cursor.execute('''
-        SELECT DISTINCT invoice_no, invoice_date, company_name, 
-               COUNT(*) as line_count, SUM(amount) as total_amount,
-               MIN(created_timestamp) as loaded_date
-        FROM dhl_express_invoices
-        GROUP BY invoice_no, invoice_date, company_name
-        ORDER BY invoice_date DESC
-    ''')
+    # Check if we have Chinese invoices
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dhl_express_china_invoices'")
+    china_table_exists = cursor.fetchone() is not None
     
-    invoices = cursor.fetchall()
+    if china_table_exists:
+        # Use Chinese invoice table
+        cursor.execute('''
+            SELECT DISTINCT invoice_number, invoice_date, bill_to_account_name, 
+                   COUNT(*) as line_count, SUM(lcu_total) as total_amount,
+                   MIN(created_timestamp) as loaded_date,
+                   local_currency, billing_currency
+            FROM dhl_express_china_invoices
+            GROUP BY invoice_number, invoice_date, bill_to_account_name
+            ORDER BY invoice_date DESC
+        ''')
+        
+        invoices = cursor.fetchall()
+        
+        # Convert to list of dictionaries for Chinese invoices
+        invoice_list = []
+        for inv in invoices:
+            invoice_list.append({
+                'invoice_no': inv[0],
+                'invoice_date': inv[1] if inv[1] else 'N/A',
+                'company_name': inv[2] if inv[2] else 'N/A',
+                'line_count': inv[3],
+                'total_amount': round(inv[4], 2) if inv[4] else 0,
+                'loaded_date': inv[5] if inv[5] else 'N/A',
+                'currency': inv[6] if inv[6] else inv[7],  # Local currency or billing currency
+                'is_chinese': True
+            })
+            
+    else:
+        # Fallback to old AU invoice table (if any legacy data exists)
+        cursor.execute('''
+            SELECT DISTINCT invoice_no, invoice_date, company_name, 
+                   COUNT(*) as line_count, SUM(amount) as total_amount,
+                   MIN(created_timestamp) as loaded_date
+            FROM dhl_express_invoices
+            GROUP BY invoice_no, invoice_date, company_name
+            ORDER BY invoice_date DESC
+        ''')
+        
+        invoices = cursor.fetchall()
+        
+        # Convert to list of dictionaries for AU invoices
+        invoice_list = []
+        for inv in invoices:
+            invoice_list.append({
+                'invoice_no': inv[0],
+                'invoice_date': inv[1],
+                'company_name': inv[2],
+                'line_count': inv[3],
+                'total_amount': round(inv[4], 2),
+                'loaded_date': inv[5],
+                'currency': 'AUD',
+                'is_chinese': False
+            })
+    
     conn.close()
     
-    # Convert to list of dictionaries
-    invoice_list = []
-    for inv in invoices:
-        invoice_list.append({
-            'invoice_no': inv[0],
-            'invoice_date': inv[1],
-            'company_name': inv[2],
-            'line_count': inv[3],
-            'total_amount': round(inv[4], 2),
-            'loaded_date': inv[5]
-        })
-    
-    return render_template('dhl_express_invoices.html', invoices=invoice_list)
+    return render_template('dhl_express_invoices.html', invoices=invoice_list, is_chinese_system=china_table_exists)
 
 @dhl_express_routes.route('/dhl-express/invoice/<invoice_no>')
 @require_auth
@@ -429,6 +518,56 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
     """View detailed DHL Express invoice"""
     engine = DHLExpressAuditEngine()
     
+    # Get invoice details
+    import sqlite3
+    conn = sqlite3.connect(engine.db_path)
+    cursor = conn.cursor()
+    
+    # Check if we have Chinese invoices
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dhl_express_china_invoices'")
+    china_table_exists = cursor.fetchone() is not None
+    
+    if china_table_exists:
+        # Try Chinese invoice table first
+        cursor.execute('''
+            SELECT * FROM dhl_express_china_invoices
+            WHERE invoice_number = ?
+            ORDER BY id
+        ''', (invoice_no,))
+        
+        rows = cursor.fetchall()
+        
+        if rows:
+            # Get column names for Chinese invoice table
+            cursor.execute("PRAGMA table_info(dhl_express_china_invoices)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            # Convert to dictionaries
+            invoice_lines = []
+            for row in rows:
+                line_dict = dict(zip(columns, row))
+                invoice_lines.append(line_dict)
+            
+            # Get invoice header info from first line
+            first_line = invoice_lines[0]
+            invoice_header = {
+                'invoice_no': first_line['invoice_number'],
+                'invoice_date': first_line['invoice_date'] or 'N/A',
+                'company_name': first_line['bill_to_account_name'] or 'N/A',
+                'account_number': first_line['bill_to_account'],
+                'currency': first_line['local_currency'] or first_line['billing_currency'],
+                'total_bcu': sum(line.get('bcu_total', 0) or 0 for line in invoice_lines),
+                'total_lcu': sum(line.get('lcu_total', 0) or 0 for line in invoice_lines),
+                'is_chinese': True
+            }
+            
+            conn.close()
+            return render_template('dhl_express_invoice_detail.html', 
+                                 invoice_header=invoice_header, 
+                                 invoice_lines=invoice_lines,
+                                 is_chinese=True)
+    
+    # Fallback to AU invoice table
     def parse_address_details(address_string):
         """Parse semicolon-separated address details"""
         if not address_string:
@@ -451,12 +590,7 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
         }
         return parsed
     
-    # Get invoice details
-    import sqlite3
-    conn = sqlite3.connect(engine.db_path)
-    cursor = conn.cursor()
-    
-    # Get invoice header
+    # Get AU invoice header
     cursor.execute('''
         SELECT DISTINCT invoice_no, invoice_date, company_name, account_number,
                shipper_details, receiver_details
@@ -466,9 +600,10 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
     
     header = cursor.fetchone()
     if not header:
+        conn.close()
         return "Invoice not found", 404
     
-    # Get invoice lines
+    # Get AU invoice lines  
     cursor.execute('''
         SELECT line_number, dhl_product_description, amount, weight_charge,
                discount_amount, tax_amount, awb_number, weight, origin_code,
@@ -481,14 +616,16 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
     lines = cursor.fetchall()
     conn.close()
     
-    # Convert to dictionaries
+    # Convert to dictionaries for AU invoices
     invoice_header = {
         'invoice_no': header[0],
         'invoice_date': header[1],
         'company_name': header[2],
         'account_number': header[3],
         'shipper': parse_address_details(header[4]),
-        'receiver': parse_address_details(header[5])
+        'receiver': parse_address_details(header[5]),
+        'currency': 'AUD',
+        'is_chinese': False
     }
     
     invoice_lines = []
@@ -529,15 +666,18 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
     
     # Check if invoice image exists for this invoice number
     import sqlite3
-    conn = sqlite3.connect('dhl_audit.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM invoice_images WHERE invoice_number = ? AND invoice_type = ?', 
+    conn_img = sqlite3.connect('dhl_audit.db')
+    cursor_img = conn_img.cursor()
+    cursor_img.execute('SELECT COUNT(*) FROM invoice_images WHERE invoice_number = ? AND invoice_type = ?', 
                    (invoice_no, 'DHL_EXPRESS'))
-    has_invoice_image = cursor.fetchone()[0] > 0
-    conn.close()
+    has_invoice_image = cursor_img.fetchone()[0] > 0
+    conn_img.close()
     
-    return render_template('dhl_express_invoice_details.html', 
-                         header=invoice_header, lines=invoice_lines, has_invoice_image=has_invoice_image)
+    return render_template('dhl_express_invoice_detail.html', 
+                         invoice_header=invoice_header, 
+                         invoice_lines=invoice_lines, 
+                         has_invoice_image=has_invoice_image,
+                         is_chinese=False)
 
 @dhl_express_routes.route('/dhl-express/audit/<invoice_no>')
 @require_auth
