@@ -688,73 +688,141 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
 @require_auth
 def audit_dhl_express_invoice(invoice_no, user_data=None):
     """Audit a specific DHL Express invoice"""
-    # Let's create a minimal HTML page with JavaScript to handle the data
-    engine = DHLExpressAuditEngine()
+    # First check if this is a Chinese invoice
+    import sqlite3
+    conn = sqlite3.connect('dhl_audit.db')
+    cursor = conn.cursor()
+    
+    # Check if Chinese invoice table exists and contains this invoice
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dhl_express_china_invoices'")
+    china_table_exists = cursor.fetchone() is not None
+    
+    is_chinese_invoice = False
+    if china_table_exists:
+        cursor.execute('SELECT COUNT(*) FROM dhl_express_china_invoices WHERE invoice_number = ?', (invoice_no,))
+        is_chinese_invoice = cursor.fetchone()[0] > 0
+    
+    conn.close()
     
     try:
-        audit_result = engine.audit_invoice(invoice_no)
-        
-        # Create a simple HTML page that will redirect to the proper template
-        # Print audit result for debugging
-        print(f"Audit result: {type(audit_result)}")
-        print(f"Keys: {audit_result.keys() if isinstance(audit_result, dict) else 'Not a dict'}")
-        
-        # Parse line_items if it's a string
-        if isinstance(audit_result.get('line_items', None), str):
-            try:
-                audit_result['line_items'] = json.loads(audit_result['line_items'])
-                print(f"Successfully parsed line_items JSON")
-            except Exception as e:
-                print(f"Error parsing line_items JSON: {e}")
-                # Try a less strict parsing
-                import ast
-                try:
-                    audit_result['line_items'] = ast.literal_eval(audit_result['line_items'])
-                    print(f"Parsed line_items with ast.literal_eval")
-                except Exception as e2:
-                    print(f"Failed to parse with ast too: {e2}")
-                    audit_result['line_items'] = []
-        
-        # Ensure all required fields are present
-        if 'line_items' not in audit_result or not audit_result['line_items']:
-            print("No line_items found in audit result")
-            audit_result['line_items'] = []
+        if is_chinese_invoice and DHLExpressChinaAuditEngine is not None:
+            # Use Chinese audit engine
+            print(f"Using Chinese audit engine for invoice {invoice_no}")
+            china_engine = DHLExpressChinaAuditEngine()
+            audit_result = china_engine.audit_invoice(invoice_no)
             
-        # Set consistent field names
-        audit_result['audit_status'] = audit_result.get('status', 'REVIEW')
-        audit_result['detailed_results'] = audit_result.get('line_items', [])
-        
-        # Count failed lines and passed lines
-        failed_lines = 0
-        passed_lines = 0
-        for item in audit_result.get('line_items', []):
-            if item.get('result') == 'FAIL':
-                failed_lines += 1
-            elif item.get('result') == 'PASS':
-                passed_lines += 1
-                
-        audit_result['lines_failed'] = failed_lines
-        audit_result['lines_passed'] = passed_lines
-        audit_result['lines_audited'] = len(audit_result.get('line_items', []))
-        audit_result['confidence_score'] = float(audit_result.get('confidence', 70)) / 100 if float(audit_result.get('confidence', 70)) > 1 else float(audit_result.get('confidence', 0.7))
-        
-        # Calculate variance percentage if not present
-        if 'variance_percentage' not in audit_result or not isinstance(audit_result.get('variance_percentage'), (int, float)):
-            invoice_amount = float(audit_result.get('total_invoice_amount', 0))
-            expected_amount = float(audit_result.get('total_expected_amount', 0))
-            variance = float(audit_result.get('total_variance', 0))
+            # Ensure the result has proper structure for the template
+            if not isinstance(audit_result, dict):
+                audit_result = {'status': 'error', 'error': 'Invalid audit result format'}
             
-            # Calculate variance percentage safely
-            if invoice_amount > 0:
-                audit_result['variance_percentage'] = (variance / invoice_amount) * 100
+            # Standardize field names for compatibility with template
+            audit_result['invoice_no'] = invoice_no
+            audit_result['audit_status'] = audit_result.get('status', 'REVIEW')
+            
+            # Map Chinese audit engine output to template expectations
+            lines = audit_result.get('lines', [])
+            
+            # Transform Chinese audit line results to match template expectations
+            transformed_lines = []
+            for line in lines:
+                transformed_line = {
+                    'line_number': line.get('awb', 'N/A'),  # Use AWB as line identifier
+                    'description': f"AWB {line.get('awb', 'N/A')}",
+                    'result': line.get('audit_status', 'REVIEW').upper(),
+                    'invoiced': line.get('actual_total', 0),
+                    'expected': line.get('expected_total', 0),
+                    'variance': line.get('total_variance', 0),
+                    'comments': line.get('comments', [])
+                }
+                transformed_lines.append(transformed_line)
+            
+            audit_result['line_items'] = transformed_lines
+            audit_result['detailed_results'] = transformed_lines
+            
+            # Extract summary data from Chinese audit engine format
+            summary = audit_result.get('summary', {})
+            audit_result['total_invoice_amount'] = summary.get('total_actual_cny', 0)
+            audit_result['total_expected_amount'] = summary.get('total_expected_cny', 0)
+            audit_result['total_variance'] = summary.get('total_variance_cny', 0)
+            
+            # Calculate summary statistics using transformed line items
+            line_items = audit_result.get('line_items', [])
+            failed_lines = sum(1 for item in line_items if item.get('result') == 'FAIL')
+            passed_lines = sum(1 for item in line_items if item.get('result') == 'PASS')
+            
+            audit_result['lines_failed'] = failed_lines
+            audit_result['lines_passed'] = passed_lines
+            audit_result['lines_audited'] = len(line_items)
+            
+            # Calculate confidence score
+            confidence = audit_result.get('confidence', 85)
+            if isinstance(confidence, (int, float)):
+                audit_result['confidence_score'] = confidence / 100 if confidence > 1 else confidence
+            else:
+                audit_result['confidence_score'] = 0.85
+            
+            # Calculate variance percentage
+            if audit_result['total_expected_amount'] > 0:
+                audit_result['variance_percentage'] = (audit_result['total_variance'] / audit_result['total_expected_amount']) * 100
             else:
                 audit_result['variance_percentage'] = 0.0
-        
-        # Add safety check to ensure we have required fields
-        required_fields = ['invoice_no', 'total_invoice_amount', 'total_expected_amount', 'total_variance']
-        for field in required_fields:
-            if field not in audit_result:
-                audit_result[field] = 0 if field != 'invoice_no' else invoice_no
+            
+        else:
+            # Use legacy AU audit engine
+            print(f"Using legacy AU audit engine for invoice {invoice_no}")
+            engine = DHLExpressAuditEngine()
+            audit_result = engine.audit_invoice(invoice_no)
+            
+            # Parse line_items if it's a string
+            if isinstance(audit_result.get('line_items', None), str):
+                try:
+                    audit_result['line_items'] = json.loads(audit_result['line_items'])
+                    print(f"Successfully parsed line_items JSON")
+                except Exception as e:
+                    print(f"Error parsing line_items JSON: {e}")
+                    try:
+                        import ast
+                        audit_result['line_items'] = ast.literal_eval(audit_result['line_items'])
+                        print(f"Parsed line_items with ast.literal_eval")
+                    except Exception as e2:
+                        print(f"Failed to parse with ast too: {e2}")
+                        audit_result['line_items'] = []
+            
+            # Ensure all required fields are present
+            if 'line_items' not in audit_result or not audit_result['line_items']:
+                print("No line_items found in audit result")
+                audit_result['line_items'] = []
+                
+            # Set consistent field names
+            audit_result['audit_status'] = audit_result.get('status', 'REVIEW')
+            audit_result['detailed_results'] = audit_result.get('line_items', [])
+            
+            # Count failed lines and passed lines
+            failed_lines = sum(1 for item in audit_result.get('line_items', []) if item.get('result') == 'FAIL')
+            passed_lines = sum(1 for item in audit_result.get('line_items', []) if item.get('result') == 'PASS')
+                
+            audit_result['lines_failed'] = failed_lines
+            audit_result['lines_passed'] = passed_lines
+            audit_result['lines_audited'] = len(audit_result.get('line_items', []))
+            audit_result['confidence_score'] = float(audit_result.get('confidence', 70)) / 100 if float(audit_result.get('confidence', 70)) > 1 else float(audit_result.get('confidence', 0.7))
+            
+            # Calculate variance percentage if not present
+            if 'variance_percentage' not in audit_result or not isinstance(audit_result.get('variance_percentage'), (int, float)):
+                invoice_amount = float(audit_result.get('total_invoice_amount', 0))
+                expected_amount = float(audit_result.get('total_expected_amount', 0))
+                variance = float(audit_result.get('total_variance', 0))
+                
+                # Calculate variance percentage safely
+                if expected_amount > 0:
+                    audit_result['variance_percentage'] = (variance / expected_amount) * 100
+                else:
+                    audit_result['variance_percentage'] = 0.0
+            
+            # Add safety check to ensure we have required fields
+            required_fields = ['invoice_no', 'total_invoice_amount', 'total_expected_amount', 'total_variance']
+            for field in required_fields:
+                if field not in audit_result:
+                    audit_result[field] = 0 if field != 'invoice_no' else invoice_no
         
         # Check if invoice image exists for this invoice number
         import sqlite3

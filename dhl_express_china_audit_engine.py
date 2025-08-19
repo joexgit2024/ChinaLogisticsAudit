@@ -313,7 +313,7 @@ class DHLExpressChinaAuditEngine:
             
             audit_result['zone_used'] = zone
             audit_result['comments'].append(
-                f"Origin {origin_code} mapped to Zone {zone}"
+                f"✓ Origin: {origin_code} → Zone {zone} (Import to SZV China)"
             )
             
             # 2. Weight Charge Audit
@@ -342,15 +342,29 @@ class DHLExpressChinaAuditEngine:
                     'variance_percent': weight_variance_pct,
                     'status': (
                         'pass' if abs(weight_variance_pct) <= 5 else 'fail'
-                    )
+                    ),
+                    'rate_card_type': 'DHL Express China Import Weight Rate Card',
+                    'service_type': 'Non-documents Import'
                 }
+                
+                # Enhanced weight charge comments
+                audit_result['comments'].append(
+                    f"📦 Weight: {weight_kg} kg → Zone {zone} Non-documents Import Rate"
+                )
+                audit_result['comments'].append(
+                    f"💰 Rate Card: DHL Express China Import (Zone {zone})"
+                )
+                audit_result['comments'].append(
+                    f"🔍 Expected: CNY {expected_weight_charge:.2f} | Actual: CNY {bcu_weight_charge:.2f} | Variance: {weight_variance_pct:+.1f}%"
+                )
                 
                 if weight_kg > 30:
                     audit_result['comments'].append(
-                        (
-                            "Over-weight shipment (>"
-                            f"{weight_kg}kg) - applied per-kg rate"
-                        )
+                        f"⚠️ Over-weight shipment ({weight_kg}kg > 30kg) - Per-kg rate applied from rate card"
+                    )
+                elif weight_kg <= 30:
+                    audit_result['comments'].append(
+                        f"📋 Standard weight band ({weight_kg}kg ≤ 30kg) - Fixed rate from rate card"
                     )
                 
             else:
@@ -369,11 +383,20 @@ class DHLExpressChinaAuditEngine:
                 'note': (
                     'Fuel surcharges are pass-through; no verification '
                     'required'
-                )
+                ),
+                'policy': 'DHL China passes fuel surcharges directly from origin'
             }
-            audit_result['comments'].append(
-                f"Fuel surcharge CNY {bcu_fuel_surcharges} - pass through"
-            )
+            if bcu_fuel_surcharges > 0:
+                audit_result['comments'].append(
+                    f"⛽ Fuel Surcharge: CNY {bcu_fuel_surcharges:.2f} (Pass-through - No audit required)"
+                )
+                audit_result['comments'].append(
+                    f"📋 Policy: DHL China passes fuel surcharges directly from origin country"
+                )
+            else:
+                audit_result['comments'].append(
+                    f"⛽ Fuel Surcharge: CNY 0.00 (No fuel surcharge applied)"
+                )
             
             # 4. Other Charges Audit
             if bcu_other_charges > 0:
@@ -383,7 +406,8 @@ class DHLExpressChinaAuditEngine:
                 audit_result['other_charges_audit'] = {
                     'amount': bcu_other_charges,
                     'matching_services': matching_services,
-                    'match_count': len(matching_services)
+                    'match_count': len(matching_services),
+                    'audit_method': 'Service charge lookup against DHL Express China service charge table'
                 }
                 
                 if matching_services:
@@ -391,19 +415,25 @@ class DHLExpressChinaAuditEngine:
                         svc['service_name'] for svc in matching_services
                     ]
                     audit_result['comments'].append(
-                        (
-                            f"Other charges CNY {bcu_other_charges} match "
-                            f"{len(matching_services)} services: "
-                            f"{', '.join(service_names)}"
-                        )
+                        f"💼 Other Charges: CNY {bcu_other_charges:.2f} → Found {len(matching_services)} matching services"
+                    )
+                    audit_result['comments'].append(
+                        f"✅ Matched Services: {', '.join(service_names)}"
+                    )
+                    audit_result['comments'].append(
+                        f"📊 Lookup: DHL Express China Service Charge Table"
                     )
                 else:
                     audit_result['comments'].append(
-                        (
-                            f"Other charges CNY {bcu_other_charges} - no "
-                            "matching services found"
-                        )
+                        f"💼 Other Charges: CNY {bcu_other_charges:.2f} → ⚠️ NO MATCHING SERVICES FOUND"
                     )
+                    audit_result['comments'].append(
+                        f"🔍 Searched: DHL Express China Service Charge Table - No matches for CNY {bcu_other_charges:.2f}"
+                    )
+            else:
+                audit_result['comments'].append(
+                    f"💼 Other Charges: CNY 0.00 (No additional services charged)"
+                )
             
             # 5. Calculate Total Variance
             expected_total = (
@@ -416,16 +446,49 @@ class DHLExpressChinaAuditEngine:
             audit_result['expected_total'] = expected_total
             audit_result['actual_total'] = total_charge
             
+            # Enhanced variance calculation comments
+            audit_result['comments'].append(
+                f"🧮 CALCULATION BREAKDOWN:"
+            )
+            audit_result['comments'].append(
+                f"   Weight Charge: CNY {expected_weight_charge or 0:.2f} (Zone {zone} Rate Card)"
+            )
+            audit_result['comments'].append(
+                f"   Fuel Surcharge: CNY {bcu_fuel_surcharges:.2f} (Pass-through)"
+            )
+            audit_result['comments'].append(
+                f"   Other Charges: CNY {bcu_other_charges:.2f} (Service charges)"
+            )
+            audit_result['comments'].append(
+                f"   Expected Total: CNY {expected_total:.2f}"
+            )
+            audit_result['comments'].append(
+                f"   Actual Invoice: CNY {total_charge:.2f}"
+            )
+            audit_result['comments'].append(
+                f"   VARIANCE: CNY {total_variance:+.2f} ({(total_variance/expected_total*100):+.1f}% of expected)"
+            )
+            
             # 6. Determine Overall Status
+            variance_pct = abs(total_variance / expected_total * 100) if expected_total > 0 else 0
             if (
                 audit_result['weight_audit'].get('status') == 'pass'
-                and abs(total_variance) <= (expected_total * 0.05)
+                and variance_pct <= 5.0
             ):
                 audit_result['audit_status'] = 'pass'
+                audit_result['comments'].append(
+                    f"✅ AUDIT RESULT: PASS (Variance {variance_pct:.1f}% ≤ 5% tolerance)"
+                )
             elif audit_result['weight_audit'].get('status') == 'error':
                 audit_result['audit_status'] = 'error'
+                audit_result['comments'].append(
+                    f"❌ AUDIT RESULT: ERROR (Rate lookup failed)"
+                )
             else:
                 audit_result['audit_status'] = 'variance'
+                audit_result['comments'].append(
+                    f"⚠️ AUDIT RESULT: VARIANCE DETECTED (Variance {variance_pct:.1f}% > 5% tolerance)"
+                )
             
             return audit_result
             

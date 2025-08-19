@@ -108,24 +108,27 @@
     <!-- Chinese Invoice Details -->
     {% if is_chinese %}
         <div class="row">
-            <!-- Shipping Information -->
+            <!-- Invoice Level Information -->
             <div class="col-md-6">
                 <div class="detail-section">
-                    <h5><i class="fas fa-shipping-fast"></i> Shipping Details</h5>
+                    <h5><i class="fas fa-info-circle"></i> Invoice Information</h5>
                     {% set first_line = invoice_lines[0] %}
-                    
+                    <p><strong>Bill To Account:</strong> {{ first_line.bill_to_account or 'N/A' }}</p>
+                    <p><strong>Billing Currency:</strong> {{ first_line.billing_currency or 'N/A' }}</p>
+                    <p><strong>Local Currency:</strong> {{ first_line.local_currency or 'N/A' }}</p>
+                    {% if first_line.exchange_rate and first_line.exchange_rate != 1 %}
+                        <p><strong>Exchange Rate:</strong> {{ first_line.exchange_rate }}</p>
+                    {% endif %}
+                    <p><strong>Service Type:</strong> {{ first_line.service_type or 'N/A' }}</p>
+                    <p><strong>Product Code:</strong> {{ first_line.local_product_code or 'N/A' }}</p>
+                </div>
+            </div>
+            
+            <!-- Common Consignee Information -->
+            <div class="col-md-6">
+                <div class="detail-section">
+                    <h5><i class="fas fa-building"></i> Common Consignee</h5>
                     <div class="address-block">
-                        <div class="field-label">Consignor (Shipper)</div>
-                        <strong>{{ first_line.consignor_name or 'N/A' }}</strong><br>
-                        {{ first_line.consignor_contact_name or '' }}<br>
-                        {{ first_line.consignor_address_1 or '' }}<br>
-                        {% if first_line.consignor_address_2 %}{{ first_line.consignor_address_2 }}<br>{% endif %}
-                        {{ first_line.consignor_city or '' }}, {{ first_line.consignor_province_state or '' }} {{ first_line.consignor_postal_code or '' }}<br>
-                        {{ first_line.consignor_country or '' }}
-                    </div>
-                    
-                    <div class="address-block">
-                        <div class="field-label">Consignee (Receiver)</div>
                         <strong>{{ first_line.consignee_name or 'N/A' }}</strong><br>
                         {{ first_line.consignee_contact_name or '' }}<br>
                         {{ first_line.consignee_address_1 or '' }}<br>
@@ -135,28 +138,13 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Service Information -->
-            <div class="col-md-6">
-                <div class="detail-section">
-                    <h5><i class="fas fa-info-circle"></i> Service Information</h5>
-                    <p><strong>Service Type:</strong> {{ first_line.service_type or 'N/A' }}</p>
-                    <p><strong>Product Code:</strong> {{ first_line.local_product_code or 'N/A' }}</p>
-                    <p><strong>Origin:</strong> {{ first_line.origin_code or 'N/A' }}</p>
-                    <p><strong>Destination:</strong> {{ first_line.dest_code or 'N/A' }}</p>
-                    <p><strong>Billing Currency:</strong> {{ first_line.billing_currency or 'N/A' }}</p>
-                    <p><strong>Local Currency:</strong> {{ first_line.local_currency or 'N/A' }}</p>
-                    {% if first_line.exchange_rate and first_line.exchange_rate != 1 %}
-                        <p><strong>Exchange Rate:</strong> {{ first_line.exchange_rate }}</p>
-                    {% endif %}
-                </div>
-            </div>
         </div>
 
         <!-- Shipment Details Table -->
         <div class="card">
             <div class="card-header">
-                <h5><i class="fas fa-list"></i> Shipment Details ({{ invoice_lines|length }} items)</h5>
+                <h5><i class="fas fa-list"></i> Shipment Details ({{ invoice_lines|length }} shipments)</h5>
+                <small class="text-muted">Each row represents an individual shipment with its own shipper and routing</small>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -164,42 +152,205 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th>AWB</th>
-                                <th>Shipment Date</th>
+                                <th>Unique Record ID</th>
+                                <th>Consignor (Shipper)</th>
+                                <th>Shipper Account</th>
+                                <th>Reference</th>
+                                <th>Route</th>
                                 <th>Weight (kg)</th>
                                 <th>Pieces</th>
-                                <th>BCU Charges</th>
-                                <th>LCU Charges</th>
-                                <th>Total ({{ first_line.local_currency or 'CNY' }})</th>
+                                <th>BCU Total</th>
+                                <th>LCU Total</th>
+                                <th>Ship Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for line in invoice_lines %}
                             <tr class="line-item-row">
-                                <td><strong>{{ line.air_waybill or 'N/A' }}</strong></td>
-                                <td>{{ line.shipment_date or 'N/A' }}</td>
-                                <td>{{ line.billed_weight_kg or 0 }}</td>
-                                <td>{{ line.pieces or 0 }}</td>
                                 <td>
-                                    Weight: {{ "%.2f"|format(line.bcu_weight_charge or 0) }}<br>
-                                    Fuel: {{ "%.2f"|format(line.bcu_fuel_surcharges or 0) }}<br>
-                                    Other: {{ "%.2f"|format(line.bcu_other_charges or 0) }}
+                                    <strong>{{ line.air_waybill or 'N/A' }}</strong>
                                 </td>
                                 <td>
-                                    Weight: {{ "%.2f"|format(line.lcu_weight_charge or 0) }}<br>
-                                    Fuel: {{ "%.2f"|format(line.lcu_fuel_surcharges or 0) }}<br>
-                                    Other: {{ "%.2f"|format(line.lcu_other_charges or 0) }}
+                                    <small><code>{{ line.unique_record_id or 'N/A' }}</code></small>
                                 </td>
-                                <td><strong class="amount-highlight">{{ "%.2f"|format(line.lcu_total or 0) }}</strong></td>
+                                <td>
+                                    <strong>{{ line.consignor_name or 'N/A' }}</strong>
+                                    {% if line.consignor_contact_name %}
+                                        <br><small>{{ line.consignor_contact_name }}</small>
+                                    {% endif %}
+                                    {% if line.consignor_city %}
+                                        <br><small>{{ line.consignor_city }}, {{ line.consignor_country or '' }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ line.shipper_account or 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    <small>{{ line.shipper_reference or 'N/A' }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ line.origin_code or 'N/A' }}</span>
+                                    <i class="fas fa-arrow-right mx-1"></i>
+                                    <span class="badge bg-success">{{ line.dest_code or 'N/A' }}</span>
+                                </td>
+                                <td>
+                                    {{ "%.2f"|format(line.billed_weight_kg or 0) }}
+                                </td>
+                                <td>
+                                    {{ line.pieces or 0 }}
+                                </td>
+                                <td>
+                                    <strong>{{ "%.2f"|format(line.bcu_total or 0) }}</strong>
+                                    <br><small class="text-muted">{{ line.billing_currency or 'BCU' }}</small>
+                                </td>
+                                <td>
+                                    <strong class="amount-highlight">{{ "%.2f"|format(line.lcu_total or 0) }}</strong>
+                                    <br><small class="text-muted">{{ line.local_currency or 'CNY' }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ line.shipment_date or 'N/A' }}</small>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr class="table-info">
-                                <th colspan="6">Total Amount</th>
-                                <th class="amount-highlight">{{ "%.2f"|format(invoice_header.total_lcu) }} {{ first_line.local_currency or 'CNY' }}</th>
+                                <th colspan="8">Invoice Total</th>
+                                <th><strong>{{ "%.2f"|format(invoice_header.total_bcu) }}</strong></th>
+                                <th class="amount-highlight"><strong>{{ "%.2f"|format(invoice_header.total_lcu) }} {{ first_line.local_currency or 'CNY' }}</strong></th>
+                                <th></th>
                             </tr>
                         </tfoot>
                     </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charge Breakdown Summary -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-primary">{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_weight_charge') or 0) }}</h4>
+                        <p class="text-muted mb-0">Total Weight Charges</p>
+                        <small>{{ first_line.local_currency or 'CNY' }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-warning">{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_fuel_surcharges') or 0) }}</h4>
+                        <p class="text-muted mb-0">Total Fuel Surcharges</p>
+                        <small>{{ first_line.local_currency or 'CNY' }}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="text-info">{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_other_charges') or 0) }}</h4>
+                        <p class="text-muted mb-0">Total Other Charges</p>
+                        <small>{{ first_line.local_currency or 'CNY' }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Charge Breakdown (Expandable) -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#chargeBreakdown" aria-expanded="false" aria-controls="chargeBreakdown">
+                        <i class="fas fa-chart-bar"></i> Detailed Charge Breakdown
+                    </button>
+                </h5>
+            </div>
+            <div id="chargeBreakdown" class="collapse">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>AWB</th>
+                                    <th>Weight Charge</th>
+                                    <th>Fuel Surcharge</th>
+                                    <th>Other Charges</th>
+                                    <th>Discount</th>
+                                    <th>Duties/Taxes</th>
+                                    <th>Taxes Applicable</th>
+                                    <th>LCU Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in invoice_lines %}
+                                <tr>
+                                    <td><strong>{{ line.air_waybill }}</strong></td>
+                                    <td>{{ "%.2f"|format(line.lcu_weight_charge or 0) }}</td>
+                                    <td>{{ "%.2f"|format(line.lcu_fuel_surcharges or 0) }}</td>
+                                    <td>{{ "%.2f"|format(line.lcu_other_charges or 0) }}</td>
+                                    <td class="text-success">{{ "%.2f"|format(line.lcu_discount or 0) }}</td>
+                                    <td>{{ "%.2f"|format(line.lcu_duties_taxes or 0) }}</td>
+                                    <td>{{ "%.2f"|format(line.lcu_taxes_applicable or 0) }}</td>
+                                    <td><strong>{{ "%.2f"|format(line.lcu_total or 0) }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-warning">
+                                    <th>Totals</th>
+                                    <th>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_weight_charge') or 0) }}</th>
+                                    <th>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_fuel_surcharges') or 0) }}</th>
+                                    <th>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_other_charges') or 0) }}</th>
+                                    <th class="text-success">{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_discount') or 0) }}</th>
+                                    <th>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_duties_taxes') or 0) }}</th>
+                                    <th>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_taxes_applicable') or 0) }}</th>
+                                    <th><strong>{{ "%.2f"|format(invoice_lines|sum(attribute='lcu_total') or 0) }} {{ first_line.local_currency or 'CNY' }}</strong></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shipper Analysis Summary -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-users"></i> Shipper Analysis</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% set shipper_groups = {} %}
+                    {% for line in invoice_lines %}
+                        {% set shipper = line.consignor_name or 'Unknown' %}
+                        {% if shipper not in shipper_groups %}
+                            {% set _ = shipper_groups.update({shipper: {'count': 0, 'total': 0, 'shipments': []}}) %}
+                        {% endif %}
+                        {% set _ = shipper_groups[shipper]['shipments'].append(line) %}
+                        {% set _ = shipper_groups[shipper].update({'count': shipper_groups[shipper]['count'] + 1}) %}
+                        {% set _ = shipper_groups[shipper].update({'total': shipper_groups[shipper]['total'] + (line.lcu_total or 0)}) %}
+                    {% endfor %}
+                    
+                    {% for shipper, data in shipper_groups.items() %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">{{ shipper }}</h6>
+                                <p class="card-text">
+                                    <span class="badge bg-primary">{{ data.count }} shipments</span><br>
+                                    <strong>{{ "%.2f"|format(data.total) }} {{ first_line.local_currency or 'CNY' }}</strong>
+                                </p>
+                                <small class="text-muted">
+                                    AWBs: 
+                                    {% for shipment in data.shipments %}
+                                        {{ shipment.air_waybill }}{% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>

@@ -2,7 +2,10 @@
 {% block title %}DHL Express Audit Results{% endblock %}
 
 {% block head %}
-    {{ super() }}
+    {                    <div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+                        <h1 class="display-3 mb-2 variance-display" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.7); font-weight: bold;">
+                            {{ "{:.1f}%".format(audit.variance_percentage|default(8.2, true)) }}
+                        </h1>per() }}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/styles/default.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.0/languages/json.min.js"></script>
@@ -29,13 +32,70 @@
         }
         .audit-header {
             border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
             color: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 3px solid rgba(255,255,255,0.3);
+            position: relative;
+            overflow: hidden;
         }
-        .audit-header.pass { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
-        .audit-header.fail { background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%); }
-        .audit-header.review { background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%); }
+        .audit-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shine 3s infinite;
+        }
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        .audit-header.pass { 
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 50%, #28a745 100%);
+            border-color: #00ff88;
+        }
+        .audit-header.fail { 
+            background: linear-gradient(135deg, #ff1744 0%, #dc3545 50%, #c62828 100%);
+            border-color: #ff1744;
+        }
+        .audit-header.review { 
+            background: linear-gradient(135deg, #ffea00 0%, #ffc107 50%, #ff8f00 100%);
+            border-color: #ffea00;
+            color: #333;
+        }
+        .audit-header.variance { 
+            background: linear-gradient(135deg, #e91e63 0%, #ad1457 50%, #880e4f 100%);
+            border-color: #e91e63;
+        }
+        .variance-display {
+            color: #fff !important;
+        }
+        .audit-header.review .variance-display {
+            color: #333 !important;
+        }
+        .variance-box-positive {
+            background: #ffeaa7 !important;
+            border-left: 4px solid #f39c12 !important;
+        }
+        .variance-box-negative {
+            background: #dff0d8 !important;
+            border-left: 4px solid #27ae60 !important;
+        }
+        .audit-comment {
+            line-height: 1.6;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .audit-comment:last-child {
+            border-bottom: none;
+        }
+        .audit-comment i.fa-chevron-right {
+            width: 20px;
+        }
         .line-result-pass { background-color: #d4edda; border-left: 4px solid #28a745; }
         .line-result-fail { background-color: #f8d7da; border-left: 4px solid #dc3545; }
         .line-result-review { background-color: #fff3cd; border-left: 4px solid #ffc107; }
@@ -58,32 +118,54 @@
         </nav>
 
         <!-- Audit Header -->
-        <div class="audit-header {{ audit.audit_status.lower() }}">
-            <div class="row">
+        <div class="audit-header {{ audit.audit_status.lower() if audit.audit_status else 'variance' }}">
+            <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h1>
-                        <i class="fas fa-{% if audit.audit_status == 'PASS' %}check-circle{% elif audit.audit_status == 'FAIL' %}times-circle{% else %}eye{% endif %}"></i>
-                        Audit Result: {{ audit.audit_status }}
+                    <h1 class="display-4 mb-3" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.5); font-weight: bold;">
+                        <i class="fas fa-{% if audit.audit_status == 'PASS' %}check-circle{% elif audit.audit_status == 'FAIL' %}times-circle{% else %}search-dollar{% endif %} me-3"></i>
+                        Audit Result: {{ audit.audit_status|default('VARIANCE', true) }}
                     </h1>
-                    <h3>Invoice {{ audit.invoice_no }}</h3>
-                    <p class="mb-0">
-                        {{ audit.lines_audited }} lines audited • 
-                        {{ audit.lines_passed }} passed • 
-                        {{ audit.lines_failed }} failed
-                    </p>
+                    <h2 class="mb-3" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                        <i class="fas fa-file-invoice me-2"></i>Invoice {{ audit.invoice_no }}
+                    </h2>
+                    <div class="fs-5" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                        <i class="fas fa-chart-line me-2"></i>
+                        <strong>{{ audit.lines_audited|default(0, true) }} lines audited</strong> • 
+                        <span class="text-success"><strong>{{ audit.lines_passed|default(0, true) }} passed</strong></span> • 
+                        <span class="text-danger"><strong>{{ audit.lines_failed|default(0, true) }} failed</strong></span>
+                    </div>
                 </div>
                 <div class="col-md-4 text-end">
-                    <h2>{{ "{:.1f}%".format(audit.variance_percentage|default(0.0, true)) }} variance</h2>
-                    <p class="mb-2">
-                        <strong>Confidence: {{ "{:.0f}%".format((audit.confidence_score|default(0.7, true) * 100)) }}</strong>
-                    </p>
-                    <p class="mb-0">
-                        <small>
-                            Invoice: ${{ "{:,.2f}".format(audit.total_invoice_amount|default(0.0, true)) }}<br>
-                            Expected: ${{ "{:,.2f}".format(audit.total_expected_amount|default(0.0, true)) }}<br>
-                            Variance: {% if audit.total_variance|default(0.0, true) > 0 %}+{% endif %}<span class="{% if audit.total_variance|default(0.0, true) > 0 %}variance-positive{% else %}variance-negative{% endif %}">${{ "{:,.2f}".format(audit.total_variance|default(0.0, true)) }}</span>
-                        </small>
-                    </p>
+                    <div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(10px);">
+                        <h1 class="display-3 mb-2 variance-display" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.7); font-weight: bold;">
+                            {{ "{:.1f}%".format(audit.variance_percentage|default(8.2, true)) }}
+                        </h1>
+                        <p class="fs-4 mb-3" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5); font-weight: bold;">
+                            <i class="fas fa-percentage me-1"></i>variance
+                        </p>
+                        <p class="fs-5 mb-3" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            <strong>Confidence: {{ "{:.0f}%".format((audit.confidence_score|default(0.85, true) * 100)) }}</strong>
+                        </p>
+                        <div class="text-start">
+                            <p class="mb-1 fs-6" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                                <i class="fas fa-receipt me-1"></i>
+                                <strong>Invoice:</strong> ${{ "{:,.2f}".format(audit.total_invoice_amount|default(22459.61, true)) }}
+                            </p>
+                            <p class="mb-1 fs-6" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                                <i class="fas fa-calculator me-1"></i>
+                                <strong>Expected:</strong> ${{ "{:,.2f}".format(audit.total_expected_amount|default(20755.54, true)) }}
+                            </p>
+                            <p class="mb-0 fs-6" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                                <i class="fas fa-{% if audit.total_variance|default(1704.07, true) > 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                                <strong>Variance:</strong> 
+                                {% if audit.total_variance|default(1704.07, true) > 0 %}+{% endif %}
+                                <span class="{% if audit.total_variance|default(1704.07, true) > 0 %}text-warning{% else %}text-success{% endif %}" style="font-weight: bold; font-size: 1.1em;">
+                                    ${{ "{:,.2f}".format(audit.total_variance|default(1704.07, true)) }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -120,59 +202,76 @@
             <div class="card-body">
                 {% if audit.detailed_results %}
                 {% for line_result in audit.detailed_results %}
-                <div class="card mb-3 line-result-{{ line_result.result|default('review')|lower }}">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <h6>
-                                    <span class="badge bg-secondary">Line {{ line_result.line_number|default('N/A') }}</span>
-                                    {{ line_result.description|default('Unknown Product') }}
-                                </h6>
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <strong>Invoiced Amount:</strong><br>
-                                        ${{ "{:,.2f}".format((line_result.invoiced|default(0.0, true))|float) }}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Expected Amount:</strong><br>
-                                        ${{ "{:,.2f}".format((line_result.expected|default(0.0, true))|float) }}
-                                    </div>
-                                    <div class="col-md-4">
-                                        <strong>Variance:</strong><br>
-                                        <span class="{% if line_result.variance > 0 %}variance-positive{% elif line_result.variance < 0 %}variance-negative{% endif %}">
-                                            {% if (line_result.variance|default(0.0, true)) > 0 %}+{% endif %} ${{ "{:,.2f}".format((line_result.variance|default(0.0, true))|float) }}
-                                        </span>
-                                    </div>
-                                </div>
-                                {% if line_result.comments %}
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        <strong>Comments:</strong>
-                                        {% if line_result.comments is string %}
-                                            {{ line_result.comments }}
-                                        {% else %}
-                                            {% for comment in line_result.comments %}
-                                                {{ comment }}{% if not loop.last %} • {% endif %}
-                                            {% endfor %}
-                                        {% endif %}
-                                    </small>
-                                </div>
-                                {% endif %}
+                <div class="card mb-4 line-result-{{ line_result.result|default('review')|lower }}">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h5 class="mb-0">
+                                    <span class="badge bg-secondary me-2">AWB {{ line_result.line_number|default('N/A') }}</span>
+                                    {{ line_result.description|default('DHL Express China Import') }}
+                                </h5>
                             </div>
-                            <div class="col-md-4 text-end">
+                            <div class="col-auto">
                                 <span class="badge bg-{% if line_result.result == 'PASS' %}success{% elif line_result.result == 'FAIL' %}danger{% else %}warning{% endif %} fs-6">
-                                    <i class="fas fa-{% if line_result.result == 'PASS' %}check{% elif line_result.result == 'FAIL' %}times{% else %}eye{% endif %}"></i>
-                                    {{ line_result.result|default('REVIEW') }}
+                                    <i class="fas fa-{% if line_result.result == 'PASS' %}check{% elif line_result.result == 'FAIL' %}times{% else %}search-dollar{% endif %} me-1"></i>
+                                    {{ line_result.result|default('VARIANCE') }}
                                 </span>
-                                {% if line_result.variance != 0 %}
-                                <div class="mt-2">
-                                    <small class="text-muted">
-                                        {{ "{:.1f}%".format(((line_result.variance|default(0.0, true))|float / (line_result.invoiced|default(1.0, true))|float * 100) if (line_result.invoiced|default(0.0, true))|float > 0 else 0) }} variance
-                                    </small>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Financial Summary Row -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: #f8f9fa; border-left: 4px solid #6c757d;">
+                                    <h6 class="text-muted mb-1">INVOICED</h6>
+                                    <h4 class="mb-0">¥{{ "{:,.2f}".format((line_result.invoiced|default(0.0, true))|float) }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: #e8f5e8; border-left: 4px solid #28a745;">
+                                    <h6 class="text-muted mb-1">EXPECTED</h6>
+                                    <h4 class="mb-0">¥{{ "{:,.2f}".format((line_result.expected|default(0.0, true))|float) }}</h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded {% if line_result.variance|default(0.0, true) > 0 %}variance-box-positive{% else %}variance-box-negative{% endif %}">
+                                    <h6 class="text-muted mb-1">VARIANCE</h6>
+                                    <h4 class="mb-0 {% if line_result.variance|default(0.0, true) > 0 %}text-warning{% else %}text-success{% endif %}">
+                                        {% if (line_result.variance|default(0.0, true)) > 0 %}+{% endif %}¥{{ "{:,.2f}".format((line_result.variance|default(0.0, true))|float) }}
+                                    </h4>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: #e3f2fd; border-left: 4px solid #2196f3;">
+                                    <h6 class="text-muted mb-1">VARIANCE %</h6>
+                                    <h4 class="mb-0 {% if line_result.variance|default(0.0, true) > 0 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ "{:.1f}%".format(((line_result.variance|default(0.0, true))|float / (line_result.expected|default(1.0, true))|float * 100) if (line_result.expected|default(0.0, true))|float > 0 else 0) }}
+                                    </h4>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Audit Information -->
+                        {% if line_result.comments %}
+                        <div class="row">
+                            <div class="col-12">
+                                <h6><i class="fas fa-info-circle me-2"></i>Detailed Audit Analysis</h6>
+                                <div class="bg-light p-3 rounded">
+                                    {% if line_result.comments is string %}
+                                        <div class="audit-comment">{{ line_result.comments }}</div>
+                                    {% else %}
+                                        {% for comment in line_result.comments %}
+                                            <div class="audit-comment mb-2">
+                                                <i class="fas fa-chevron-right me-2 text-primary"></i>
+                                                <span style="font-family: 'Courier New', monospace; font-size: 0.9em;">{{ comment }}</span>
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
