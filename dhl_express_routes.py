@@ -15,6 +15,11 @@ import pandas as pd
 from io import BytesIO
 from datetime import datetime
 from dhl_express_audit_engine import DHLExpressAuditEngine
+# China audit engine (for CN invoices)
+try:
+    from dhl_express_china_audit_engine import DHLExpressChinaAuditEngine
+except ImportError:
+    DHLExpressChinaAuditEngine = None
 
 # Import authentication
 try:
@@ -1176,54 +1181,177 @@ def dhl_express_audit_summary(user_data=None):
     import sqlite3
     conn = sqlite3.connect(engine.db_path)
     cursor = conn.cursor()
-    
-    # Get audit results summary
-    cursor.execute('''
-        SELECT audit_status, COUNT(*) as count, 
-               AVG(variance_percentage) as avg_variance,
-               SUM(total_variance) as total_variance
-        FROM dhl_express_audit_results
-        GROUP BY audit_status
-    ''')
-    
-    audit_summary = cursor.fetchall()
-    
-    # Get recent audits
-    cursor.execute('''
-        SELECT invoice_no, audit_timestamp, audit_status, 
-               total_invoice_amount, total_variance, variance_percentage,
-               confidence_score
-        FROM dhl_express_audit_results
-        ORDER BY audit_timestamp DESC
-        LIMIT 20
-    ''')
-    
-    recent_audits = cursor.fetchall()
-    conn.close()
-    
-    # Convert to dictionaries
-    summary_data = {}
-    for summary in audit_summary:
-        summary_data[summary[0]] = {
-            'count': summary[1],
-            'avg_variance': round(summary[2] or 0, 2),
-            'total_variance': round(summary[3] or 0, 2)
-        }
-    
-    recent_audit_list = []
-    for audit in recent_audits:
-        recent_audit_list.append({
-            'invoice_no': audit[0],
-            'audit_timestamp': audit[1],
-            'audit_status': audit[2],
-            'total_invoice_amount': round(audit[3], 2),
-            'total_variance': round(audit[4], 2),
-            'variance_percentage': round(audit[5], 2),
-            'confidence_score': round(audit[6], 2)
+
+    # Determine if CN audit tables exist; if so, use them, else fall back to legacy
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dhl_express_china_invoices'")
+    china_invoices_exists = cursor.fetchone() is not None
+
+    if china_invoices_exists:
+        # Summary by invoice (use the per-invoice audit fields stored on each line; take MAX per invoice)
+        cursor.execute('''
+            SELECT audit_status,
+                   COUNT(*) AS count,
+                   AVG(CASE WHEN expected_cost_cny > 0 THEN variance_cny * 100.0 / expected_cost_cny END) AS avg_variance,
+                   SUM(variance_cny) AS total_variance
+            FROM (
+                SELECT invoice_number,
+                       MAX(audit_status) AS audit_status,
+                       MAX(expected_cost_cny) AS expected_cost_cny,
+                       MAX(variance_cny) AS variance_cny
+                FROM dhl_express_china_invoices
+                WHERE audit_status IS NOT NULL
+                GROUP BY invoice_number
+            ) inv
+            GROUP BY audit_status
+        ''')
+        audit_summary = cursor.fetchall()
+
+        # Recent audits (aggregate per invoice)
+        cursor.execute('''
+            SELECT inv.invoice_number,
+                   MAX(inv.audit_timestamp) AS audit_timestamp,
+                   MAX(inv.audit_status) AS audit_status,
+                   SUM(inv.bcu_total) AS total_invoice_amount,
+                   MAX(inv.variance_cny) AS total_variance,
+                   CASE WHEN MAX(inv.expected_cost_cny) > 0 THEN MAX(inv.variance_cny) * 100.0 / MAX(inv.expected_cost_cny) ELSE 0 END AS variance_percentage
+            FROM dhl_express_china_invoices inv
+            WHERE inv.audit_status IS NOT NULL
+            GROUP BY inv.invoice_number
+            ORDER BY audit_timestamp DESC
+            LIMIT 20
+        ''')
+        recent_audits = cursor.fetchall()
+
+        # Convert to dictionaries
+        summary_data = {}
+        for row in audit_summary:
+            status = row[0] or 'UNKNOWN'
+            summary_data[status] = {
+                'count': row[1] or 0,
+                'avg_variance': round(row[2] or 0, 2),
+                'total_variance': round(row[3] or 0, 2)
+            }
+
+        recent_audit_list = []
+        for audit in recent_audits:
+            variance_pct = float(audit[5] or 0)
+            # Confidence: simple heuristic 1 - |variance%|/100, bounded [0,1]
+            confidence = max(0.0, min(1.0, 1.0 - abs(variance_pct) / 100.0))
+            recent_audit_list.append({
+                'invoice_no': audit[0],
+                'audit_timestamp': audit[1],
+                'audit_status': audit[2],
+                'total_invoice_amount': round(float(audit[3] or 0), 2),
+                'total_variance': round(float(audit[4] or 0), 2),
+                'variance_percentage': round(variance_pct, 2),
+                'confidence_score': round(confidence, 2)
+            })
+
+        conn.close()
+        return render_template('dhl_express_audit_summary.html',
+                               summary=summary_data, recent_audits=recent_audit_list)
+    else:
+        # Legacy summary
+        # Get audit results summary
+        cursor.execute('''
+            SELECT audit_status, COUNT(*) as count, 
+                   AVG(variance_percentage) as avg_variance,
+                   SUM(total_variance) as total_variance
+            FROM dhl_express_audit_results
+            GROUP BY audit_status
+        ''')
+        audit_summary = cursor.fetchall()
+        
+        # Get recent audits
+        cursor.execute('''
+            SELECT invoice_no, audit_timestamp, audit_status, 
+                   total_invoice_amount, total_variance, variance_percentage,
+                   confidence_score
+            FROM dhl_express_audit_results
+            ORDER BY audit_timestamp DESC
+            LIMIT 20
+        ''')
+        recent_audits = cursor.fetchall()
+        conn.close()
+        
+        # Convert to dictionaries
+        summary_data = {}
+        for summary in audit_summary:
+            summary_data[summary[0]] = {
+                'count': summary[1],
+                'avg_variance': round(summary[2] or 0, 2),
+                'total_variance': round(summary[3] or 0, 2)
+            }
+        
+        recent_audit_list = []
+        for audit in recent_audits:
+            recent_audit_list.append({
+                'invoice_no': audit[0],
+                'audit_timestamp': audit[1],
+                'audit_status': audit[2],
+                'total_invoice_amount': round(audit[3], 2),
+                'total_variance': round(audit[4], 2),
+                'variance_percentage': round(audit[5], 2),
+                'confidence_score': round(audit[6], 2)
+            })
+        
+        return render_template('dhl_express_audit_summary.html',
+                             summary=summary_data, recent_audits=recent_audit_list)
+
+
+@dhl_express_routes.route('/dhl-express/run-invoice-audit', methods=['POST'])
+@require_auth
+def run_invoice_audit(user_data=None):
+    """Re-audit all existing Chinese DHL Express invoices and save results."""
+    try:
+        # Ensure China engine is available
+        if DHLExpressChinaAuditEngine is None:
+            return jsonify({'success': False, 'error': 'China audit engine not available'}), 500
+
+        engine_cn = DHLExpressChinaAuditEngine()
+        conn = sqlite3.connect(engine_cn.db_path)
+        cursor = conn.cursor()
+
+        # Ensure CN invoice table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dhl_express_china_invoices'")
+        if cursor.fetchone() is None:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Chinese invoice table not found'}), 400
+
+        # Get distinct invoice numbers
+        cursor.execute('''
+            SELECT DISTINCT invoice_number
+            FROM dhl_express_china_invoices
+            ORDER BY invoice_number
+        ''')
+        invoices = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        completed = 0
+        failed = []
+        results = []
+        for inv in invoices:
+            try:
+                audit = engine_cn.audit_invoice(inv)
+                # Save results per-invoice
+                engine_cn.save_audit_results(audit)
+                results.append({
+                    'invoice_number': inv,
+                    'status': audit.get('status')
+                })
+                completed += 1
+            except Exception as e:
+                failed.append({'invoice_number': inv, 'error': str(e)})
+
+        return jsonify({
+            'success': True,
+            'message': f'Completed audit for {completed} invoices',
+            'completed': completed,
+            'failed': failed,
+            'results': results
         })
-    
-    return render_template('dhl_express_audit_summary.html',
-                         summary=summary_data, recent_audits=recent_audit_list)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @dhl_express_routes.route('/dhl-express/invoice/<invoice_no>/download')

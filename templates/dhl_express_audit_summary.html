@@ -58,9 +58,15 @@
                     <p class="mb-0">Recent audit activity</p>
                 </div>
                 <div class="col-md-3 text-end">
-                    <a href="/dhl-express/batch-audit/results" class="btn btn-light">
-                        <i class="fas fa-chart-bar"></i> Check Batch Audit Summary
-                    </a>
+                    <div class="btn-group">
+                        <a href="/dhl-express/batch-audit/results" class="btn btn-light">
+                            <i class="fas fa-chart-bar"></i> Batch Audit Summary
+                        </a>
+                        <button id="runAuditBtn" class="btn btn-warning">
+                            <i class="fas fa-play"></i> Run Invoice Audit
+                        </button>
+                    </div>
+                    <div id="runAuditStatus" class="text-white mt-2" style="display:none;"></div>
                 </div>
             </div>
         </div>
@@ -269,6 +275,36 @@
 
         function downloadAuditReport(invoiceNo) {
             alert(`Audit report download for ${invoiceNo} will be implemented`);
+        }
+
+        // Run Invoice Audit handler
+        const runBtn = document.getElementById('runAuditBtn');
+        const runStatus = document.getElementById('runAuditStatus');
+        if (runBtn) {
+            runBtn.addEventListener('click', async () => {
+                runBtn.disabled = true;
+                runStatus.style.display = 'block';
+                runStatus.innerText = 'Running audits for all invoices… please wait';
+                try {
+                    const resp = await fetch('/dhl-express/run-invoice-audit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        runStatus.innerText = `Completed: ${data.completed}. Failed: ${data.failed.length}.`;
+                        // Refresh after short delay to show new results
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        runStatus.innerText = `Error: ${data.error || 'Unknown error'}`;
+                    }
+                } catch (e) {
+                    runStatus.innerText = `Error: ${e}`;
+                } finally {
+                    runBtn.disabled = false;
+                }
+            });
         }
 
         // Auto-refresh every 60 seconds
