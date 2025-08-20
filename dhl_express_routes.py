@@ -36,8 +36,14 @@ dhl_express_routes = Blueprint('dhl_express', __name__)
 @dhl_express_routes.route('/dhl-express')
 @require_auth
 def dhl_express_dashboard(user_data=None):
-    """DHL Express main dashboard"""
-    engine = DHLExpressAuditEngine()
+    """DHL Express main dashboard - using China data"""
+    # Use China audit engine for current operations
+    if DHLExpressChinaAuditEngine:
+        engine = DHLExpressChinaAuditEngine()
+    else:
+        # Fallback to original engine if China engine not available
+        engine = DHLExpressAuditEngine()
+    
     summary = engine.get_invoice_summary()
     
     return render_template('dhl_express_dashboard.html', summary=summary)
@@ -1664,8 +1670,13 @@ def download_audit_report(invoice_no, user_data=None):
 @dhl_express_routes.route('/dhl-express/batch-audit')
 @require_auth
 def batch_audit_dashboard(user_data=None):
-    """Display batch audit dashboard"""
-    engine = DHLExpressAuditEngine()
+    """Display batch audit dashboard - using China data"""
+    # Use China audit engine for current operations
+    if DHLExpressChinaAuditEngine:
+        engine = DHLExpressChinaAuditEngine()
+    else:
+        # Fallback to original engine if China engine not available
+        engine = DHLExpressAuditEngine()
     
     # Get audit status summary
     audit_summary = engine.get_audit_status_summary()
@@ -1679,7 +1690,12 @@ def batch_audit_dashboard(user_data=None):
 @dhl_express_routes.route('/dhl-express/batch-audit/status')
 def get_batch_audit_status():
     """Get current batch audit status (API endpoint)"""
-    engine = DHLExpressAuditEngine()
+    # Use China audit engine
+    if DHLExpressChinaAuditEngine:
+        engine = DHLExpressChinaAuditEngine()
+    else:
+        engine = DHLExpressAuditEngine()
+        
     summary = engine.get_audit_status_summary()
     unaudited_invoices = engine.get_unaudited_invoices()
     
@@ -1694,7 +1710,11 @@ def get_batch_audit_status():
 def run_batch_audit():
     """Run batch audit on all unaudited invoices"""
     try:
-        engine = DHLExpressAuditEngine()
+        # Use China audit engine
+        if DHLExpressChinaAuditEngine:
+            engine = DHLExpressChinaAuditEngine()
+        else:
+            engine = DHLExpressAuditEngine()
         
         # Get request parameters
         data = request.get_json() or {}
@@ -1702,15 +1722,34 @@ def run_batch_audit():
         specific_invoices = data.get('invoice_list', [])
         
         if audit_type == 'specific_invoices' and specific_invoices:
-            # Audit specific invoices
-            result = engine.audit_batch(specific_invoices)
+            # For China engine, we need to implement batch specific invoices audit
+            results = []
+            for invoice_number in specific_invoices:
+                try:
+                    result = engine.audit_invoice(invoice_number)
+                    if result['status'] != 'error':
+                        engine.save_audit_results(result)
+                    results.append(result)
+                except Exception as e:
+                    results.append({
+                        'invoice_number': invoice_number,
+                        'status': 'error',
+                        'error': str(e)
+                    })
+            
+            batch_result = {
+                'success': True,
+                'audited_count': len([r for r in results if r.get('status') != 'error']),
+                'total_count': len(specific_invoices),
+                'results': results
+            }
         else:
             # Audit all unaudited invoices
-            result = engine.audit_all_unaudited_invoices()
+            batch_result = engine.audit_all_unaudited_invoices()
         
         return jsonify({
             'success': True,
-            'batch_result': result
+            'batch_result': batch_result
         })
         
     except Exception as e:
@@ -1726,11 +1765,28 @@ def run_batch_audit():
 def rerun_batch_audit(user_data=None):
     """Re-run batch audit on all invoices to refresh cached results"""
     try:
-        engine = DHLExpressAuditEngine()
+        # Use China audit engine
+        if DHLExpressChinaAuditEngine:
+            engine = DHLExpressChinaAuditEngine()
+        else:
+            engine = DHLExpressAuditEngine()
         
-        # Clear all existing audit results
+        # Clear all existing audit results for China invoices
         conn = sqlite3.connect(engine.db_path)
         cursor = conn.cursor()
+        
+        # Clear China audit results
+        cursor.execute('DELETE FROM dhl_express_china_audit_results')
+        conn.commit()
+        conn.close()
+        
+        # Run audit on all invoices
+        result = engine.audit_all_unaudited_invoices()  # Now all invoices are "unaudited" since we cleared results
+        
+        return jsonify({
+            'success': True,
+            'batch_result': result
+        })
         
         # Get all unique invoice numbers
         cursor.execute('SELECT DISTINCT invoice_no FROM dhl_express_invoices')
@@ -1820,18 +1876,35 @@ def batch_audit_results(user_data=None):
 def export_batch_audit_results(user_data=None):
     """Export all batch audit results to Excel"""
     try:
-        engine = DHLExpressAuditEngine()
+        # Use China audit engine for current operations
+        if DHLExpressChinaAuditEngine:
+            engine = DHLExpressChinaAuditEngine()
+        else:
+            engine = DHLExpressAuditEngine()
         conn = sqlite3.connect(engine.db_path)
         
-        # Get all audit results
-        query = '''
-            SELECT invoice_no, audit_timestamp, total_invoice_amount,
-                   total_expected_amount, total_variance, variance_percentage,
-                   audit_status, line_items_audited, line_items_passed,
-                   line_items_failed, confidence_score
-            FROM dhl_express_audit_results
-            ORDER BY audit_timestamp DESC
-        '''
+        # Get all audit results - using appropriate table and columns
+        if DHLExpressChinaAuditEngine:
+            table_name = 'dhl_express_china_audit_results'
+            # China table has different schema - per AWB results
+            query = f'''
+                SELECT invoice_number, air_waybill, created_timestamp,
+                       expected_cost_cny, actual_cost_cny, variance_cny,
+                       variance_percent, audit_status, rate_card_match,
+                       zone_used, weight_used, service_type
+                FROM {table_name}
+                ORDER BY created_timestamp DESC
+            '''
+        else:
+            table_name = 'dhl_express_audit_results'
+            query = f'''
+                SELECT invoice_no, audit_timestamp, total_invoice_amount,
+                       total_expected_amount, total_variance, variance_percentage,
+                       audit_status, line_items_audited, line_items_passed,
+                       line_items_failed, confidence_score
+                FROM {table_name}
+                ORDER BY audit_timestamp DESC
+            '''
         
         df = pd.read_sql_query(query, conn)
         conn.close()
@@ -1878,30 +1951,57 @@ def export_batch_audit_results(user_data=None):
         return redirect(url_for('dhl_express.batch_audit_results'))
 
 @dhl_express_routes.route('/dhl-express/batch-audit/export-detailed')
+@require_auth
 def export_detailed_batch_audit_results(user_data=None):
     """Export detailed line-by-line batch audit results for finance review"""
     try:
         import xlsxwriter
         from io import BytesIO
         
-        engine = DHLExpressAuditEngine()
+        # Use China audit engine for current operations
+        if DHLExpressChinaAuditEngine:
+            engine = DHLExpressChinaAuditEngine()
+            audit_table = 'dhl_express_china_audit_results'
+            invoice_table = 'dhl_express_china_invoices'
+        else:
+            engine = DHLExpressAuditEngine()
+            audit_table = 'dhl_express_audit_results'
+            invoice_table = 'dhl_express_invoices'
+            
         conn = sqlite3.connect(engine.db_path)
         cursor = conn.cursor()
         
         # Get all audit results with detailed breakdown
-        cursor.execute('''
-            SELECT r.invoice_no, r.audit_timestamp, r.total_invoice_amount,
-                   r.total_expected_amount, r.total_variance, r.variance_percentage,
-                   r.audit_status, r.line_items_audited, r.line_items_passed,
-                   r.line_items_failed, r.confidence_score, r.detailed_results,
-                   i.company_name, i.account_number
-            FROM dhl_express_audit_results r
-            LEFT JOIN (
-                SELECT DISTINCT invoice_no, company_name, account_number 
-                FROM dhl_express_invoices
-            ) i ON r.invoice_no = i.invoice_no
-            ORDER BY r.audit_timestamp DESC
-        ''')
+        if DHLExpressChinaAuditEngine:
+            # China schema - different structure, per AWB not per invoice
+            cursor.execute(f'''
+                SELECT r.invoice_number, r.air_waybill, r.created_timestamp,
+                       r.expected_cost_cny, r.actual_cost_cny, r.variance_cny,
+                       r.variance_percent, r.audit_status, r.rate_card_match,
+                       r.zone_used, r.weight_used, r.service_type, r.audit_details,
+                       i.company_name, i.account_number
+                FROM {audit_table} r
+                LEFT JOIN (
+                    SELECT DISTINCT invoice_number, company_name, account_number 
+                    FROM {invoice_table}
+                ) i ON r.invoice_number = i.invoice_number
+                ORDER BY r.created_timestamp DESC
+            ''')
+        else:
+            # Australia schema - per invoice
+            cursor.execute(f'''
+                SELECT r.invoice_no, r.audit_timestamp, r.total_invoice_amount,
+                       r.total_expected_amount, r.total_variance, r.variance_percentage,
+                       r.audit_status, r.line_items_audited, r.line_items_passed,
+                       r.line_items_failed, r.confidence_score, r.detailed_results,
+                       i.company_name, i.account_number
+                FROM {audit_table} r
+                LEFT JOIN (
+                    SELECT DISTINCT invoice_no, company_name, account_number 
+                    FROM {invoice_table}
+                ) i ON r.invoice_no = i.invoice_no
+                ORDER BY r.audit_timestamp DESC
+            ''')
         
         audit_results = cursor.fetchall()
         
@@ -1931,7 +2031,7 @@ def export_detailed_batch_audit_results(user_data=None):
         })
         
         currency_format = workbook.add_format({
-            'num_format': '$#,##0.00',
+            'num_format': '¥#,##0.00' if DHLExpressChinaAuditEngine else '$#,##0.00',
             'border': 1
         })
         
@@ -1958,12 +2058,22 @@ def export_detailed_batch_audit_results(user_data=None):
         # Summary Sheet
         summary_sheet = workbook.add_worksheet('Audit Summary')
         
-        summary_headers = [
-            'Invoice Number', 'Company Name', 'Account Number', 'Audit Date',
-            'Total Invoice Amount', 'Total Expected Amount', 'Total Variance',
-            'Variance %', 'Status', 'Lines Audited', 'Lines Passed', 
-            'Lines Failed', 'Confidence Score', 'Finance Action Required'
-        ]
+        if DHLExpressChinaAuditEngine:
+            # China headers - per AWB
+            summary_headers = [
+                'Invoice Number', 'AWB Number', 'Company Name', 'Account Number', 
+                'Audit Date', 'Expected Cost (CNY)', 'Actual Cost (CNY)', 
+                'Variance (CNY)', 'Variance %', 'Status', 'Rate Card Match',
+                'Zone Used', 'Weight Used', 'Service Type', 'Finance Action Required'
+            ]
+        else:
+            # Australia headers - per invoice
+            summary_headers = [
+                'Invoice Number', 'Company Name', 'Account Number', 'Audit Date',
+                'Total Invoice Amount', 'Total Expected Amount', 'Total Variance',
+                'Variance %', 'Status', 'Lines Audited', 'Lines Passed', 
+                'Lines Failed', 'Confidence Score', 'Finance Action Required'
+            ]
         
         # Write summary headers
         for col, header in enumerate(summary_headers):
@@ -1972,49 +2082,100 @@ def export_detailed_batch_audit_results(user_data=None):
         # Write summary data
         row = 1
         for audit_result in audit_results:
-            invoice_no = audit_result[0]
-            audit_timestamp = audit_result[1]
-            total_invoice_amount = float(audit_result[2]) if audit_result[2] else 0
-            total_expected_amount = float(audit_result[3]) if audit_result[3] else 0
-            total_variance = float(audit_result[4]) if audit_result[4] else 0
-            variance_percentage = float(audit_result[5]) if audit_result[5] else 0
-            audit_status = audit_result[6]
-            line_items_audited = audit_result[7]
-            line_items_passed = audit_result[8]
-            line_items_failed = audit_result[9]
-            confidence_score = float(audit_result[10]) if audit_result[10] else 0
-            company_name = audit_result[12] or 'Unknown'
-            account_number = audit_result[13] or 'Unknown'
-            
-            # Determine finance action
-            if audit_status == 'FAIL' or total_variance < -50:  # DHL overcharged significantly
-                finance_action = 'DISPUTE REQUIRED - Request Credit'
-            elif total_variance < -10:  # DHL overcharged moderately
-                finance_action = 'REVIEW REQUIRED - Consider Dispute'
-            elif total_variance > 50:  # DHL undercharged significantly
-                finance_action = 'VERIFY ACCURACY - Possible Underbilling'
+            if DHLExpressChinaAuditEngine:
+                # China schema
+                invoice_number = audit_result[0]
+                air_waybill = audit_result[1]
+                created_timestamp = audit_result[2]
+                expected_cost_cny = float(audit_result[3]) if audit_result[3] else 0
+                actual_cost_cny = float(audit_result[4]) if audit_result[4] else 0
+                variance_cny = float(audit_result[5]) if audit_result[5] else 0
+                variance_percent = float(audit_result[6]) if audit_result[6] else 0
+                audit_status = audit_result[7]
+                rate_card_match = audit_result[8]
+                zone_used = audit_result[9]
+                weight_used = audit_result[10]
+                service_type = audit_result[11]
+                company_name = audit_result[13] or 'Unknown'
+                account_number = audit_result[14] or 'Unknown'
+                
+                # Determine finance action for China (CNY amounts)
+                if audit_status == 'FAIL' or variance_cny < -50:
+                    finance_action = 'DISPUTE REQUIRED - Request Credit'
+                elif variance_cny < -10:
+                    finance_action = 'REVIEW REQUIRED - Consider Dispute'
+                elif variance_cny > 50:
+                    finance_action = 'VERIFY ACCURACY - Possible Underbilling'
+                else:
+                    finance_action = 'APPROVE FOR PAYMENT'
+                
+                # Write China data
+                summary_sheet.write(row, 0, invoice_number)
+                summary_sheet.write(row, 1, air_waybill)
+                summary_sheet.write(row, 2, company_name)
+                summary_sheet.write(row, 3, account_number)
+                summary_sheet.write(row, 4, created_timestamp)
+                summary_sheet.write(row, 5, expected_cost_cny, currency_format)
+                summary_sheet.write(row, 6, actual_cost_cny, currency_format)
+                summary_sheet.write(row, 7, variance_cny, currency_format)
+                summary_sheet.write(row, 8, variance_percent/100, percentage_format)
+                
+                status_format = pass_format if audit_status == 'PASS' else (
+                    fail_format if audit_status == 'FAIL' else review_format
+                )
+                summary_sheet.write(row, 9, audit_status, status_format)
+                summary_sheet.write(row, 10, rate_card_match)
+                summary_sheet.write(row, 11, zone_used)
+                summary_sheet.write(row, 12, weight_used)
+                summary_sheet.write(row, 13, service_type)
+                summary_sheet.write(row, 14, finance_action)
+                
             else:
-                finance_action = 'APPROVE FOR PAYMENT'
-            
-            # Choose status format
-            status_format = pass_format if audit_status == 'PASS' else (
-                fail_format if audit_status == 'FAIL' else review_format
-            )
-            
-            summary_sheet.write(row, 0, invoice_no)
-            summary_sheet.write(row, 1, company_name)
-            summary_sheet.write(row, 2, account_number)
-            summary_sheet.write(row, 3, audit_timestamp)
-            summary_sheet.write(row, 4, total_invoice_amount, currency_format)
-            summary_sheet.write(row, 5, total_expected_amount, currency_format)
-            summary_sheet.write(row, 6, total_variance, currency_format)
-            summary_sheet.write(row, 7, variance_percentage / 100, percentage_format)
-            summary_sheet.write(row, 8, audit_status, status_format)
-            summary_sheet.write(row, 9, line_items_audited)
-            summary_sheet.write(row, 10, line_items_passed)
-            summary_sheet.write(row, 11, line_items_failed)
-            summary_sheet.write(row, 12, confidence_score)
-            summary_sheet.write(row, 13, finance_action)
+                # Australia schema
+                invoice_no = audit_result[0]
+                audit_timestamp = audit_result[1]
+                total_invoice_amount = float(audit_result[2]) if audit_result[2] else 0
+                total_expected_amount = float(audit_result[3]) if audit_result[3] else 0
+                total_variance = float(audit_result[4]) if audit_result[4] else 0
+                variance_percentage = float(audit_result[5]) if audit_result[5] else 0
+                audit_status = audit_result[6]
+                line_items_audited = audit_result[7]
+                line_items_passed = audit_result[8]
+                line_items_failed = audit_result[9]
+                confidence_score = float(audit_result[10]) if audit_result[10] else 0
+                company_name = audit_result[12] or 'Unknown'
+                account_number = audit_result[13] or 'Unknown'
+                
+                # Determine finance action for Australia
+                if audit_status == 'FAIL' or total_variance < -50:
+                    finance_action = 'DISPUTE REQUIRED - Request Credit'
+                elif total_variance < -10:
+                    finance_action = 'REVIEW REQUIRED - Consider Dispute'
+                elif total_variance > 50:
+                    finance_action = 'VERIFY ACCURACY - Possible Underbilling'
+                else:
+                    finance_action = 'APPROVE FOR PAYMENT'
+                
+                # Choose status format
+                status_format = pass_format if audit_status == 'PASS' else (
+                    fail_format if audit_status == 'FAIL' else review_format
+                )
+                
+                # Write Australia data
+                summary_sheet.write(row, 0, invoice_no)
+                summary_sheet.write(row, 1, company_name)
+                summary_sheet.write(row, 2, account_number)
+                summary_sheet.write(row, 3, audit_timestamp)
+                summary_sheet.write(row, 4, total_invoice_amount, currency_format)
+                summary_sheet.write(row, 5, total_expected_amount, currency_format)
+                summary_sheet.write(row, 6, total_variance, currency_format)
+                summary_sheet.write(row, 7, variance_percentage/100, percentage_format)
+                summary_sheet.write(row, 8, audit_status, status_format)
+                summary_sheet.write(row, 9, line_items_audited)
+                summary_sheet.write(row, 10, line_items_passed)
+                summary_sheet.write(row, 11, line_items_failed)
+                summary_sheet.write(row, 12, confidence_score)
+                summary_sheet.write(row, 13, finance_action)
             
             row += 1
         
@@ -2050,9 +2211,9 @@ def export_detailed_batch_audit_results(user_data=None):
             detailed_results = json.loads(audit_result[11]) if audit_result[11] else []
             
             # Get additional invoice details
-            cursor.execute('''
+            cursor.execute(f'''
                 SELECT awb_number, origin_code, destination_code, weight
-                FROM dhl_express_invoices
+                FROM {invoice_table}
                 WHERE invoice_no = ?
                 ORDER BY line_number
             ''', (invoice_no,))

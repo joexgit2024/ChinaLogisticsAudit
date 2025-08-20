@@ -743,6 +743,245 @@ class DHLExpressChinaAuditEngine:
         finally:
             conn.close()
 
+    def get_invoice_summary(self) -> Dict:
+        """Get summary of loaded DHL Express China invoices."""
+        conn = self.get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Basic statistics
+            cursor.execute('SELECT COUNT(DISTINCT invoice_number) FROM dhl_express_china_invoices')
+            total_invoices = cursor.fetchone()[0] or 0
+            
+            cursor.execute('SELECT COUNT(*) FROM dhl_express_china_invoices')
+            total_lines = cursor.fetchone()[0] or 0
+            
+            cursor.execute('SELECT SUM(bcu_total) FROM dhl_express_china_invoices')
+            total_amount = cursor.fetchone()[0] or 0
+            
+            # Product/Service breakdown
+            cursor.execute('''
+                SELECT local_product_code, COUNT(*), SUM(bcu_total)
+                FROM dhl_express_china_invoices
+                WHERE local_product_code IS NOT NULL
+                GROUP BY local_product_code
+                ORDER BY SUM(bcu_total) DESC
+                LIMIT 10
+            ''')
+            product_breakdown = []
+            for row in cursor.fetchall():
+                product_breakdown.append({
+                    'description': row[0] or 'Unknown',
+                    'count': row[1],
+                    'amount': float(row[2] or 0),
+                    'percentage': (float(row[2] or 0) / total_amount * 100) if total_amount > 0 else 0
+                })
+            
+            # Route breakdown (Top routes by volume)
+            cursor.execute('''
+                SELECT 
+                    COALESCE(consignor_country, origin_code) as origin,
+                    dest_code,
+                    COUNT(DISTINCT air_waybill) as awb_count,
+                    SUM(bcu_total) as amount
+                FROM dhl_express_china_invoices
+                WHERE air_waybill IS NOT NULL
+                GROUP BY COALESCE(consignor_country, origin_code), dest_code
+                ORDER BY COUNT(DISTINCT air_waybill) DESC
+                LIMIT 10
+            ''')
+            route_breakdown = []
+            for row in cursor.fetchall():
+                route_breakdown.append({
+                    'route': f"{row[0] or 'Unknown'} → {row[1] or 'CN'}",
+                    'awbs': row[2],
+                    'amount': float(row[3] or 0)
+                })
+            
+            # Recent invoices
+            cursor.execute('''
+                SELECT DISTINCT invoice_number, invoice_date, COUNT(*) as line_count, SUM(bcu_total) as total
+                FROM dhl_express_china_invoices
+                WHERE invoice_number IS NOT NULL
+                GROUP BY invoice_number, invoice_date
+                ORDER BY invoice_date DESC
+                LIMIT 5
+            ''')
+            recent_invoices = []
+            for row in cursor.fetchall():
+                recent_invoices.append({
+                    'invoice_number': row[0],
+                    'invoice_date': row[1],
+                    'line_count': row[2],
+                    'total_amount': float(row[3] or 0)
+                })
+            
+            return {
+                'total_invoices': total_invoices,
+                'total_lines': total_lines,
+                'total_amount': float(total_amount),
+                'currency': 'CNY',
+                'product_breakdown': product_breakdown,
+                'route_breakdown': route_breakdown,
+                'recent_invoices': recent_invoices,
+                'data_source': 'DHL Express China Import Invoices'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting invoice summary: {e}")
+            return {
+                'total_invoices': 0,
+                'total_lines': 0,
+                'total_amount': 0.0,
+                'currency': 'CNY',
+                'product_breakdown': [],
+                'route_breakdown': [],
+                'recent_invoices': [],
+                'data_source': 'DHL Express China Import Invoices',
+                'error': str(e)
+            }
+        finally:
+            conn.close()
+
+    def get_unaudited_invoices(self) -> List[str]:
+        """Get list of invoice numbers that haven't been audited yet."""
+        conn = self.get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Get all unique invoice numbers from China invoices table
+            cursor.execute('''
+                SELECT DISTINCT invoice_number 
+                FROM dhl_express_china_invoices 
+                WHERE invoice_number NOT IN (
+                    SELECT DISTINCT invoice_number 
+                    FROM dhl_express_china_audit_results 
+                    WHERE invoice_number IS NOT NULL
+                )
+                ORDER BY invoice_number
+            ''')
+            
+            unaudited_invoices = [row[0] for row in cursor.fetchall()]
+            return unaudited_invoices
+            
+        except Exception as e:
+            logger.error(f"Error getting unaudited invoices: {e}")
+            return []
+        finally:
+            conn.close()
+
+    def get_audit_status_summary(self) -> Dict:
+        """Get summary of audit status for all invoices."""
+        conn = self.get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            # Total invoices in system
+            cursor.execute('SELECT COUNT(DISTINCT invoice_number) FROM dhl_express_china_invoices')
+            total_invoices = cursor.fetchone()[0] or 0
+            
+            # Audited invoices
+            cursor.execute('SELECT COUNT(DISTINCT invoice_number) FROM dhl_express_china_audit_results')
+            audited_invoices = cursor.fetchone()[0] or 0
+            
+            # Audit results breakdown
+            cursor.execute('''
+                SELECT audit_status, COUNT(*) 
+                FROM dhl_express_china_audit_results 
+                GROUP BY audit_status
+            ''')
+            
+            status_breakdown = {}
+            audit_status_breakdown = {}  # For template compatibility
+            for row in cursor.fetchall():
+                status_breakdown[row[0]] = row[1]
+                # Map to template expected format
+                if row[0] == 'pass':
+                    audit_status_breakdown['PASS'] = row[1]
+                elif row[0] == 'variance':
+                    audit_status_breakdown['REVIEW'] = row[1]
+                elif row[0] == 'error':
+                    audit_status_breakdown['ERROR'] = row[1]
+                    audit_status_breakdown['FAIL'] = row[1]  # Error can be both ERROR and FAIL
+            
+            # Ensure all expected keys exist
+            for key in ['PASS', 'REVIEW', 'FAIL', 'ERROR']:
+                if key not in audit_status_breakdown:
+                    audit_status_breakdown[key] = 0
+            
+            # Calculate metrics
+            pending_audit = total_invoices - audited_invoices
+            completion_rate = (audited_invoices / total_invoices * 100) if total_invoices > 0 else 0
+            
+            return {
+                'total_invoices': total_invoices,
+                'audited_invoices': audited_invoices,
+                'pending_audit': pending_audit,
+                'completion_rate': completion_rate,
+                'passed': status_breakdown.get('pass', 0),
+                'variance': status_breakdown.get('variance', 0),
+                'failed': status_breakdown.get('error', 0),
+                'errors': status_breakdown.get('error', 0),
+                'status_breakdown': status_breakdown,
+                'audit_status_breakdown': audit_status_breakdown  # For template compatibility
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting audit status summary: {e}")
+            return {
+                'total_invoices': 0,
+                'audited_invoices': 0,
+                'pending_audit': 0,
+                'completion_rate': 0,
+                'passed': 0,
+                'variance': 0,
+                'failed': 0,
+                'errors': 0,
+                'status_breakdown': {}
+            }
+        finally:
+            conn.close()
+
+    def audit_all_unaudited_invoices(self) -> Dict:
+        """Run audit on all unaudited invoices."""
+        unaudited_invoices = self.get_unaudited_invoices()
+        
+        if not unaudited_invoices:
+            return {
+                'success': True,
+                'message': 'No unaudited invoices found',
+                'audited_count': 0,
+                'results': []
+            }
+        
+        results = []
+        successful_audits = 0
+        
+        for invoice_number in unaudited_invoices:
+            try:
+                result = self.audit_invoice(invoice_number)
+                if result['status'] != 'error':
+                    # Save the audit result
+                    if self.save_audit_results(result):
+                        successful_audits += 1
+                results.append(result)
+                
+            except Exception as e:
+                logger.error(f"Error auditing invoice {invoice_number}: {e}")
+                results.append({
+                    'invoice_number': invoice_number,
+                    'status': 'error',
+                    'error': str(e)
+                })
+        
+        return {
+            'success': True,
+            'message': f'Audited {successful_audits} of {len(unaudited_invoices)} invoices',
+            'audited_count': successful_audits,
+            'total_count': len(unaudited_invoices),
+            'results': results
+        }
+
 
 def main():
     """Main function for testing the audit engine."""
