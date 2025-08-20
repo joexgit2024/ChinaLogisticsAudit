@@ -172,15 +172,16 @@ class DHLExpressChinaAuditEngine:
                     return per_kg * Decimal(str(weight_kg))
 
             # 0-30kg: exact bracket
+            # Use proper weight bracket logic: weight_from <= weight < weight_to
             cursor.execute(
                 f"""
-                SELECT {zone_column}
+                SELECT {zone_column}, weight_from, weight_to
                 FROM dhl_express_rate_cards
                 WHERE service_type = ? AND rate_section = ?
                   AND is_multiplier = 0
-                  AND weight_from <= ? AND weight_to >= ?
+                  AND weight_from <= ? AND weight_to > ?
                   AND {zone_column} IS NOT NULL
-                ORDER BY weight_from
+                ORDER BY weight_from DESC
                 LIMIT 1
                 """,
                 (service_type, rate_section, weight_kg, weight_kg),
@@ -289,6 +290,9 @@ class DHLExpressChinaAuditEngine:
             bcu_other_charges = float(invoice_data.get('bcu_other_charges', 0))
             bcu_fuel_surcharges = float(
                 invoice_data.get('bcu_fuel_surcharges', 0)
+            )
+            bcu_taxes_applicable = float(
+                invoice_data.get('bcu_taxes_applicable', 0)
             )
             total_charge = float(invoice_data.get('bcu_total', 0))
             
@@ -435,12 +439,25 @@ class DHLExpressChinaAuditEngine:
                     f"💼 Other Charges: CNY 0.00 (No additional services charged)"
                 )
             
-            # 5. Calculate Total Variance
-            expected_total = (
+            # 5. Tax Calculation (6% VAT on subtotal)
+            subtotal_before_tax = (
                 float(expected_weight_charge or 0)
                 + bcu_fuel_surcharges
                 + bcu_other_charges
             )
+            expected_tax = subtotal_before_tax * 0.06
+            expected_total = subtotal_before_tax + expected_tax
+            
+            audit_result['tax_audit'] = {
+                'subtotal_before_tax': subtotal_before_tax,
+                'expected_tax_rate': 0.06,
+                'expected_tax': expected_tax,
+                'actual_tax': bcu_taxes_applicable,
+                'tax_variance': bcu_taxes_applicable - expected_tax,
+                'status': 'pass' if abs(bcu_taxes_applicable - expected_tax) < 0.01 else 'variance'
+            }
+            
+            # 6. Calculate Total Variance
             total_variance = total_charge - expected_total
             audit_result['total_variance'] = total_variance
             audit_result['expected_total'] = expected_total
@@ -460,6 +477,12 @@ class DHLExpressChinaAuditEngine:
                 f"   Other Charges: CNY {bcu_other_charges:.2f} (Service charges)"
             )
             audit_result['comments'].append(
+                f"   Subtotal: CNY {subtotal_before_tax:.2f}"
+            )
+            audit_result['comments'].append(
+                f"   Tax (6%): CNY {expected_tax:.2f} (Actual: CNY {bcu_taxes_applicable:.2f})"
+            )
+            audit_result['comments'].append(
                 f"   Expected Total: CNY {expected_total:.2f}"
             )
             audit_result['comments'].append(
@@ -469,10 +492,13 @@ class DHLExpressChinaAuditEngine:
                 f"   VARIANCE: CNY {total_variance:+.2f} ({(total_variance/expected_total*100):+.1f}% of expected)"
             )
             
-            # 6. Determine Overall Status
+            # 7. Determine Overall Status
             variance_pct = abs(total_variance / expected_total * 100) if expected_total > 0 else 0
+            tax_status = audit_result['tax_audit']['status']
+            
             if (
                 audit_result['weight_audit'].get('status') == 'pass'
+                and tax_status == 'pass'
                 and variance_pct <= 5.0
             ):
                 audit_result['audit_status'] = 'pass'
