@@ -16,6 +16,7 @@ Date: August 19, 2025
 
 import sqlite3
 import logging
+import math
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import json
@@ -79,6 +80,10 @@ class DHLExpressChinaAuditEngine:
                 'CDG': 'FR',  # Paris -> France
                 'FRA': 'DE',  # Frankfurt -> Germany
                 'NRT': 'JP',  # Tokyo -> Japan
+                'BOM': 'IN',  # Mumbai -> India
+                'DEL': 'IN',  # Delhi -> India
+                'CCU': 'IN',  # Kolkata -> India
+                'MAA': 'IN',  # Chennai -> India
             }
             
             # Check if it's a known city code
@@ -152,7 +157,9 @@ class DHLExpressChinaAuditEngine:
             zone_column = f'zone_{zone}'
 
             # Over 30kg: use multiplier (per-kg) rate when weight is in range
+            # For weights over 30kg, round up to the next full kilogram
             if weight_kg > 30:
+                rounded_weight_kg = math.ceil(weight_kg)
                 cursor.execute(
                     f"""
                     SELECT {zone_column}
@@ -169,7 +176,7 @@ class DHLExpressChinaAuditEngine:
                 row = cursor.fetchone()
                 if row and row[0] is not None:
                     per_kg = Decimal(str(row[0]))
-                    return per_kg * Decimal(str(weight_kg))
+                    return per_kg * Decimal(str(rounded_weight_kg))
 
             # 0-30kg: exact bracket
             # Use proper weight bracket logic: weight_from <= weight < weight_to
@@ -285,6 +292,7 @@ class DHLExpressChinaAuditEngine:
             # Extract key data
             awb = invoice_data.get('air_waybill', '')
             origin_code = invoice_data.get('origin_code', '')
+            consignor_country = invoice_data.get('consignor_country', '')
             weight_kg = float(invoice_data.get('billed_weight_kg', 0))
             bcu_weight_charge = float(invoice_data.get('bcu_weight_charge', 0))
             bcu_other_charges = float(invoice_data.get('bcu_other_charges', 0))
@@ -306,21 +314,20 @@ class DHLExpressChinaAuditEngine:
                 'comments': []
             }
             
-            # 1. Zone Determination
-            zone = self.get_country_zone(origin_code, 'Import')
+            # 1. Zone Determination - Use consignor_country if available, fallback to origin_code
+            country_for_zone = consignor_country if consignor_country else origin_code
+            zone = self.get_country_zone(country_for_zone, 'Import')
             if not zone:
                 audit_result['audit_status'] = 'error'
                 audit_result['comments'].append(
-                    f"Could not determine zone for origin code: {origin_code}"
+                    f"Could not determine zone for country: {country_for_zone} (consignor_country: {consignor_country}, origin_code: {origin_code})"
                 )
                 return audit_result
-            
+
             audit_result['zone_used'] = zone
             audit_result['comments'].append(
-                f"✓ Origin: {origin_code} → Zone {zone} (Import to SZV China)"
-            )
-            
-            # 2. Weight Charge Audit
+                f"✓ Country: {country_for_zone} → Zone {zone} (Import to SZV China)"
+            )            # 2. Weight Charge Audit
             expected_weight_charge = self.get_rate_for_weight_zone(
                 weight_kg,
                 zone,
@@ -363,8 +370,9 @@ class DHLExpressChinaAuditEngine:
                 )
                 
                 if weight_kg > 30:
+                    rounded_weight = math.ceil(weight_kg)
                     audit_result['comments'].append(
-                        f"⚠️ Over-weight shipment ({weight_kg}kg > 30kg) - Per-kg rate applied from rate card"
+                        f"⚠️ Over-weight shipment ({weight_kg}kg > 30kg) - Rounded up to {rounded_weight}kg × per-kg rate"
                     )
                 elif weight_kg <= 30:
                     audit_result['comments'].append(
@@ -493,19 +501,33 @@ class DHLExpressChinaAuditEngine:
             )
             
             # 7. Determine Overall Status
-            variance_pct = abs(total_variance / expected_total * 100) if expected_total > 0 else 0
+            variance_pct_signed = (total_variance / expected_total * 100) if expected_total > 0 else 0
+            variance_pct_abs = abs(variance_pct_signed)
             tax_status = audit_result['tax_audit']['status']
+            weight_status = audit_result['weight_audit'].get('status')
+
+            # Check if this is a customer benefit scenario (negative variance)
+            is_customer_benefit = variance_pct_signed < 0
             
             if (
-                audit_result['weight_audit'].get('status') == 'pass'
+                weight_status == 'pass'
                 and tax_status == 'pass'
-                and variance_pct <= 5.0
+                and variance_pct_abs <= 5.0
             ):
                 audit_result['audit_status'] = 'pass'
                 audit_result['comments'].append(
-                    f"✅ AUDIT RESULT: PASS (Variance {variance_pct:.1f}% ≤ 5% tolerance)"
+                    f"✅ AUDIT RESULT: PASS (Variance {variance_pct_abs:.1f}% ≤ 5% tolerance)"
                 )
-            elif audit_result['weight_audit'].get('status') == 'error':
+            elif (
+                weight_status == 'pass'
+                and is_customer_benefit
+            ):
+                # Customer benefit: Pass even if tax has minor variance
+                audit_result['audit_status'] = 'pass'
+                audit_result['comments'].append(
+                    f"✅ AUDIT RESULT: PASS (Variance {variance_pct_abs:.1f}% in customer favor - customer benefit)"
+                )
+            elif weight_status == 'error':
                 audit_result['audit_status'] = 'error'
                 audit_result['comments'].append(
                     f"❌ AUDIT RESULT: ERROR (Rate lookup failed)"
@@ -513,7 +535,7 @@ class DHLExpressChinaAuditEngine:
             else:
                 audit_result['audit_status'] = 'variance'
                 audit_result['comments'].append(
-                    f"⚠️ AUDIT RESULT: VARIANCE DETECTED (Variance {variance_pct:.1f}% > 5% tolerance)"
+                    f"⚠️ AUDIT RESULT: VARIANCE DETECTED (Variance {variance_pct_abs:.1f}% > 5% tolerance)"
                 )
             
             return audit_result
