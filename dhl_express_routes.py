@@ -1818,7 +1818,13 @@ def rerun_batch_audit(user_data=None):
 @require_auth
 def batch_audit_results(user_data=None):
     """Display batch audit results"""
-    engine = DHLExpressAuditEngine()
+    # Use China audit engine
+    if DHLExpressChinaAuditEngine:
+        engine = DHLExpressChinaAuditEngine()
+        audit_table = 'dhl_express_china_audit_results'
+    else:
+        engine = DHLExpressAuditEngine()
+        audit_table = 'dhl_express_audit_results'
     
     # Get all audit results with pagination
     page = request.args.get('page', 1, type=int)
@@ -1828,17 +1834,42 @@ def batch_audit_results(user_data=None):
     conn = sqlite3.connect(engine.db_path)
     cursor = conn.cursor()
     
-    # Get total count
-    cursor.execute('SELECT COUNT(*) FROM dhl_express_audit_results')
+    # Check if audit table exists
+    cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{audit_table}'")
+    table_exists = cursor.fetchone() is not None
+    
+    if not table_exists:
+        # Table doesn't exist, return empty results
+        conn.close()
+        return render_template('dhl_express_batch_audit_results.html', 
+                               audit_results=[], 
+                               summary={'total': 0, 'passed': 0, 'failed': 0, 'review': 0},
+                               pagination={'total': 0, 'pages': 0, 'current_page': 1, 'per_page': per_page},
+                               filters=request.args.to_dict())
+    
+    # Get total count of unique invoices
+    cursor.execute(f'SELECT COUNT(DISTINCT invoice_number) FROM {audit_table}')
     total_audits = cursor.fetchone()[0]
     
-    # Get paginated results
-    cursor.execute('''
-        SELECT invoice_no, audit_timestamp, total_invoice_amount, 
-               total_expected_amount, total_variance, variance_percentage,
-               audit_status, line_items_audited, confidence_score
-        FROM dhl_express_audit_results
-        ORDER BY audit_timestamp DESC
+    # Get paginated results - aggregate by invoice
+    cursor.execute(f'''
+        SELECT invoice_number, 
+               MAX(created_timestamp) as latest_audit,
+               SUM(actual_cost_cny) as total_invoice_amount, 
+               SUM(expected_cost_cny) as total_expected_amount, 
+               SUM(variance_cny) as total_variance, 
+               ROUND(AVG(variance_percent), 2) as variance_percentage,
+               CASE 
+                   WHEN AVG(CASE WHEN audit_status = 'pass' THEN 1.0 ELSE 0.0 END) = 1.0 THEN 'PASS'
+                   WHEN AVG(CASE WHEN audit_status = 'variance' THEN 1.0 ELSE 0.0 END) > 0.0 THEN 'VARIANCE'
+                   ELSE 'REVIEW'
+               END as audit_status,
+               COUNT(*) as line_items_audited, 
+               ROUND(MAX(0.0, MIN(100.0, 
+                   100.0 - ABS(AVG(variance_percent)))), 1) as confidence_score
+        FROM {audit_table}
+        GROUP BY invoice_number
+        ORDER BY latest_audit DESC
         LIMIT ? OFFSET ?
     ''', (per_page, offset))
     
@@ -1856,6 +1887,31 @@ def batch_audit_results(user_data=None):
             'confidence_score': row[8]
         })
     
+    # Calculate summary statistics
+    summary = {'total': 0, 'passed': 0, 'failed': 0, 'review': 0}
+    if table_exists and total_audits > 0:
+        cursor.execute(f'''
+            SELECT 
+                CASE 
+                    WHEN AVG(CASE WHEN audit_status = 'pass' THEN 1.0 ELSE 0.0 END) = 1.0 THEN 'PASS'
+                    WHEN AVG(CASE WHEN audit_status = 'variance' THEN 1.0 ELSE 0.0 END) > 0.0 THEN 'VARIANCE'
+                    ELSE 'REVIEW'
+                END as overall_status,
+                COUNT(DISTINCT invoice_number) as invoice_count
+            FROM {audit_table} 
+            GROUP BY invoice_number
+        ''')
+        status_results = cursor.fetchall()
+        
+        summary['total'] = total_audits
+        for status, count in status_results:
+            if status and status.upper() == 'PASS':
+                summary['passed'] += 1
+            elif status and status.upper() == 'VARIANCE':
+                summary['review'] += 1
+            else:
+                summary['review'] += 1
+    
     conn.close()
     
     # Calculate pagination info
@@ -1865,11 +1921,16 @@ def batch_audit_results(user_data=None):
     
     return render_template('dhl_express_batch_results.html',
                          audit_results=audit_results,
-                         page=page,
-                         total_pages=total_pages,
-                         has_prev=has_prev,
-                         has_next=has_next,
-                         total_audits=total_audits)
+                         summary=summary,
+                         pagination={
+                             'total': total_audits,
+                             'pages': total_pages,
+                             'current_page': page,
+                             'per_page': per_page,
+                             'has_prev': has_prev,
+                             'has_next': has_next
+                         },
+                         filters=request.args.to_dict())
 
 @dhl_express_routes.route('/dhl-express/batch-audit/export')
 @require_auth
@@ -1979,10 +2040,10 @@ def export_detailed_batch_audit_results(user_data=None):
                        r.expected_cost_cny, r.actual_cost_cny, r.variance_cny,
                        r.variance_percent, r.audit_status, r.rate_card_match,
                        r.zone_used, r.weight_used, r.service_type, r.audit_details,
-                       i.company_name, i.account_number
+                       i.bill_to_account_name, i.bill_to_account
                 FROM {audit_table} r
                 LEFT JOIN (
-                    SELECT DISTINCT invoice_number, company_name, account_number 
+                    SELECT DISTINCT invoice_number, bill_to_account_name, bill_to_account 
                     FROM {invoice_table}
                 ) i ON r.invoice_number = i.invoice_number
                 ORDER BY r.created_timestamp DESC
@@ -2120,10 +2181,25 @@ def export_detailed_batch_audit_results(user_data=None):
                 summary_sheet.write(row, 7, variance_cny, currency_format)
                 summary_sheet.write(row, 8, variance_percent/100, percentage_format)
                 
-                status_format = pass_format if audit_status == 'PASS' else (
-                    fail_format if audit_status == 'FAIL' else review_format
-                )
-                summary_sheet.write(row, 9, audit_status, status_format)
+                # Normalize China status to display format
+                raw_status = str(audit_status or '').lower()
+                if raw_status in ('pass', 'passed'):
+                    display_status = 'PASS'
+                    status_format = pass_format
+                elif raw_status in ('variance', 'review', 'warning'):
+                    display_status = 'REVIEW'
+                    status_format = review_format
+                elif raw_status in ('fail', 'failed'):
+                    display_status = 'FAIL'
+                    status_format = fail_format
+                elif raw_status == 'error':
+                    display_status = 'ERROR'
+                    status_format = fail_format
+                else:
+                    display_status = audit_status
+                    status_format = review_format
+
+                summary_sheet.write(row, 9, display_status, status_format)
                 summary_sheet.write(row, 10, rate_card_match)
                 summary_sheet.write(row, 11, zone_used)
                 summary_sheet.write(row, 12, weight_used)
@@ -2208,17 +2284,78 @@ def export_detailed_batch_audit_results(user_data=None):
         detail_row = 1
         for audit_result in audit_results:
             invoice_no = audit_result[0]
-            detailed_results = json.loads(audit_result[11]) if audit_result[11] else []
             
-            # Get additional invoice details
-            cursor.execute(f'''
-                SELECT awb_number, origin_code, destination_code, weight
-                FROM {invoice_table}
-                WHERE invoice_no = ?
-                ORDER BY line_number
-            ''', (invoice_no,))
-            invoice_details = cursor.fetchall()
-            invoice_detail_dict = {f"{inv[0]}": inv for inv in invoice_details}
+            if DHLExpressChinaAuditEngine:
+                # China schema - audit_details has full audit result for AWB
+                try:
+                    audit_details = (
+                        json.loads(audit_result[12])
+                        if audit_result[12] else {}
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    audit_details = {}
+                
+                # Extract AWB and details from China audit result
+                awb_number = audit_result[1]  # air_waybill from query
+                expected_cost = audit_result[3]  # expected_cost_cny
+                actual_cost = audit_result[4]   # actual_cost_cny
+                variance = audit_result[5]      # variance_cny
+                audit_status = audit_result[7]  # audit_status
+                zone_used = audit_result[9]     # zone_used
+                weight_used = audit_result[10]  # weight_used
+                service_type = audit_result[11]  # service_type
+                
+                # Create single line item for this AWB
+                line_result = {
+                    'line_number': '1',
+                    'description': f'{service_type} - AWB {awb_number}',
+                    'invoiced': actual_cost,
+                    'expected': expected_cost,
+                    'variance': variance,
+                    'result': audit_status,
+                    'comments': audit_details.get('comments', [])
+                }
+                detailed_results = [line_result]
+                
+                # Get additional invoice details for China
+                cursor.execute(f'''
+                    SELECT DISTINCT consignor_country, consignee_country,
+                           origin_code, dest_code, billed_weight_kg
+                    FROM {invoice_table}
+                    WHERE invoice_number = ? AND air_waybill = ?
+                    LIMIT 1
+                ''', (invoice_no, awb_number))
+                invoice_detail_row = cursor.fetchone()
+                
+                origin = (
+                    invoice_detail_row[2] if invoice_detail_row else ''
+                )
+                destination = (
+                    invoice_detail_row[3] if invoice_detail_row else ''
+                )
+                weight = (
+                    invoice_detail_row[4]
+                    if invoice_detail_row else weight_used
+                )
+                
+            else:
+                # Australia schema - detailed_results has array of line items
+                try:
+                    detailed_results = (
+                        json.loads(audit_result[11])
+                        if audit_result[11] else []
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    detailed_results = []
+                
+                # Get additional invoice details for Australia
+                cursor.execute(f'''
+                    SELECT awb_number, origin_code, destination_code, weight
+                    FROM {invoice_table}
+                    WHERE invoice_no = ?
+                    ORDER BY line_number
+                ''', (invoice_no,))
+                invoice_details = cursor.fetchall()
             
             for line_result in detailed_results:
                 line_number = line_result.get('line_number', '')
@@ -2235,23 +2372,46 @@ def export_detailed_batch_audit_results(user_data=None):
                 else:
                     comment_text = str(comments)
                 
-                # Get additional details from invoice
+                # Set default values
                 awb_number = ''
-                origin = ''
-                destination = ''
-                weight = 0
+                origin_val = ''
+                destination_val = ''
+                weight_val = 0
                 
-                # Try to match by AWB or description
-                for inv_detail in invoice_details:
-                    if inv_detail[0]:  # Has AWB
-                        awb_number = inv_detail[0]
-                        origin = inv_detail[1] or ''
-                        destination = inv_detail[2] or ''
-                        weight = inv_detail[3] or 0
-                        break
+                if DHLExpressChinaAuditEngine:
+                    # China schema - we already have the values from above
+                    awb_number = awb_number if 'awb_number' in locals() else ''
+                    origin_val = origin if 'origin' in locals() else ''
+                    destination_val = (
+                        destination if 'destination' in locals() else ''
+                    )
+                    weight_val = weight if 'weight' in locals() else 0
+                else:
+                    # Australia schema - get from invoice_details
+                    if invoice_details:
+                        for inv_detail in invoice_details:
+                            if inv_detail[0]:  # Has AWB
+                                awb_number = inv_detail[0]
+                                origin_val = inv_detail[1] or ''
+                                destination_val = inv_detail[2] or ''
+                                weight_val = inv_detail[3] or 0
+                                break
                 
+                # Normalize status for display/formatting
+                status_lower = str(status or '').lower()
+                if status_lower in ('pass', 'passed'):
+                    display_line_status = 'PASS'
+                elif status_lower in ('variance', 'review', 'warning'):
+                    display_line_status = 'REVIEW'
+                elif status_lower in ('fail', 'failed'):
+                    display_line_status = 'FAIL'
+                elif status_lower == 'error':
+                    display_line_status = 'ERROR'
+                else:
+                    display_line_status = status or ''
+
                 # Finance notes based on variance and status
-                if status == 'FAIL' and variance < -10:
+                if display_line_status == 'FAIL' and variance < -10:
                     finance_notes = 'DISPUTE - DHL Overcharged'
                 elif variance < -5:
                     finance_notes = 'Review for potential dispute'
@@ -2261,21 +2421,21 @@ def export_detailed_batch_audit_results(user_data=None):
                     finance_notes = 'Approved'
                 
                 # Choose format based on status
-                line_format = pass_format if status == 'PASS' else (
-                    fail_format if status == 'FAIL' else review_format
+                line_format = pass_format if display_line_status == 'PASS' else (
+                    fail_format if display_line_status == 'FAIL' else review_format
                 )
                 
                 detail_sheet.write(detail_row, 0, invoice_no)
                 detail_sheet.write(detail_row, 1, str(line_number))
                 detail_sheet.write(detail_row, 2, description)
                 detail_sheet.write(detail_row, 3, awb_number)
-                detail_sheet.write(detail_row, 4, origin)
-                detail_sheet.write(detail_row, 5, destination)
-                detail_sheet.write(detail_row, 6, weight)
+                detail_sheet.write(detail_row, 4, origin_val)
+                detail_sheet.write(detail_row, 5, destination_val)
+                detail_sheet.write(detail_row, 6, weight_val)
                 detail_sheet.write(detail_row, 7, invoiced, currency_format)
                 detail_sheet.write(detail_row, 8, expected, currency_format)
                 detail_sheet.write(detail_row, 9, variance, currency_format)
-                detail_sheet.write(detail_row, 10, status, line_format)
+                detail_sheet.write(detail_row, 10, display_line_status, line_format)
                 detail_sheet.write(detail_row, 11, comment_text)
                 detail_sheet.write(detail_row, 12, finance_notes)
                 
@@ -2308,12 +2468,25 @@ def export_detailed_batch_audit_results(user_data=None):
         # Collect disputes
         dispute_row = 1
         for audit_result in audit_results:
-            total_variance = float(audit_result[4]) if audit_result[4] else 0
-            if total_variance < -5:  # DHL overcharged by more than $5
+            if DHLExpressChinaAuditEngine:
+                # China schema indexes
+                total_var_val = audit_result[5]
+                total_variance = float(total_var_val) if total_var_val else 0
+                invoice_no = audit_result[0]
+                company_name = audit_result[13] or 'Unknown'
+                audit_status_val = audit_result[7]
+                currency_symbol = 'CNY'
+            else:
+                # Australia schema indexes
+                total_var_val = audit_result[4]
+                total_variance = float(total_var_val) if total_var_val else 0
                 invoice_no = audit_result[0]
                 company_name = audit_result[12] or 'Unknown'
-                audit_status = audit_result[6]
-                
+                audit_status_val = audit_result[6]
+                currency_symbol = '$'
+
+            # Only list overcharge (negative variance)
+            if total_variance < -5:
                 if total_variance < -50:
                     priority = 'HIGH'
                     action = 'IMMEDIATE DISPUTE REQUIRED'
@@ -2323,15 +2496,20 @@ def export_detailed_batch_audit_results(user_data=None):
                 else:
                     priority = 'LOW'
                     action = 'REVIEW FOR DISPUTE'
-                
+
                 disputes_sheet.write(dispute_row, 0, priority)
                 disputes_sheet.write(dispute_row, 1, invoice_no)
                 disputes_sheet.write(dispute_row, 2, company_name)
                 disputes_sheet.write(dispute_row, 3, total_variance, currency_format)
-                disputes_sheet.write(dispute_row, 4, f'DHL overcharged by ${abs(total_variance):,.2f}')
+                # Compose description with proper currency label and wrap to keep line length
+                desc_text = (
+                    f'DHL overcharged by {currency_symbol} '
+                    f"{abs(total_variance):,.2f}"
+                )
+                disputes_sheet.write(dispute_row, 4, desc_text)
                 disputes_sheet.write(dispute_row, 5, action)
                 disputes_sheet.write(dispute_row, 6, abs(total_variance), currency_format)
-                
+
                 dispute_row += 1
         
         # Set column widths for disputes
