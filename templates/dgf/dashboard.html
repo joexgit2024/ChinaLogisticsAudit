@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}DGF Audit Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3"><i class="fas fa-ship"></i> DGF Air & Sea Freight Audit Dashboard</h1>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Air Quotes</div>
+                            <div class="h5 mb-0 font-weight-bold">{{ quote_stats.get('AIR', 0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-plane fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white mb-4">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Sea Quotes</div>
+                            <div class="h5 mb-0 font-weight-bold">{{ quote_stats.get('SEA', 0) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-ship fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Audit Pass Rate</div>
+                            <div class="h5 mb-0 font-weight-bold">
+                                {% if audit_summary and audit_summary[0] > 0 %}
+                                    {{ "%.1f"|format((audit_summary[1] / audit_summary[0]) * 100) }}%
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-uppercase mb-1">Avg Score</div>
+                            <div class="h5 mb-0 font-weight-bold">
+                                {% if audit_summary and audit_summary[4] %}
+                                    {{ "%.1f"|format(audit_summary[4]) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-star fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dgf.upload_files') }}" class="btn btn-primary btn-block">
+                                <i class="fas fa-upload"></i> Upload Files
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="runAuditBtn" class="btn btn-success btn-block">
+                                <i class="fas fa-play"></i> Run Audit
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dgf.view_audit_results') }}" class="btn btn-info btn-block">
+                                <i class="fas fa-chart-line"></i> View Results
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('dgf.generate_report') }}" class="btn btn-secondary btn-block">
+                                <i class="fas fa-download"></i> Export Report
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Impact -->
+    {% if audit_summary and audit_summary[0] > 0 %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-left-danger">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Total Overcharge</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ "%.2f"|format(audit_summary[5]) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-arrow-up fa-2x text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Undercharge</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">¥{{ "%.2f"|format(audit_summary[6]) }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-arrow-down fa-2x text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Audit Results -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history"></i> Recent Audit Results</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_audits %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Quote ID</th>
+                                    <th>Mode</th>
+                                    <th>HBL</th>
+                                    <th>Status</th>
+                                    <th>Score</th>
+                                    <th>Variance</th>
+                                    <th>Audit Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for audit in recent_audits %}
+                                <tr>
+                                    <td>{{ audit[0] }}</td>
+                                    <td>
+                                        {% if audit[1] == 'AIR' %}
+                                            <span class="badge badge-primary">AIR</span>
+                                        {% else %}
+                                            <span class="badge badge-info">SEA</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ audit[2] }}</td>
+                                    <td>
+                                        {% if audit[3] == 'PASS' %}
+                                            <span class="badge badge-success">PASS</span>
+                                        {% elif audit[3] == 'WARNING' %}
+                                            <span class="badge badge-warning">WARNING</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">FAIL</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "%.1f"|format(audit[4]) if audit[4] else 'N/A' }}</td>
+                                    <td>
+                                        {% if audit[5] %}
+                                            <span class="{% if audit[5] > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                ¥{{ "%.2f"|format(audit[5]) }}
+                                            </span>
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ audit[6] }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No audit results yet. Upload files and run audit to see results.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Run Audit Modal -->
+<div class="modal fade" id="auditModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Running Audit</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-3">Auditing invoices against spot quotes...</p>
+                <div id="auditProgress"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('runAuditBtn').addEventListener('click', function() {
+    $('#auditModal').modal('show');
+    
+    fetch('{{ url_for("dgf.run_audit") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        $('#auditModal').modal('hide');
+        if (data.success) {
+            Swal.fire({
+                title: 'Audit Complete!',
+                html: `
+                    <div class="text-left">
+                        <p><strong>Total Invoices:</strong> ${data.results.total_invoices}</p>
+                        <p><strong>Audited:</strong> ${data.results.audited}</p>
+                        <p><strong>Passed:</strong> ${data.results.passed}</p>
+                        <p><strong>Warnings:</strong> ${data.results.warnings}</p>
+                        <p><strong>Failed:</strong> ${data.results.failed}</p>
+                        <p><strong>Errors:</strong> ${data.results.errors}</p>
+                    </div>
+                `,
+                icon: 'success',
+                confirmButtonText: 'View Results'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '{{ url_for("dgf.view_audit_results") }}';
+                } else {
+                    location.reload();
+                }
+            });
+        } else {
+            Swal.fire('Error', data.message, 'error');
+        }
+    })
+    .catch(error => {
+        $('#auditModal').modal('hide');
+        Swal.fire('Error', 'Failed to run audit: ' + error.message, 'error');
+    });
+});
+</script>
+{% endblock %}

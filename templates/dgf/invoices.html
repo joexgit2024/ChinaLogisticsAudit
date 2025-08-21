@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}DGF Invoices{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3"><i class="fas fa-file-invoice"></i> DGF Invoices</h1>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="form-inline">
+                        <div class="form-group mr-3">
+                            <label for="mode" class="mr-2">Mode:</label>
+                            <select name="mode" id="mode" class="form-control">
+                                <option value="ALL" {{ 'selected' if selected_mode == 'ALL' }}>All</option>
+                                <option value="AIR" {{ 'selected' if selected_mode == 'AIR' }}>Air</option>
+                                <option value="SEA" {{ 'selected' if selected_mode == 'SEA' }}>Sea</option>
+                            </select>
+                        </div>
+                        <div class="form-group mr-3">
+                            <label for="status" class="mr-2">Status:</label>
+                            <select name="status" id="status" class="form-control">
+                                <option value="ALL" {{ 'selected' if selected_status == 'ALL' }}>All</option>
+                                <option value="PROCESSED" {{ 'selected' if selected_status == 'PROCESSED' }}>Processed</option>
+                                <option value="PENDING" {{ 'selected' if selected_status == 'PENDING' }}>Pending</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoices Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Invoices ({{ invoices|length }} records)</h5>
+                </div>
+                <div class="card-body">
+                    {% if invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="invoicesTable">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Quote ID</th>
+                                    <th>Mode</th>
+                                    <th>HBL</th>
+                                    <th>Arrival Date</th>
+                                    <th>Route</th>
+                                    <th>Pieces</th>
+                                    <th>Weight/Volume</th>
+                                    <th>Total CNY</th>
+                                    <th>Status</th>
+                                    <th>Audit Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                <tr>
+                                    <td>
+                                        <small>{{ invoice.quote_id }}</small>
+                                    </td>
+                                    <td>
+                                        {% if invoice.mode == 'AIR' %}
+                                            <span class="badge badge-primary">AIR</span>
+                                        {% else %}
+                                            <span class="badge badge-info">SEA</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ invoice.hbl_number }}</td>
+                                    <td>{{ invoice.actual_arrival_date }}</td>
+                                    <td>
+                                        <small>{{ invoice.origin_port }} → {{ invoice.destination_port }}</small>
+                                    </td>
+                                    <td>{{ invoice.pieces }}</td>
+                                    <td>
+                                        {% if invoice.mode == 'AIR' %}
+                                            {{ "%.1f"|format(invoice.chargeable_weight) if invoice.chargeable_weight else 'N/A' }} kg
+                                        {% else %}
+                                            {{ "%.2f"|format(invoice.volume_cbm) if invoice.volume_cbm else 'N/A' }} CBM
+                                        {% endif %}
+                                    </td>
+                                    <td>¥{{ "%.2f"|format(invoice.total_cny) if invoice.total_cny else 'N/A' }}</td>
+                                    <td>
+                                        {% if invoice.status == 'PROCESSED' %}
+                                            <span class="badge badge-success">PROCESSED</span>
+                                        {% else %}
+                                            <span class="badge badge-warning">PENDING</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if invoice.audit_status %}
+                                            {% if invoice.audit_status == 'PASS' %}
+                                                <span class="badge badge-success">PASS</span>
+                                            {% elif invoice.audit_status == 'WARNING' %}
+                                                <span class="badge badge-warning">WARNING</span>
+                                            {% elif invoice.audit_status == 'FAIL' %}
+                                                <span class="badge badge-danger">FAIL</span>
+                                            {% endif %}
+                                            <br><small>Score: {{ "%.1f"|format(invoice.audit_score) if invoice.audit_score else 'N/A' }}</small>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Not Audited</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if invoice.audit_status %}
+                                            <button class="btn btn-sm btn-info" onclick="viewAuditDetails({{ invoice.id }})">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-primary" onclick="auditInvoice({{ invoice.id }})">
+                                                <i class="fas fa-play"></i> Audit
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Invoices Found</h5>
+                        <p class="text-muted">No invoices found matching your current filters. Upload DGF files to process invoices.</p>
+                        <a href="{{ url_for('dgf.upload_files') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload Files
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if invoices %}
+    <!-- Summary Statistics -->
+    <div class="row mt-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <h5>{{ invoices|selectattr('mode', 'equalto', 'AIR')|list|length }}</h5>
+                    <p class="mb-0">Air Invoices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <h5>{{ invoices|selectattr('mode', 'equalto', 'SEA')|list|length }}</h5>
+                    <p class="mb-0">Sea Invoices</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <h5>{{ invoices|selectattr('status', 'equalto', 'PROCESSED')|list|length }}</h5>
+                    <p class="mb-0">Processed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <h5>{{ invoices|selectattr('audit_status', 'equalto', 'PASS')|list|length }}</h5>
+                    <p class="mb-0">Audit Pass</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Audit Details Modal -->
+<div class="modal fade" id="auditDetailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Audit Details</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="auditDetailsBody">
+                <!-- Audit details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#invoicesTable').DataTable({
+        pageLength: 25,
+        responsive: true,
+        order: [[3, 'desc']], // Sort by arrival date descending
+        columnDefs: [
+            { targets: [0, 2, 4], orderable: false },
+            { targets: [8, 9, 10], searchable: false }
+        ]
+    });
+});
+
+function viewAuditDetails(invoiceId) {
+    fetch(`/dgf/audit/invoice/${invoiceId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const result = data.result;
+                const detailsHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Invoice Information</h6>
+                            <p><strong>Quote ID:</strong> ${result.quote_id}</p>
+                            <p><strong>Mode:</strong> ${result.mode}</p>
+                            <p><strong>Status:</strong> <span class="badge badge-${result.overall_status === 'PASS' ? 'success' : result.overall_status === 'WARNING' ? 'warning' : 'danger'}">${result.overall_status}</span></p>
+                            <p><strong>Score:</strong> ${result.audit_score.toFixed(1)}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Financial Impact</h6>
+                            <p><strong>Overcharge:</strong> ¥${result.overcharge_amount.toFixed(2)}</p>
+                            <p><strong>Undercharge:</strong> ¥${result.undercharge_amount.toFixed(2)}</p>
+                            <p><strong>Net Variance:</strong> <span class="${result.net_variance > 0 ? 'text-danger' : 'text-success'}">¥${result.net_variance.toFixed(2)}</span></p>
+                        </div>
+                    </div>
+                    <hr>
+                    <h6>Variances</h6>
+                    ${result.variances.length > 0 ? 
+                        result.variances.map(v => `
+                            <div class="alert alert-${v.variance_pct > 15 ? 'danger' : 'warning'}">
+                                <strong>${v.type}:</strong> ${v.variance_pct.toFixed(1)}% variance<br>
+                                Expected: ${v.expected.toFixed(2)}, Actual: ${v.actual.toFixed(2)}<br>
+                                Variance Amount: ¥${v.variance_amount.toFixed(2)}
+                            </div>
+                        `).join('') : 
+                        '<div class="alert alert-success">No variances found</div>'
+                    }
+                `;
+                
+                document.getElementById('auditDetailsBody').innerHTML = detailsHtml;
+                $('#auditDetailsModal').modal('show');
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            Swal.fire('Error', 'Failed to load audit details: ' + error.message, 'error');
+        });
+}
+
+function auditInvoice(invoiceId) {
+    if (confirm('Run audit on this invoice?')) {
+        fetch(`/dgf/audit/invoice/${invoiceId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire('Success', 'Invoice audited successfully!', 'success').then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', data.message, 'error');
+            }
+        })
+        .catch(error => {
+            Swal.fire('Error', 'Failed to audit invoice: ' + error.message, 'error');
+        });
+    }
+}
+</script>
+{% endblock %}

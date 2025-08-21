@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Upload DGF Files{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3"><i class="fas fa-upload"></i> Upload DGF Air & Sea Freight Files</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-excel"></i> File Upload</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="air_file"><i class="fas fa-plane"></i> Air Freight File (.xlsx)</label>
+                                    <input type="file" class="form-control-file" id="air_file" name="air_file" accept=".xlsx">
+                                    <small class="form-text text-muted">Upload DGF Air freight Excel file</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="sea_file"><i class="fas fa-ship"></i> Sea Freight File (.xlsx)</label>
+                                    <input type="file" class="form-control-file" id="sea_file" name="sea_file" accept=".xlsx">
+                                    <small class="form-text text-muted">Upload DGF Sea freight Excel file</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Upload Instructions:</h6>
+                            <ul class="mb-0">
+                                <li>Air freight files should contain spot quotes and invoice data with columns like 报价单号, 分单号, 计费重, etc.</li>
+                                <li>Sea freight files should contain spot quotes and invoice data with columns like 报价单号, 分单号, 立方数, etc.</li>
+                                <li>Files will be processed to extract spot quotes as baseline rates for auditing</li>
+                                <li>Exchange rates and currency conversions will be automatically handled</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-upload"></i> Upload and Process Files
+                            </button>
+                            <a href="{{ url_for('dgf.dashboard') }}" class="btn btn-secondary btn-lg ml-2">
+                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Processing Info -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs"></i> How DGF Audit Works</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-file-upload fa-3x text-primary mb-3"></i>
+                                <h6>1. Upload Files</h6>
+                                <p class="text-muted">Upload DGF air and sea freight Excel files containing spot quotes and invoices</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-database fa-3x text-info mb-3"></i>
+                                <h6>2. Extract Quotes</h6>
+                                <p class="text-muted">System extracts spot quotes as baseline rates per lane and stores them in database</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-search fa-3x text-warning mb-3"></i>
+                                <h6>3. Audit Invoices</h6>
+                                <p class="text-muted">Compare actual invoices against corresponding spot quotes to identify variances</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                                <h6>4. Generate Reports</h6>
+                                <p class="text-muted">Produce detailed audit reports with variance analysis and financial impact</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing Files</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-3">Processing uploaded files and extracting spot quotes...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const airFile = document.getElementById('air_file').files[0];
+    const seaFile = document.getElementById('sea_file').files[0];
+    
+    if (!airFile && !seaFile) {
+        e.preventDefault();
+        Swal.fire('Error', 'Please select at least one file to upload.', 'error');
+        return;
+    }
+    
+    // Show processing modal
+    $('#processingModal').modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+});
+
+// File input styling
+document.querySelectorAll('input[type="file"]').forEach(function(input) {
+    input.addEventListener('change', function() {
+        const fileName = this.files[0] ? this.files[0].name : 'Choose file...';
+        const label = this.parentNode.querySelector('label');
+        if (this.files[0]) {
+            label.innerHTML = label.innerHTML.split('</i>')[0] + '</i> ' + fileName;
+            label.classList.add('text-success');
+        }
+    });
+});
+</script>
+{% endblock %}

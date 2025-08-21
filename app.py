@@ -100,6 +100,14 @@ try:
 except ImportError as e:
     print(f"Warning: Could not import DHL Express routes: {e}")
 
+# Register DGF Air & Sea Freight Audit blueprint
+try:
+    from dgf_routes import dgf_bp
+    app.register_blueprint(dgf_bp)
+    print("DGF Air & Sea Freight audit routes registered successfully")
+except ImportError as e:
+    print(f"Warning: Could not import DHL Express routes: {e}")
+
 # Register FedEx blueprint
 try:
     from fedex_routes import fedex_bp

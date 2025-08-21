@@ -755,6 +755,45 @@
                             </ul>
                         </div>
                         
+                        <!-- DGF Air & Sea Freight Dropdown -->
+                        <div class="dropdown" id="dgfDropdownContainer">
+                            <a class="nav-link dropdown-toggle {% if request.path.startswith('/dgf') %}active{% endif %}"
+                               href="#" role="button" id="dgfDropdown" 
+                               aria-expanded="false" 
+                               aria-haspopup="true"
+                               aria-label="DGF Audit Menu">
+                                <i class="fas fa-ship me-2"></i> <span>DGF Air & Sea</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dgfDropdown" role="menu">
+                                <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf' %}active{% endif %}" href="/dgf" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>DGF Dashboard</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Management</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf/upload' %}active{% endif %}" href="/dgf/upload" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload Excel Files</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf/quotes' %}active{% endif %}" href="/dgf/quotes" role="menuitem">
+                                    <i class="fas fa-tags me-2"></i> <span>Spot Quotes</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf/invoices' %}active{% endif %}" href="/dgf/invoices" role="menuitem">
+                                    <i class="fas fa-file-invoice me-2"></i> <span>View Invoices</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf/audit/results' %}active{% endif %}" href="/dgf/audit/results" role="menuitem">
+                                    <i class="fas fa-chart-line me-2"></i> <span>Audit Results</span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="runDGFAudit(); return false;" role="menuitem">
+                                    <i class="fas fa-play me-2"></i> <span>Run Audit</span>
+                                </a></li>
+                                <li><a class="dropdown-item" href="/dgf/reports/generate" role="menuitem">
+                                    <i class="fas fa-download me-2"></i> <span>Export Report</span>
+                                </a></li>
+                            </ul>
+                        </div>
+                        
                         <!-- LLM Processing Dropdown -->
                         <div class="dropdown" id="llmDropdownContainer">
                             <a class="nav-link dropdown-toggle {% if request.path.startswith('/llm-pdf') %}active{% endif %}"
@@ -854,6 +893,7 @@
                 'ytdDropdownContainer',
                 'pdfDropdownContainer',
                 'dhlExpressDropdownContainer',
+                'dgfDropdownContainer',
                 'llmDropdownContainer'
             ];
             
@@ -992,6 +1032,29 @@
             .catch(error => {
                 alert('Error performing audit: ' + error);
             });
+        }
+
+        function runDGFAudit() {
+            if (confirm('Run audit on all DGF invoices against their spot quotes?')) {
+                fetch('/dgf/audit/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Audit completed!\nTotal: ${data.results.total_invoices}\nPassed: ${data.results.passed}\nWarnings: ${data.results.warnings}\nFailed: ${data.results.failed}`);
+                        window.location.href = '/dgf/audit/results';
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error performing audit: ' + error);
+                });
+            }
         }
 
         // Sidebar toggle logic with mobile support

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}DGF Spot Quotes{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="h3 mb-3"><i class="fas fa-tags"></i> DGF Spot Quotes</h1>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="GET" class="form-inline">
+                        <div class="form-group mr-3">
+                            <label for="mode" class="mr-2">Mode:</label>
+                            <select name="mode" id="mode" class="form-control">
+                                <option value="ALL" {{ 'selected' if selected_mode == 'ALL' }}>All</option>
+                                <option value="AIR" {{ 'selected' if selected_mode == 'AIR' }}>Air</option>
+                                <option value="SEA" {{ 'selected' if selected_mode == 'SEA' }}>Sea</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Filter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quotes Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table"></i> Spot Quotes ({{ quotes|length }} records)</h5>
+                </div>
+                <div class="card-body">
+                    {% if quotes %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" id="quotesTable">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>Quote ID</th>
+                                    <th>Mode</th>
+                                    <th>Lane</th>
+                                    <th>Route</th>
+                                    <th>Terms</th>
+                                    <th>Rate/KG</th>
+                                    <th>Rate/CBM</th>
+                                    <th>Origin Fee</th>
+                                    <th>Dest Fee</th>
+                                    <th>Quote Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for quote in quotes %}
+                                <tr>
+                                    <td>
+                                        <small>{{ quote.quote_id }}</small>
+                                    </td>
+                                    <td>
+                                        {% if quote.mode == 'AIR' %}
+                                            <span class="badge badge-primary">AIR</span>
+                                        {% else %}
+                                            <span class="badge badge-info">SEA</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ quote.lane }}</td>
+                                    <td>
+                                        <small>{{ quote.origin_port }} → {{ quote.destination_port }}</small>
+                                    </td>
+                                    <td>{{ quote.terms }}</td>
+                                    <td>
+                                        {% if quote.rate_per_kg %}
+                                            ${{ "%.2f"|format(quote.rate_per_kg) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if quote.rate_per_cbm %}
+                                            ${{ "%.2f"|format(quote.rate_per_cbm) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if quote.origin_handling_fee %}
+                                            ${{ "%.2f"|format(quote.origin_handling_fee) }}
+                                        {% else %}
+                                            $0.00
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if quote.dest_handling_fee %}
+                                            ${{ "%.2f"|format(quote.dest_handling_fee) }}
+                                        {% else %}
+                                            $0.00
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ quote.quote_date }}</td>
+                                    <td>
+                                        <span class="badge badge-success">{{ quote.status }}</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Quotes Found</h5>
+                        <p class="text-muted">No spot quotes found. Upload DGF files to extract quotes.</p>
+                        <a href="{{ url_for('dgf.upload_files') }}" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Upload Files
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#quotesTable').DataTable({
+        pageLength: 25,
+        responsive: true,
+        order: [[9, 'desc']], // Sort by quote date descending
+        columnDefs: [
+            { targets: [0, 2, 3], orderable: false }
+        ]
+    });
+});
+</script>
+{% endblock %}
