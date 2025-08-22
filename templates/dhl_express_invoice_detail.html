@@ -88,7 +88,15 @@
                 </h2>
                 <p class="mb-1"><strong>Company:</strong> {{ invoice_header.company_name }}</p>
                 <p class="mb-1"><strong>Account:</strong> {{ invoice_header.account_number }}</p>
-                <p class="mb-0"><strong>Date:</strong> {{ invoice_header.invoice_date }}</p>
+                <p class="mb-1"><strong>Date:</strong> {{ invoice_header.invoice_date }}</p>
+                {% if has_invoice_image %}
+                <p class="mb-0">
+                    <a href="{{ url_for('images.view_invoice_image', invoice_type='DHL_EXPRESS', invoice_number=invoice_header.invoice_no) }}" 
+                       class="btn btn-sm btn-outline-light" target="_blank">
+                        <i class="fas fa-image me-1"></i> View Invoice Image
+                    </a>
+                </p>
+                {% endif %}
             </div>
             <div class="col-md-4 text-right">
                 {% if is_chinese %}

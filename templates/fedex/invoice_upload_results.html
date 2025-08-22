@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Upload Results{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <span class="fedex-brand-icon me-2">
+                        <span class="fedex-fed">Fed</span><span class="fedex-ex">Ex</span>
+                    </span>
+                    Upload & Extraction Results
+                </h1>
+                <div>
+                    <a href="{{ url_for('fedex_extract.invoice_upload') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-upload me-2"></i>Upload More
+                    </a>
+                    <a href="{{ url_for('fedex_extract.extracted_invoices') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-list me-2"></i>View All Invoices
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card card-stat border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h3 class="text-success">{{ results | selectattr('success') | list | length }}</h3>
+                    <p class="text-muted mb-0">Successful Extractions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-stat border-danger">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                    <h3 class="text-danger">{{ results | rejectattr('success') | list | length }}</h3>
+                    <p class="text-muted mb-0">Failed Extractions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-stat border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-pdf fa-2x text-info mb-2"></i>
+                    <h3 class="text-info">{{ results | length }}</h3>
+                    <p class="text-muted mb-0">Total Files Processed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card card-stat border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                    <h3 class="text-warning">
+                        {% if results | length > 0 %}
+                            {{ ((results | selectattr('success') | list | length) / (results | length) * 100) | round(1) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </h3>
+                    <p class="text-muted mb-0">Success Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table me-2"></i>Extraction Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if results %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="5%">Status</th>
+                                    <th width="35%">File Name</th>
+                                    <th width="20%">Invoice Number</th>
+                                    <th width="25%">Extraction Method</th>
+                                    <th width="15%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                <tr class="{% if result.success %}table-success{% else %}table-warning{% endif %}">
+                                    <td>
+                                        {% if result.success %}
+                                            <i class="fas fa-check-circle text-success" title="Success"></i>
+                                        {% else %}
+                                            <i class="fas fa-exclamation-triangle text-warning" title="Failed"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                                            <span class="text-truncate" title="{{ result.file_name }}">
+                                                {{ result.file_name }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if result.success and result.invoice_number %}
+                                            <span class="badge bg-primary fs-6">{{ result.invoice_number }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ result.method }}</small>
+                                    </td>
+                                    <td>
+                                        {% if result.success %}
+                                            <button class="btn btn-sm btn-outline-primary" onclick="processInvoice('{{ result.invoice_number }}')">
+                                                <i class="fas fa-play me-1"></i>Process
+                                            </button>
+                                        {% else %}
+                                            <button class="btn btn-sm btn-outline-secondary" onclick="retryExtraction('{{ result.file_name }}')">
+                                                <i class="fas fa-redo me-1"></i>Retry
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No results to display</h5>
+                        <p class="text-muted">Upload some FedEx invoice PDFs to see results here.</p>
+                        <a href="{{ url_for('fedex_extract.invoice_upload') }}" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Invoices
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if results | selectattr('success') | list | length > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-forward me-2"></i>Next Steps
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="d-grid">
+                                <a href="/fedex/invoices" class="btn btn-outline-primary btn-lg">
+                                    <i class="fas fa-list me-2"></i>
+                                    View Invoice List
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid">
+                                <a href="/fedex/batch-audit" class="btn btn-outline-success btn-lg">
+                                    <i class="fas fa-play-circle me-2"></i>
+                                    Run Batch Audit
+                                </a>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-grid">
+                                <a href="/fedex/data-management" class="btn btn-outline-info btn-lg">
+                                    <i class="fas fa-database me-2"></i>
+                                    Manage Rate Cards
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function processInvoice(invoiceNumber) {
+    if (confirm(`Process invoice ${invoiceNumber} for audit?`)) {
+        // Redirect to individual invoice processing
+        window.location.href = `/fedex/invoices?invoice=${invoiceNumber}`;
+    }
+}
+
+function retryExtraction(fileName) {
+    if (confirm(`Retry extraction for ${fileName}? This may require manual review.`)) {
+        // Could implement a retry mechanism or manual input
+        alert('Retry functionality not yet implemented. Please try uploading the file again or contact support.');
+    }
+}
+
+// Auto-refresh stats after processing
+document.addEventListener('DOMContentLoaded', function() {
+    // Optional: Add auto-refresh or real-time updates
+});
+</script>
+
+<style>
+.card-stat {
+    transition: transform 0.2s ease;
+}
+
+.card-stat:hover {
+    transform: translateY(-2px);
+}
+
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.text-truncate {
+    max-width: 250px;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9em;
+    }
+    
+    .btn-lg {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+}
+</style>
+{% endblock %}

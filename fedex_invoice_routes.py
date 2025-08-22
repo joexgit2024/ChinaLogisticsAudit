@@ -421,8 +421,19 @@ def invoice_detail(invoice_no, awb_number, user_data=None):
                 'status': audit_results['status_color']
             })
     
-    # Check for invoice images (placeholder for future implementation)  
-    has_invoice_image = False
+    # Check for invoice images in the invoice_images table
+    try:
+        audit_conn = sqlite3.connect('dhl_audit.db')
+        audit_cursor = audit_conn.cursor()
+        audit_cursor.execute(
+            'SELECT COUNT(*) FROM invoice_images WHERE invoice_number = ? AND invoice_type = ?',
+            (invoice_no, 'FEDEX')
+        )
+        has_invoice_image = audit_cursor.fetchone()[0] > 0
+        audit_conn.close()
+    except Exception as e:
+        print(f"Error checking for invoice images: {e}")
+        has_invoice_image = False
     
     conn.close()
     

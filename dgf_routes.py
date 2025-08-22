@@ -180,6 +180,7 @@ def view_invoices():
         query = '''
             SELECT 
                 i.id,
+                i.invoice_number,
                 i.quote_id,
                 i.mode,
                 i.hbl_number,
@@ -196,7 +197,11 @@ def view_invoices():
                 ar.audit_score,
                 ar.net_variance
             FROM dgf_invoices i
-            LEFT JOIN dgf_audit_results ar ON i.id = ar.invoice_id
+            LEFT JOIN (
+                SELECT invoice_id, overall_status, audit_score, net_variance,
+                       ROW_NUMBER() OVER (PARTITION BY invoice_id ORDER BY id DESC) as rn
+                FROM dgf_audit_results
+            ) ar ON i.id = ar.invoice_id AND ar.rn = 1
             WHERE 1=1
         '''
         

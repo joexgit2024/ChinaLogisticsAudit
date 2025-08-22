@@ -68,10 +68,11 @@
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Upload Instructions:</h6>
                             <ul class="mb-0">
-                                <li>Air freight files should contain spot quotes and invoice data with columns like 报价单号, 分单号, 计费重, etc.</li>
-                                <li>Sea freight files should contain spot quotes and invoice data with columns like 报价单号, 分单号, 立方数, etc.</li>
-                                <li>Files will be processed to extract spot quotes as baseline rates for auditing</li>
+                                <li><strong>Air freight files:</strong> Should contain invoice data with Chinese columns like 报价单号, 分单号, 计费重, etc.</li>
+                                <li><strong>Sea freight files:</strong> Should use DGF-CN10 billing format with English columns like "Lane ID/FQR#", "invoice No.", "HBL", "PKG No", "M3", "Pickup", "Total CNY", etc.</li>
+                                <li>Files will be processed to extract and store detailed invoice information for auditing</li>
                                 <li>Exchange rates and currency conversions will be automatically handled</li>
+                                <li><em>Note:</em> Sea freight files should follow the new DGF-CN10 billing.xlsx template structure</li>
                             </ul>
                         </div>
                         

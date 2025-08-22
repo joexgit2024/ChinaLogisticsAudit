@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+
+{% block title %}FedEx Invoice Upload{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <span class="fedex-brand-icon me-2">
+                        <span class="fedex-fed">Fed</span><span class="fedex-ex">Ex</span>
+                    </span>
+                    Invoice Upload & Extraction
+                </h1>
+                <a href="{{ url_for('fedex_extract.extracted_invoices') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-list me-2"></i>View Extracted Invoices
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header fedex-bg-light">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-upload me-2"></i>Upload FedEx Invoice PDFs
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Invoice Number Extraction:</strong> The system will automatically extract 10-digit invoice numbers from your PDF files. 
+                        Invoice numbers are typically found on page 2 of FedEx invoices.
+                    </div>
+
+                    <form id="uploadForm" method="POST" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="files" class="form-label">Select FedEx Invoice PDF Files</label>
+                            <div class="upload-zone" id="uploadZone">
+                                <div class="upload-content">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5>Drag & Drop PDF Files Here</h5>
+                                    <p class="text-muted">or click to browse</p>
+                                    <input type="file" id="files" name="files" multiple accept=".pdf" class="form-control" style="display: none;">
+                                    <button type="button" class="btn btn-primary" onclick="document.getElementById('files').click();">
+                                        <i class="fas fa-folder-open me-2"></i>Browse Files
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="fileList" class="mb-3" style="display: none;">
+                            <h6>Selected Files:</h6>
+                            <div id="fileItems"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" id="uploadBtn" class="btn btn-success btn-lg" disabled>
+                                <i class="fas fa-upload me-2"></i>Upload & Extract Invoice Numbers
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="clearFiles()">
+                                <i class="fas fa-times me-2"></i>Clear Files
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Manual Input Section -->
+            <div class="card mt-4">
+                <div class="card-header bg-warning">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-edit me-2"></i>Manual Invoice Entry
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>For Image-based PDFs:</strong> If automatic extraction fails (common with scanned PDFs), 
+                        you can manually enter invoice numbers here.
+                    </div>
+                    
+                    <form id="manualForm" onsubmit="addManualInvoice(event)">
+                        <div class="mb-3">
+                            <label for="manualInvoice" class="form-label">Invoice Number (10 digits)</label>
+                            <input type="text" id="manualInvoice" class="form-control" 
+                                   pattern="[0-9]{10}" maxlength="10" 
+                                   placeholder="e.g., 951092043">
+                            <div class="form-text">Enter the 10-digit invoice number from the PDF</div>
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-plus me-2"></i>Add Invoice Number
+                        </button>
+                    </form>
+                    
+                    <div id="manualInvoices" class="mt-3" style="display: none;">
+                        <h6>Manually Added:</h6>
+                        <div id="manualInvoiceList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header fedex-bg-orange text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-question-circle me-2"></i>How It Works
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="list-group list-group-numbered">
+                        <li class="list-group-item d-flex justify-content-between align-items-start border-0 px-0">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">Upload PDFs</div>
+                                Select multiple FedEx invoice PDF files
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-start border-0 px-0">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">Auto-Extract</div>
+                                System extracts 10-digit invoice numbers
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-start border-0 px-0">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">Store & Track</div>
+                                Numbers are stored for audit processing
+                            </div>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-start border-0 px-0">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">Ready for Audit</div>
+                                Files are ready for invoice auditing
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Quick Stats
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="uploadStats">
+                        <div class="d-flex justify-content-between">
+                            <span>Total Invoices:</span>
+                            <span id="totalInvoices">0</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Ready for Audit:</span>
+                            <span id="readyInvoices">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-zone {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    background: #f8f9fa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover {
+    border-color: #FF6600;
+    background: #fff4e6;
+}
+
+.upload-zone.dragover {
+    border-color: #FF6600;
+    background: #fff4e6;
+    transform: scale(1.02);
+}
+
+.file-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 8px 12px;
+    margin: 4px 0;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #FF6600;
+}
+
+.file-item .file-name {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.file-item .file-size {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-right: 10px;
+}
+
+.file-item .remove-file {
+    color: #dc3545;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.file-item .remove-file:hover {
+    color: #a71e2a;
+}
+
+#uploadBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.progress-container {
+    display: none;
+    margin-top: 20px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('files');
+    const fileList = document.getElementById('fileList');
+    const fileItems = document.getElementById('fileItems');
+    const uploadBtn = document.getElementById('uploadBtn');
+    let selectedFiles = [];
+
+    // Drag and drop functionality
+    uploadZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        
+        const files = Array.from(e.dataTransfer.files).filter(file => 
+            file.type === 'application/pdf'
+        );
+        
+        if (files.length > 0) {
+            addFiles(files);
+        } else {
+            alert('Please select only PDF files.');
+        }
+    });
+
+    fileInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        addFiles(files);
+    });
+
+    function addFiles(files) {
+        selectedFiles = [...selectedFiles, ...files];
+        updateFileList();
+        updateUploadButton();
+    }
+
+    function updateFileList() {
+        if (selectedFiles.length === 0) {
+            fileList.style.display = 'none';
+            return;
+        }
+
+        fileList.style.display = 'block';
+        fileItems.innerHTML = '';
+
+        selectedFiles.forEach((file, index) => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <span class="file-name">${file.name}</span>
+                <span class="file-size">${formatFileSize(file.size)}</span>
+                <i class="fas fa-times remove-file" onclick="removeFile(${index})"></i>
+            `;
+            fileItems.appendChild(fileItem);
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function updateUploadButton() {
+        uploadBtn.disabled = selectedFiles.length === 0;
+    }
+
+    window.removeFile = function(index) {
+        selectedFiles.splice(index, 1);
+        updateFileList();
+        updateUploadButton();
+        
+        // Update file input
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
+    };
+
+    window.clearFiles = function() {
+        selectedFiles = [];
+        fileInput.value = '';
+        updateFileList();
+        updateUploadButton();
+    };
+
+    // Update file input when selectedFiles changes
+    function updateFileInput() {
+        const dt = new DataTransfer();
+        selectedFiles.forEach(file => dt.items.add(file));
+        fileInput.files = dt.files;
+    }
+
+    // Form submission with progress
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        if (selectedFiles.length === 0) {
+            e.preventDefault();
+            alert('Please select at least one PDF file.');
+            return;
+        }
+
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+        uploadBtn.disabled = true;
+
+        // Update file input before submission
+        updateFileInput();
+    });
+
+    // Load stats
+    loadStats();
+});
+
+function loadStats() {
+    fetch('/fedex/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('totalInvoices').textContent = data.total || 0;
+            document.getElementById('readyInvoices').textContent = data.ready || 0;
+        })
+        .catch(error => console.error('Error loading stats:', error));
+}
+
+// Manual invoice management
+let manualInvoices = [];
+
+function addManualInvoice(event) {
+    event.preventDefault();
+    
+    const input = document.getElementById('manualInvoice');
+    const invoiceNumber = input.value.trim();
+    
+    // Validate 10-digit number
+    if (!/^\d{10}$/.test(invoiceNumber)) {
+        alert('Please enter exactly 10 digits');
+        return;
+    }
+    
+    // Check for duplicates
+    if (manualInvoices.includes(invoiceNumber)) {
+        alert('This invoice number has already been added');
+        return;
+    }
+    
+    // Add to list
+    manualInvoices.push(invoiceNumber);
+    input.value = '';
+    updateManualInvoiceList();
+    
+    // Submit to server
+    submitManualInvoice(invoiceNumber);
+}
+
+function updateManualInvoiceList() {
+    const container = document.getElementById('manualInvoices');
+    const list = document.getElementById('manualInvoiceList');
+    
+    if (manualInvoices.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.style.display = 'block';
+    list.innerHTML = '';
+    
+    manualInvoices.forEach((invoice, index) => {
+        const item = document.createElement('div');
+        item.className = 'alert alert-success d-flex justify-content-between align-items-center py-2';
+        item.innerHTML = `
+            <span><i class="fas fa-check me-2"></i>${invoice}</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeManualInvoice(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        list.appendChild(item);
+    });
+}
+
+function removeManualInvoice(index) {
+    manualInvoices.splice(index, 1);
+    updateManualInvoiceList();
+}
+
+function submitManualInvoice(invoiceNumber) {
+    fetch('/fedex/api/manual-invoice', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            invoice_number: invoiceNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Manual invoice added successfully');
+            loadStats(); // Refresh stats
+        } else {
+            alert('Error adding manual invoice: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error adding manual invoice');
+    });
+}
+</script>
+{% endblock %}

@@ -197,7 +197,7 @@ def validate_invoice_exists(invoice_number: str, invoice_type: str) -> bool:
                 cursor.execute('SELECT 1 FROM dhl_express_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
                 result = cursor.fetchone()
         elif invoice_type == 'FEDEX':
-            cursor.execute('SELECT 1 FROM fedex_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))
+            cursor.execute('SELECT 1 FROM fedex_invoices WHERE invoice_number = ? LIMIT 1', (invoice_number.upper(),))
             result = cursor.fetchone()
         elif invoice_type == 'DGF':
             cursor.execute('SELECT 1 FROM dhl_ytd_invoices WHERE invoice_no = ? LIMIT 1', (invoice_number.upper(),))

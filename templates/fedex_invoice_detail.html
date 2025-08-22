@@ -98,7 +98,7 @@
                         <i class="fas fa-arrow-left me-2"></i>Back to List
                     </a>
                     {% if has_invoice_image %}
-                        <a href="/fedex/invoice-image/{{ invoice_no }}" class="btn btn-outline-info me-2">
+                        <a href="{{ url_for('images.display_invoice_image', invoice_type='FEDEX', invoice_number=invoice_no) }}" class="btn btn-outline-info me-2" target="_blank">
                             <i class="fas fa-file-image me-2"></i>View Image
                         </a>
                     {% endif %}

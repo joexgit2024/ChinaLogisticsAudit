@@ -572,10 +572,16 @@ def view_dhl_express_invoice(invoice_no, user_data=None):
                 'is_chinese': True
             }
             
+            # Check if invoice image exists for this invoice number
+            cursor.execute('SELECT COUNT(*) FROM invoice_images WHERE invoice_number = ? AND invoice_type = ?', 
+                          (invoice_no, 'DHL_EXPRESS'))
+            has_invoice_image = cursor.fetchone()[0] > 0
+            
             conn.close()
             return render_template('dhl_express_invoice_detail.html', 
                                  invoice_header=invoice_header, 
                                  invoice_lines=invoice_lines,
+                                 has_invoice_image=has_invoice_image,
                                  is_chinese=True)
     
     # Fallback to AU invoice table

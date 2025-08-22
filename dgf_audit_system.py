@@ -633,60 +633,120 @@ class DGFAuditSystem:
             logger.error(f"Error saving air invoices: {e}")
     
     def save_sea_invoices(self, file_path: str):
-        """Save sea freight invoices from Excel file."""
+        """Save sea freight invoices from Excel file - Updated for DGF-CN10 billing.xlsx format."""
         try:
-            df = pd.read_excel(file_path, sheet_name='Sheet1')
-            df = df.iloc[1:].reset_index(drop=True)  # Skip header
+            # Try to read the Excel file - check if it has multiple sheets
+            xl = pd.ExcelFile(file_path)
+            sheet_names = xl.sheet_names
+            logger.info(f"Available sheets: {sheet_names}")
+            
+            # Use the first sheet or look for a specific sheet name
+            df = pd.read_excel(file_path, sheet_name=0)
+            
+            logger.info(f"Original columns in the file: {list(df.columns)}")
+            logger.info(f"First few rows:")
+            logger.info(str(df.head()))
+            
+            # Handle the case where the first row contains English headers
+            # and the actual column names are in Chinese
+            if len(df) > 0 and str(df.iloc[0, 0]).strip() == 'Lane ID/FQR#':
+                logger.info("Detected English headers in first data row, using them as column names")
+                # Use the first row as column names
+                new_columns = df.iloc[0].tolist()
+                # Remove the first row and reset the dataframe
+                df = df.iloc[1:].copy()
+                df.columns = new_columns
+                df = df.reset_index(drop=True)
+                logger.info(f"Updated columns: {list(df.columns)}")
+                logger.info(f"Data after header correction:")
+                logger.info(str(df.head()))
             
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            for _, row in df.iterrows():
-                quote_id = str(row['报价单号']).strip()
-                if pd.isna(quote_id) or quote_id == '' or quote_id == 'nan':
+            saved_count = 0
+            
+            for index, row in df.iterrows():
+                try:
+                    # Skip rows without invoice number
+                    invoice_no = str(row.get('invoice No.', '')).strip()
+                    if pd.isna(invoice_no) or invoice_no == '' or invoice_no == 'nan':
+                        continue
+                    
+                    # Extract values based on the new DGF-CN10 format
+                    lane_id_fqr = str(row.get('Lane ID/FQR#', '')).strip()
+                    ata_date = row.get('ATA date')
+                    hbl = str(row.get('HBL', '')).strip() 
+                    pkg_no = int(row.get('PKG No', 0)) if pd.notna(row.get('PKG No')) else 0
+                    m3 = float(row.get('M3', 0)) if pd.notna(row.get('M3')) else 0
+                    container = str(row.get('Container', '')).strip()
+                    inco_term = str(row.get('Inco-term', '')).strip()
+                    origin_country = str(row.get('Origin Country', '')).strip()
+                    origin_port = str(row.get('Origin Port', '')).strip()
+                    currency_dta_dtp = str(row.get('Currency(DTA/DTP)', 'USD')).strip()
+                    
+                    # Charges
+                    pickup = float(row.get('Pickup', 0)) if pd.notna(row.get('Pickup')) else 0
+                    dtp_handling = float(row.get('DTP-Handling', 0)) if pd.notna(row.get('DTP-Handling')) else 0
+                    customs = float(row.get('Customs', 0)) if pd.notna(row.get('Customs')) else 0
+                    dtp_others = float(row.get('DTP-Others', 0)) if pd.notna(row.get('DTP-Others')) else 0
+                    ptp = float(row.get('PTP', 0)) if pd.notna(row.get('PTP')) else 0
+                    imo = float(row.get('IMO', 0)) if pd.notna(row.get('IMO')) else 0
+                    
+                    # Subtotals and exchange rates
+                    subtotal_dta_dtp = float(row.get('Sub-total(DTA/DTP)', 0)) if pd.notna(row.get('Sub-total(DTA/DTP)')) else 0
+                    exchange_rate_dta_dtp = float(row.get('Exchange rate(DTA/DTP)', 1)) if pd.notna(row.get('Exchange rate(DTA/DTP)')) else 1
+                    subtotal_cny_dta_dtp = float(row.get('Sub-total CNY(DTA/DTP)', 0)) if pd.notna(row.get('Sub-total CNY(DTA/DTP)')) else 0
+                    
+                    # Destination charges
+                    currency_dc = str(row.get('Currency(DC)', 'CNY')).strip()
+                    doc_turnover = float(row.get('Doc Turnover', 0)) if pd.notna(row.get('Doc Turnover')) else 0
+                    others = float(row.get('Others', 0)) if pd.notna(row.get('Others')) else 0
+                    subtotal_dc = float(row.get('Sub-total', 0)) if pd.notna(row.get('Sub-total')) else 0
+                    fx_rate_dc = float(row.get('FX Rate(DC)', 1)) if pd.notna(row.get('FX Rate(DC)')) else 1
+                    subtotal_cny_dc = float(row.get('Sub-total CNY', 0)) if pd.notna(row.get('Sub-total CNY')) else 0
+                    total_cny = float(row.get('Total CNY', 0)) if pd.notna(row.get('Total CNY')) else 0
+                    
+                    # Status and tax info
+                    trax_status = str(row.get('Trax status', '')).strip()
+                    tax_invoice = str(row.get('税票', '')).strip()
+                    
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO dgf_invoices 
+                        (invoice_number, lane_id_fqr, ata_date, hbl_number, pkg_no, m3_volume,
+                         container_info, inco_term, origin_country, origin_port, 
+                         origin_currency, pickup_charge, dtp_handling_charge, customs_charge,
+                         dtp_others_charge, ptp_charge, imo_charge, subtotal_dta_dtp,
+                         exchange_rate_dta_dtp, subtotal_cny_dta_dtp, currency_dc,
+                         doc_turnover, others_charge, subtotal_dc, fx_rate_dc,
+                         subtotal_cny_dc, total_cny, trax_status, tax_invoice_number,
+                         mode, file_path, processed_at, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        invoice_no, lane_id_fqr, ata_date, hbl, pkg_no, m3,
+                        container, inco_term, origin_country, origin_port,
+                        currency_dta_dtp, pickup, dtp_handling, customs,
+                        dtp_others, ptp, imo, subtotal_dta_dtp,
+                        exchange_rate_dta_dtp, subtotal_cny_dta_dtp, currency_dc,
+                        doc_turnover, others, subtotal_dc, fx_rate_dc,
+                        subtotal_cny_dc, total_cny, trax_status, tax_invoice,
+                        'SEA', file_path, datetime.now(), 'PROCESSED'
+                    ))
+                    
+                    saved_count += 1
+                    logger.info(f"Saved invoice: {invoice_no}")
+                    
+                except Exception as e:
+                    logger.error(f"Error processing row {index}: {e}")
                     continue
-                
-                cursor.execute('''
-                    INSERT OR REPLACE INTO dgf_invoices 
-                    (quote_id, mode, hbl_number, actual_arrival_date, pieces, volume_cbm,
-                     container_info, origin_country, origin_port, terms, origin_pickup_fee,
-                     dtp_fee, origin_customs_fee, origin_other_charges, origin_freight,
-                     imo_charges, origin_subtotal, origin_currency, origin_fx_rate,
-                     origin_subtotal_cny, dest_pickup_fee, dest_other_charges, dest_subtotal,
-                     dest_currency, dest_fx_rate, dest_subtotal_cny, total_cny, file_path,
-                     processed_at, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    quote_id, 'SEA', str(row.get('分单号', '')),
-                    row.get('实际到港日期'), int(row.get('件数', 0)) if pd.notna(row.get('件数')) else 0,
-                    float(row.get('立方数', 0)) if pd.notna(row.get('立方数')) else 0,
-                    str(row.get('箱型、箱数', '')), str(row.get('发货国', '')), str(row.get('发货港', '')),
-                    str(row.get('条款', '')), float(row.get('提货费', 0)) if pd.notna(row.get('提货费')) else 0,
-                    float(row.get('DTP操作费', 0)) if pd.notna(row.get('DTP操作费')) else 0,
-                    float(row.get('报关费', 0)) if pd.notna(row.get('报关费')) else 0,
-                    float(row.get('其他', 0)) if pd.notna(row.get('其他')) else 0,
-                    float(row.get('港到港', 0)) if pd.notna(row.get('港到港')) else 0,
-                    float(row.get('IMO', 0)) if pd.notna(row.get('IMO')) else 0,
-                    float(row.get('到港小计', 0)) if pd.notna(row.get('到港小计')) else 0,
-                    str(row.get('到港币种', 'USD')),
-                    float(row.get('到港汇率', 1)) if pd.notna(row.get('到港汇率')) else 1,
-                    float(row.get('到港小计人民币', 0)) if pd.notna(row.get('到港小计人民币')) else 0,
-                    float(row.get('抽单费', 0)) if pd.notna(row.get('抽单费')) else 0,
-                    float(row.get('其他费用', 0)) if pd.notna(row.get('其他费用')) else 0,
-                    float(row.get('目的港费用', 0)) if pd.notna(row.get('目的港费用')) else 0,
-                    str(row.get('目的港币种', 'USD')),
-                    float(row.get('目的港汇率J', 1)) if pd.notna(row.get('目的港汇率J')) else 1,
-                    float(row.get('目的港费用人民币', 0)) if pd.notna(row.get('目的港费用人民币')) else 0,
-                    float(row.get('总计', 0)) if pd.notna(row.get('总计')) else 0,
-                    file_path, datetime.now(), 'PROCESSED'
-                ))
             
             conn.commit()
             conn.close()
-            logger.info(f"Saved sea invoices from {file_path}")
+            logger.info(f"Successfully saved {saved_count} sea invoices from {file_path}")
             
         except Exception as e:
             logger.error(f"Error saving sea invoices: {e}")
+            raise
     
     def audit_invoice_against_quote(self, invoice_id: int) -> Dict:
         """Audit a single invoice against its corresponding spot quote."""

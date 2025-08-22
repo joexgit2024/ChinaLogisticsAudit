@@ -352,8 +352,9 @@
         }
         .sidebar .dropdown.show .dropdown-menu {
             display: block;
-            max-height: 500px;
+            max-height: 400px;
             opacity: 1;
+            overflow-y: auto;
         }
         .sidebar .dropdown {
             position: relative;
@@ -574,6 +575,12 @@
                                 <li><a class="dropdown-item {% if request.path == '/fedex/upload' %}active{% endif %}" href="/fedex/upload" role="menuitem">
                                     <i class="fas fa-file-upload me-2"></i> <span>Upload Invoices</span>
                                 </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/fedex/invoice-upload' %}active{% endif %}" href="/fedex/invoice-upload" role="menuitem">
+                                    <i class="fas fa-file-pdf me-2"></i> <span>PDF Invoice Extraction</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/fedex/extracted-invoices' %}active{% endif %}" href="/fedex/extracted-invoices" role="menuitem">
+                                    <i class="fas fa-list-alt me-2"></i> <span>Extracted Numbers</span>
+                                </a></li>
                                 <li><a class="dropdown-item {% if request.path == '/fedex/data-management' %}active{% endif %}" href="/fedex/data-management" role="menuitem">
                                     <i class="fas fa-database me-2"></i> <span>Rate Card Management</span>
                                 </a></li>
@@ -596,10 +603,10 @@
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header"><i class="fas fa-chart-line me-1"></i> <span>Audit & Analysis</span></h6></li>
-                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit' %}active{% endif %}" href="{{ url_for('fedex_invoices.batch_audit_dashboard') }}" role="menuitem">
+                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit' %}active{% endif %}" href="/fedex/batch-audit" role="menuitem">
                                     <i class="fas fa-play-circle me-2"></i> <span>Batch Audit</span>
                                 </a></li>
-                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit/results' %}active{% endif %}" href="{{ url_for('fedex_invoices.batch_audit_results') }}" role="menuitem">
+                                <li><a class="dropdown-item {% if request.path == '/fedex/batch-audit/results' %}active{% endif %}" href="/fedex/batch-audit/results" role="menuitem">
                                     <i class="fas fa-table me-2"></i> <span>Audit Results</span>
                                 </a></li>
                             </ul>

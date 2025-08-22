@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Extracted FedEx Invoices{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <span class="fedex-brand-icon me-2">
+                        <span class="fedex-fed">Fed</span><span class="fedex-ex">Ex</span>
+                    </span>
+                    Extracted Invoice Numbers
+                </h1>
+                <div>
+                    <a href="{{ url_for('fedex_extract.invoice_upload') }}" class="btn btn-primary me-2">
+                        <i class="fas fa-upload me-2"></i>Upload More
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-file-invoice fa-2x text-primary me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">{{ invoices | length }}</h4>
+                                    <small class="text-muted">Total Invoices</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">{{ invoices | selectattr('4', 'equalto', 'uploaded') | list | length }}</h4>
+                                    <small class="text-muted">Ready for Audit</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-cog fa-2x text-warning me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">{{ invoices | selectattr('4', 'equalto', 'processed') | list | length }}</h4>
+                                    <small class="text-muted">Processed</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-exclamation-triangle fa-2x text-danger me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">{{ invoices | selectattr('4', 'equalto', 'error') | list | length }}</h4>
+                                    <small class="text-muted">Errors</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-table me-2"></i>Invoice Numbers & Files
+                        </h5>
+                        <div class="input-group" style="width: 300px;">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Search invoice numbers or filenames...">
+                            <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="invoicesTable">
+                            <thead>
+                                <tr>
+                                    <th width="20%">Invoice Number</th>
+                                    <th width="30%">File Name</th>
+                                    <th width="15%">Upload Date</th>
+                                    <th width="15%">Status</th>
+                                    <th width="20%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in invoices %}
+                                <tr>
+                                    <td>
+                                        {% if invoice[0] %}
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-primary me-2">{{ invoice[0] }}</span>
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('{{ invoice[0] }}')" title="Copy invoice number">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">Not extracted</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-file-pdf text-danger me-2"></i>
+                                            <span class="text-truncate" title="{{ invoice[1] }}">{{ invoice[1] }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {% if invoice[2] %}
+                                                {{ invoice[2][:19] }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if invoice[3] == 'uploaded' %}
+                                            <span class="badge bg-success">Ready</span>
+                                        {% elif invoice[3] == 'processed' %}
+                                            <span class="badge bg-info">Processed</span>
+                                        {% elif invoice[3] == 'error' %}
+                                            <span class="badge bg-danger">Error</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ invoice[3] or 'Unknown' }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            {% if invoice[0] %}
+                                                <button class="btn btn-outline-primary" onclick="auditInvoice('{{ invoice[0] }}')" title="Audit this invoice">
+                                                    <i class="fas fa-search-dollar"></i>
+                                                </button>
+                                                <button class="btn btn-outline-info" onclick="viewDetails('{{ invoice[0] }}')" title="View details">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-secondary" onclick="downloadFile('{{ invoice[1] }}')" title="Download PDF">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteInvoice('{{ invoice[0] or invoice[1] }}')" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <nav aria-label="Invoice pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <!-- Pagination would go here if needed -->
+                        </ul>
+                    </nav>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No invoice numbers extracted yet</h5>
+                        <p class="text-muted">Upload some FedEx invoice PDFs to extract invoice numbers automatically.</p>
+                        <a href="{{ url_for('fedex_extract.invoice_upload') }}" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload Invoices
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Search functionality
+document.getElementById('searchInput').addEventListener('input', function() {
+    const searchTerm = this.value.toLowerCase();
+    const tableRows = document.querySelectorAll('#invoicesTable tbody tr');
+    
+    tableRows.forEach(row => {
+        const invoiceNumber = row.cells[0].textContent.toLowerCase();
+        const fileName = row.cells[1].textContent.toLowerCase();
+        
+        if (invoiceNumber.includes(searchTerm) || fileName.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.querySelectorAll('#invoicesTable tbody tr').forEach(row => {
+        row.style.display = '';
+    });
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show temporary success message
+        const button = event.target.closest('button');
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check text-success"></i>';
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+        }, 1000);
+    }).catch(function(err) {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function auditInvoice(invoiceNumber) {
+    if (confirm(`Start audit process for invoice ${invoiceNumber}?`)) {
+        // Redirect to audit process
+        window.location.href = `/fedex/invoices?audit=${invoiceNumber}`;
+    }
+}
+
+function viewDetails(invoiceNumber) {
+    // Redirect to invoice details
+    window.location.href = `/fedex/invoices/${invoiceNumber}`;
+}
+
+function downloadFile(fileName) {
+    // Implement file download
+    window.location.href = `/fedex/download/${encodeURIComponent(fileName)}`;
+}
+
+function deleteInvoice(identifier) {
+    if (confirm(`Are you sure you want to delete this invoice record?`)) {
+        fetch(`/fedex/api/delete-invoice`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ identifier: identifier })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting invoice: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting invoice');
+        });
+    }
+}
+
+function refreshData() {
+    location.reload();
+}
+
+// Auto-refresh every 30 seconds
+setInterval(function() {
+    // Optional: implement background refresh without full page reload
+}, 30000);
+</script>
+
+<style>
+.text-truncate {
+    max-width: 200px;
+}
+
+.table-responsive {
+    max-height: 600px;
+}
+
+.btn-group-sm > .btn {
+    margin: 0 1px;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.9em;
+    }
+    
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.4rem;
+    }
+    
+    .input-group {
+        width: 100% !important;
+        margin-top: 10px;
+    }
+}
+</style>
+{% endblock %}

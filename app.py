@@ -132,6 +132,14 @@ try:
 except ImportError as e:
     print(f"Warning: Could not import FedEx Invoice Management routes: {e}")
 
+# Register FedEx Invoice Extraction blueprint
+try:
+    from fedex_extraction_routes import fedex_extract_bp
+    app.register_blueprint(fedex_extract_bp)
+    print("FedEx Invoice Extraction routes registered")
+except ImportError as e:
+    print(f"Warning: Could not import FedEx Invoice Extraction routes: {e}")
+
 # Register Authentication blueprint
 try:
     from auth_routes import auth_bp
