@@ -22,15 +22,45 @@
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="air_file"><i class="fas fa-plane"></i> Air Freight File (.xlsx)</label>
-                                    <input type="file" class="form-control-file" id="air_file" name="air_file" accept=".xlsx">
-                                    <small class="form-text text-muted">Upload DGF Air freight Excel file</small>
+                                    <div class="drag-drop-zone" id="airDropZone" data-target="air_file">
+                                        <div class="drag-drop-content">
+                                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                            <p class="mb-2"><strong>Drag & drop your Air Freight Excel file here</strong></p>
+                                            <p class="text-muted">or <span class="browse-link">browse to choose file</span></p>
+                                            <small class="form-text text-muted">Accepted format: .xlsx</small>
+                                        </div>
+                                        <div class="file-info" style="display: none;">
+                                            <i class="fas fa-file-excel fa-2x text-success mb-2"></i>
+                                            <p class="file-name mb-1"></p>
+                                            <p class="file-size text-muted"></p>
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-file">
+                                                <i class="fas fa-times"></i> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input type="file" class="d-none" id="air_file" name="air_file" accept=".xlsx">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="sea_file"><i class="fas fa-ship"></i> Sea Freight File (.xlsx)</label>
-                                    <input type="file" class="form-control-file" id="sea_file" name="sea_file" accept=".xlsx">
-                                    <small class="form-text text-muted">Upload DGF Sea freight Excel file</small>
+                                    <div class="drag-drop-zone" id="seaDropZone" data-target="sea_file">
+                                        <div class="drag-drop-content">
+                                            <i class="fas fa-cloud-upload-alt fa-3x text-info mb-3"></i>
+                                            <p class="mb-2"><strong>Drag & drop your Sea Freight Excel file here</strong></p>
+                                            <p class="text-muted">or <span class="browse-link">browse to choose file</span></p>
+                                            <small class="form-text text-muted">Accepted format: .xlsx</small>
+                                        </div>
+                                        <div class="file-info" style="display: none;">
+                                            <i class="fas fa-file-excel fa-2x text-success mb-2"></i>
+                                            <p class="file-name mb-1"></p>
+                                            <p class="file-size text-muted"></p>
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-file">
+                                                <i class="fas fa-times"></i> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <input type="file" class="d-none" id="sea_file" name="sea_file" accept=".xlsx">
                                 </div>
                             </div>
                         </div>
@@ -120,33 +150,216 @@
     </div>
 </div>
 
+<style>
+.drag-drop-zone {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #fafafa;
+}
+
+.drag-drop-zone:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+
+.drag-drop-zone.drag-over {
+    border-color: #007bff;
+    background: #e3f2fd;
+    border-style: solid;
+}
+
+.drag-drop-zone.has-file {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.browse-link {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.browse-link:hover {
+    color: #0056b3;
+}
+
+.file-info {
+    text-align: center;
+}
+
+.remove-file {
+    margin-top: 10px;
+}
+
+.drag-drop-zone .drag-drop-content,
+.drag-drop-zone .file-info {
+    pointer-events: none;
+}
+
+.drag-drop-zone .remove-file {
+    pointer-events: auto;
+}
+</style>
+
 <script>
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    const airFile = document.getElementById('air_file').files[0];
-    const seaFile = document.getElementById('sea_file').files[0];
-    
-    if (!airFile && !seaFile) {
-        e.preventDefault();
-        Swal.fire('Error', 'Please select at least one file to upload.', 'error');
-        return;
+document.addEventListener('DOMContentLoaded', function() {
+    // Drag and drop functionality
+    function initializeDragDrop() {
+        const dropZones = document.querySelectorAll('.drag-drop-zone');
+        
+        dropZones.forEach(zone => {
+            const targetId = zone.dataset.target;
+            const fileInput = document.getElementById(targetId);
+            const dragContent = zone.querySelector('.drag-drop-content');
+            const fileInfo = zone.querySelector('.file-info');
+            const fileName = zone.querySelector('.file-name');
+            const fileSize = zone.querySelector('.file-size');
+            const removeBtn = zone.querySelector('.remove-file');
+            const browseLink = zone.querySelector('.browse-link');
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                zone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Highlight drop zone when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                zone.addEventListener(eventName, () => zone.classList.add('drag-over'), false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                zone.addEventListener(eventName, () => zone.classList.remove('drag-over'), false);
+            });
+            
+            // Handle dropped files
+            zone.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (validateFile(file)) {
+                        handleFile(file, fileInput, zone, dragContent, fileInfo, fileName, fileSize);
+                    }
+                }
+            });
+            
+            // Handle click to browse
+            zone.addEventListener('click', function() {
+                if (!zone.classList.contains('has-file')) {
+                    fileInput.click();
+                }
+            });
+            
+            // Handle browse link click
+            if (browseLink) {
+                browseLink.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+            }
+            
+            // Handle file input change
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    const file = this.files[0];
+                    handleFile(file, fileInput, zone, dragContent, fileInfo, fileName, fileSize);
+                }
+            });
+            
+            // Handle remove file
+            if (removeBtn) {
+                removeBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    clearFile(fileInput, zone, dragContent, fileInfo);
+                });
+            }
+        });
     }
     
-    // Show processing modal
-    $('#processingModal').modal({
-        backdrop: 'static',
-        keyboard: false
-    });
-});
-
-// File input styling
-document.querySelectorAll('input[type="file"]').forEach(function(input) {
-    input.addEventListener('change', function() {
-        const fileName = this.files[0] ? this.files[0].name : 'Choose file...';
-        const label = this.parentNode.querySelector('label');
-        if (this.files[0]) {
-            label.innerHTML = label.innerHTML.split('</i>')[0] + '</i> ' + fileName;
-            label.classList.add('text-success');
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    function validateFile(file) {
+        const allowedTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        
+        if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.xlsx')) {
+            Swal.fire('Invalid File Type', 'Please upload only Excel (.xlsx) files.', 'error');
+            return false;
         }
+        
+        // Check file size (limit to 50MB)
+        if (file.size > 50 * 1024 * 1024) {
+            Swal.fire('File Too Large', 'File size must be less than 50MB.', 'error');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function handleFile(file, input, zone, dragContent, fileInfo, fileName, fileSize) {
+        // Create a new FileList with the dropped file
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        
+        // Update UI
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        
+        dragContent.style.display = 'none';
+        fileInfo.style.display = 'block';
+        zone.classList.add('has-file');
+    }
+    
+    function clearFile(input, zone, dragContent, fileInfo) {
+        input.value = '';
+        dragContent.style.display = 'block';
+        fileInfo.style.display = 'none';
+        zone.classList.remove('has-file');
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // Initialize drag and drop
+    initializeDragDrop();
+    
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const airFile = document.getElementById('air_file').files[0];
+        const seaFile = document.getElementById('sea_file').files[0];
+        
+        if (!airFile && !seaFile) {
+            e.preventDefault();
+            Swal.fire('Error', 'Please select at least one file to upload.', 'error');
+            return;
+        }
+        
+        // Show processing modal
+        $('#processingModal').modal({
+            backdrop: 'static',
+            keyboard: false
+        });
     });
 });
 </script>

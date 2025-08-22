@@ -11,18 +11,30 @@
                 </h4>
             </div>
             <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="ediUploadForm">
                     <div class="mb-4">
                         <label for="file" class="form-label">Select EDI File</label>
-                        <div class="input-group">
-                            <input type="file" class="form-control" id="file" name="file" 
-                                   accept=".edi,.txt" required>
+                        <div class="drag-drop-zone" id="ediDropZone" data-target="file">
+                            <div class="drag-drop-content">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                                <p class="mb-2"><strong>Drag & drop your EDI file here</strong></p>
+                                <p class="text-muted">or <span class="browse-link">browse to choose file</span></p>
+                                <small class="form-text text-muted">Accepted formats: .edi, .txt</small>
+                            </div>
+                            <div class="file-info" style="display: none;">
+                                <i class="fas fa-file-alt fa-2x text-success mb-2"></i>
+                                <p class="file-name mb-1"></p>
+                                <p class="file-size text-muted"></p>
+                                <button type="button" class="btn btn-sm btn-outline-danger remove-file">
+                                    <i class="fas fa-times"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                        <input type="file" class="d-none" id="file" name="file" accept=".edi,.txt" required>
+                        <div class="mt-3">
                             <button class="btn btn-primary" type="submit">
                                 <i class="fas fa-upload me-2"></i>Upload & Process
                             </button>
-                        </div>
-                        <div class="form-text">
-                            Supported formats: .edi, .txt (X12 EDI format)
                         </div>
                     </div>
                 </form>
@@ -71,4 +83,186 @@ SE*12*000000001~</code></pre>
         </div>
     </div>
 </div>
+
+<style>
+.drag-drop-zone {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: #fafafa;
+}
+
+.drag-drop-zone:hover {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+
+.drag-drop-zone.drag-over {
+    border-color: #007bff;
+    background: #e3f2fd;
+    border-style: solid;
+}
+
+.drag-drop-zone.has-file {
+    border-color: #28a745;
+    background: #f8fff9;
+}
+
+.browse-link {
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.browse-link:hover {
+    color: #0056b3;
+}
+
+.file-info {
+    text-align: center;
+}
+
+.remove-file {
+    margin-top: 10px;
+}
+
+.drag-drop-zone .drag-drop-content,
+.drag-drop-zone .file-info {
+    pointer-events: none;
+}
+
+.drag-drop-zone .remove-file {
+    pointer-events: auto;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('ediDropZone');
+    const fileInput = document.getElementById('file');
+    const dragContent = dropZone.querySelector('.drag-drop-content');
+    const fileInfo = dropZone.querySelector('.file-info');
+    const fileName = dropZone.querySelector('.file-name');
+    const fileSize = dropZone.querySelector('.file-size');
+    const removeBtn = dropZone.querySelector('.remove-file');
+    const browseLink = dropZone.querySelector('.browse-link');
+    
+    // Prevent default drag behaviors
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    // Highlight drop zone when item is dragged over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+    });
+    
+    // Handle dropped files
+    dropZone.addEventListener('drop', function(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+            const file = files[0];
+            if (validateFile(file)) {
+                handleFile(file);
+            }
+        }
+    });
+    
+    // Handle click to browse
+    dropZone.addEventListener('click', function() {
+        if (!dropZone.classList.contains('has-file')) {
+            fileInput.click();
+        }
+    });
+    
+    // Handle browse link click
+    browseLink.addEventListener('click', function(e) {
+        e.stopPropagation();
+        fileInput.click();
+    });
+    
+    // Handle file input change
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            const file = this.files[0];
+            handleFile(file);
+        }
+    });
+    
+    // Handle remove file
+    removeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        clearFile();
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    function validateFile(file) {
+        const allowedExtensions = ['.edi', '.txt'];
+        const fileName = file.name.toLowerCase();
+        const isValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+        
+        if (!isValidExtension) {
+            Swal.fire('Invalid File Type', 'Please upload only EDI (.edi) or text (.txt) files.', 'error');
+            return false;
+        }
+        
+        // Check file size (limit to 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            Swal.fire('File Too Large', 'File size must be less than 10MB.', 'error');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    function handleFile(file) {
+        // Create a new FileList with the dropped file
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        
+        // Update UI
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        
+        dragContent.style.display = 'none';
+        fileInfo.style.display = 'block';
+        dropZone.classList.add('has-file');
+    }
+    
+    function clearFile() {
+        fileInput.value = '';
+        dragContent.style.display = 'block';
+        fileInfo.style.display = 'none';
+        dropZone.classList.remove('has-file');
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
 {% endblock %}
