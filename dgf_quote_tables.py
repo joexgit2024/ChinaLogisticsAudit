@@ -13,62 +13,71 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DGFQuoteTables:
-    def __init__(self, db_path: str = 'dhl_audit.db'):
+    def __init__(self, db_path: str = 'dhl_audit.db', force_recreate: bool = False):
         self.db_path = db_path
-        self.create_quote_tables()
+        self.create_quote_tables(force_recreate)
     
-    def create_quote_tables(self):
-        """Create separate tables for AIR, FCL, and LCL quotes."""
+    def create_quote_tables(self, force_recreate: bool = False):
+        """Create separate tables for AIR, FCL, and LCL quotes.
+        
+        Args:
+            force_recreate: If True, drop existing tables and recreate them.
+                          If False, only create tables if they don't exist.
+        """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # Drop existing tables if they exist (fresh start)
-        cursor.execute('DROP TABLE IF EXISTS dgf_air_quotes')
-        cursor.execute('DROP TABLE IF EXISTS dgf_fcl_quotes')
-        cursor.execute('DROP TABLE IF EXISTS dgf_lcl_quotes')
+        if force_recreate:
+            # Drop existing tables if they exist (fresh start)
+            cursor.execute('DROP TABLE IF EXISTS dgf_air_quotes')
+            cursor.execute('DROP TABLE IF EXISTS dgf_fcl_quotes')
+            cursor.execute('DROP TABLE IF EXISTS dgf_lcl_quotes')
+            logger.info("Dropped existing DGF quote tables for recreation")
         
-        # DGF AIR Quotes Table
+        # DGF AIR Quotes Table - Updated to match actual air quote format
         cursor.execute('''
-            CREATE TABLE dgf_air_quotes (
+            CREATE TABLE IF NOT EXISTS dgf_air_quotes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                quote_id TEXT UNIQUE NOT NULL,
-                quote_date DATE,
-                validity_start DATE,
-                validity_end DATE,
                 
-                -- Route Information
-                origin_country TEXT,
-                origin_city TEXT,
-                origin_airport_code TEXT,
-                destination_country TEXT,
-                destination_city TEXT,
-                destination_airport_code TEXT,
+                -- Core Quote Information (from actual file structure)
+                field_type TEXT, -- From 'Fild' column
+                quote_reference_no TEXT UNIQUE NOT NULL, -- From 'Quote Reference No.'
+                vendor_name TEXT, -- From 'Vendor Name'
+                validity_period TEXT, -- From 'Validity Period' (original format)
+                validity_start DATE, -- Parsed from validity_period
+                validity_end DATE, -- Parsed from validity_period
                 
-                -- Rate Information
-                rate_per_kg DECIMAL(10,4),
-                min_weight_kg DECIMAL(10,2),
-                max_weight_kg DECIMAL(10,2),
-                currency TEXT DEFAULT 'USD',
+                -- Route Information (from actual file structure)
+                origin TEXT, -- From 'Origin' (full text like "DALLAS (DFW), US")
+                destination TEXT, -- From 'Destination' (full text like "SHANGHAI(PVG), China")
+                origin_airport_code TEXT, -- Extracted from origin
+                destination_airport_code TEXT, -- Extracted from destination
+                origin_country TEXT, -- Extracted from origin
+                destination_country TEXT, -- Extracted from destination
                 
-                -- Service Details
-                transit_time_days INTEGER,
-                service_type TEXT, -- Express, Standard, Economy
+                -- Service Information (from actual file structure)
+                service_type TEXT, -- From 'Service Type'
+                incoterms TEXT, -- From 'Incoterms'
+                transit_time TEXT, -- From 'Transit Time' (original format like "6 days")
+                transit_time_days INTEGER, -- Parsed from transit_time
+                currency TEXT DEFAULT 'USD', -- From 'Currency'
                 
-                -- Additional Charges
-                fuel_surcharge_pct DECIMAL(5,2),
-                security_surcharge DECIMAL(10,2),
-                handling_fee DECIMAL(10,2),
-                documentation_fee DECIMAL(10,2),
-                customs_clearance_fee DECIMAL(10,2),
-                pickup_fee DECIMAL(10,2),
-                delivery_fee DECIMAL(10,2),
-                other_charges DECIMAL(10,2),
-                other_charges_description TEXT,
+                -- Cost Breakdown (exactly as in air quote file)
+                dtp_min_charge DECIMAL(10,4), -- From 'DTP Min Charge'
+                dtp_freight_cost DECIMAL(10,4), -- From 'DTP Freight Cost'
+                customs_clearance DECIMAL(10,4), -- From 'CUSTOMS CLEARANCE'
+                origin_min_charge DECIMAL(10,4), -- From 'Origin Min Charge'
+                origin_fees DECIMAL(10,4), -- From 'Origin Fees (THC, ISS, Screening, etc.)'
+                per_shipment_charges DECIMAL(10,4), -- From 'Per shpt charges'
+                ata_min_charge DECIMAL(10,4), -- From 'ATA Min Charge'
+                ata_cost_charge DECIMAL(10,4), -- From 'ATA Cost Charge'
+                destination_min_charge DECIMAL(10,4), -- From 'Destination Min Charge'
+                destination_fees DECIMAL(10,4), -- From 'Destination Fees (THC, ISS, Screening, etc.)'
+                total_charges DECIMAL(12,4), -- From 'Total charges'
+                remarks TEXT, -- From 'Remarks'
                 
-                -- Terms and Conditions
-                incoterms TEXT, -- EXW, FOB, CIF, etc.
-                payment_terms TEXT,
-                special_instructions TEXT,
+                -- Calculated/Derived Fields
+                rate_per_kg DECIMAL(10,4), -- Calculated main rate (could be dtp_freight_cost)
                 
                 -- Upload Information
                 file_name TEXT,
@@ -81,65 +90,51 @@ class DGFQuoteTables:
             )
         ''')
         
-        # DGF FCL (Full Container Load) Quotes Table
+        # DGF FCL (Full Container Load) Quotes Table - Based on actual FCL quote format
         cursor.execute('''
-            CREATE TABLE dgf_fcl_quotes (
+            CREATE TABLE IF NOT EXISTS dgf_fcl_quotes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                quote_id TEXT UNIQUE NOT NULL,
-                quote_date DATE,
-                validity_start DATE,
-                validity_end DATE,
+                
+                -- Basic Quote Information (from Excel columns)
+                field_type TEXT, -- From 'Fild' column (Sample, etc.)
+                quote_reference_no TEXT UNIQUE NOT NULL, -- From 'Quote Reference No.'
+                vendor_name TEXT, -- From 'Vendor Name'
+                validity_period TEXT, -- From 'Validity Period' (8/21/2025-9/3/2025)
+                validity_start DATE, -- Parsed from validity_period
+                validity_end DATE, -- Parsed from validity_period
                 
                 -- Route Information
-                origin_country TEXT,
-                origin_port TEXT,
-                origin_port_code TEXT,
-                destination_country TEXT,
-                destination_port TEXT,
-                destination_port_code TEXT,
+                origin TEXT, -- From 'Origin' (HAIPHONG (VNHPH), VIETNAM)
+                destination TEXT, -- From 'Destination' (SHANGHAI (CNSHA), CHINA)
+                origin_port_code TEXT, -- Extracted from origin (VNHPH)
+                destination_port_code TEXT, -- Extracted from destination (CNSHA)
+                origin_country TEXT, -- Extracted from origin (VIETNAM)
+                destination_country TEXT, -- Extracted from destination (CHINA)
                 
-                -- Container Information
-                container_type TEXT, -- 20GP, 40GP, 40HQ, etc.
-                container_size INTEGER, -- 20, 40
-                container_height TEXT, -- Standard, High Cube
+                -- Service Information
+                service_type TEXT, -- From 'Service Type' (FCL)
+                incoterms TEXT, -- From 'Incoterms' (FCA)
+                transit_time TEXT, -- From 'Transit Time' (14 days)
+                transit_time_days INTEGER, -- Parsed from transit_time
+                currency TEXT, -- From 'Currency' (USD)
                 
-                -- Rate Information
-                rate_per_container DECIMAL(10,2),
-                currency TEXT DEFAULT 'USD',
-                
-                -- Service Details
-                transit_time_days INTEGER,
-                service_type TEXT, -- Direct, Transshipment
-                vessel_operator TEXT,
+                -- Pickup Charges
+                pickup_charges_20 DECIMAL(10,4), -- From "Pickup Charges 20'"
+                pickup_charges_40 DECIMAL(10,4), -- From "Pickup Charges 40'"
                 
                 -- Origin Charges
-                origin_terminal_handling DECIMAL(10,2),
-                origin_documentation DECIMAL(10,2),
-                origin_customs_clearance DECIMAL(10,2),
-                origin_trucking DECIMAL(10,2),
-                origin_other_charges DECIMAL(10,2),
-                origin_charges_currency TEXT DEFAULT 'CNY',
+                customs_clearance DECIMAL(10,4), -- From 'CUSTOMS CLEARANCE'
+                origin_handling_20 DECIMAL(10,4), -- From "Origin Handling 20'"
+                origin_handling_40 DECIMAL(10,4), -- From "Origin Handling 40'"
                 
-                -- Destination Charges
-                dest_terminal_handling DECIMAL(10,2),
-                dest_documentation DECIMAL(10,2),
-                dest_customs_clearance DECIMAL(10,2),
-                dest_trucking DECIMAL(10,2),
-                dest_other_charges DECIMAL(10,2),
-                dest_charges_currency TEXT DEFAULT 'USD',
+                -- Freight Rates
+                freight_rate_20 DECIMAL(10,4), -- From "Freight Rate 20'"
+                freight_rate_40 DECIMAL(10,4), -- From "Freight Rate 40'"
                 
-                -- Additional Information
-                bunker_adjustment_factor DECIMAL(5,2),
-                currency_adjustment_factor DECIMAL(5,2),
-                equipment_imbalance_surcharge DECIMAL(10,2),
-                
-                -- Terms and Conditions
-                incoterms TEXT,
-                payment_terms TEXT,
-                free_time_days INTEGER,
-                demurrage_rate DECIMAL(10,2),
-                detention_rate DECIMAL(10,2),
-                special_instructions TEXT,
+                -- Additional Charges
+                per_shipment_charges DECIMAL(10,4), -- From 'Per Shipment Charges'
+                destination_handling DECIMAL(10,4), -- From 'Destination Handling'
+                total_charges DECIMAL(12,4), -- From 'Total Charges'
                 
                 -- Upload Information
                 file_name TEXT,
@@ -148,70 +143,57 @@ class DGFQuoteTables:
                 uploaded_by TEXT,
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'ACTIVE'
+                status TEXT DEFAULT 'ACTIVE' -- ACTIVE, EXPIRED, SUPERSEDED
             )
         ''')
         
-        # DGF LCL (Less than Container Load) Quotes Table
+        # DGF LCL (Less than Container Load) Quotes Table - Based on actual LCL quote format
         cursor.execute('''
-            CREATE TABLE dgf_lcl_quotes (
+            CREATE TABLE IF NOT EXISTS dgf_lcl_quotes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                quote_id TEXT UNIQUE NOT NULL,
-                quote_date DATE,
-                validity_start DATE,
-                validity_end DATE,
+                
+                -- Basic Quote Information (from Excel columns)
+                field_type TEXT, -- From 'Fild' column (Sample, etc.)
+                quote_reference_no TEXT UNIQUE NOT NULL, -- From 'Quote Reference No.'
+                vendor_name TEXT, -- From 'Vendor Name'
+                validity_period TEXT, -- From 'Validity Period' (8/12/2025-8/24/2025)
+                validity_start DATE, -- Parsed from validity_period
+                validity_end DATE, -- Parsed from validity_period
                 
                 -- Route Information
-                origin_country TEXT,
-                origin_port TEXT,
-                origin_port_code TEXT,
-                destination_country TEXT,
-                destination_port TEXT,
-                destination_port_code TEXT,
+                origin TEXT, -- From 'Origin' (NEW YORK (USNYC), UNITED STATES)
+                destination TEXT, -- From 'Destination' (SHANGHAI (CNSHA), CHINA)
+                origin_port_code TEXT, -- Extracted from origin (USNYC)
+                destination_port_code TEXT, -- Extracted from destination (CNSHA)
+                origin_country TEXT, -- Extracted from origin (UNITED STATES)
+                destination_country TEXT, -- Extracted from destination (CHINA)
                 
-                -- Rate Information
-                rate_per_cbm DECIMAL(10,4),
-                rate_per_ton DECIMAL(10,4),
-                min_charge_cbm DECIMAL(10,2),
-                min_charge_ton DECIMAL(10,2),
-                currency TEXT DEFAULT 'USD',
+                -- Service Information
+                service_type TEXT, -- From 'Service Type' (LCL)
+                incoterms TEXT, -- From 'Incoterms' (EXW)
+                transit_time TEXT, -- From 'Transit Time' (60 days)
+                transit_time_days INTEGER, -- Parsed from transit_time
+                currency TEXT, -- From 'Currency' (USD)
                 
-                -- Weight/Measurement
-                weight_measure_ratio DECIMAL(5,2), -- W/M ratio (typically 1000kg = 1cbm)
-                
-                -- Service Details
-                transit_time_days INTEGER,
-                service_type TEXT,
-                consolidation_port TEXT,
+                -- Pickup Charges
+                lcl_pickup_charges_min DECIMAL(10,4), -- From 'LCL Pickup Charges Min'
+                lcl_pickup_charges_rate DECIMAL(10,4), -- From 'LCL Pickup Charges Rate'
                 
                 -- Origin Charges
-                origin_handling_fee DECIMAL(10,2),
-                origin_documentation DECIMAL(10,2),
-                origin_customs_clearance DECIMAL(10,2),
-                origin_pickup_fee DECIMAL(10,2),
-                origin_other_charges DECIMAL(10,2),
-                origin_charges_currency TEXT DEFAULT 'CNY',
+                customs_clearance DECIMAL(10,4), -- From 'CUSTOMS CLEARANCE'
+                lcl_origin_handling_min DECIMAL(10,4), -- From 'LCL Origin Handling Min'
+                lcl_origin_handling DECIMAL(10,4), -- From 'LCL Origin Handling'
+                
+                -- Freight Rates
+                per_shipment_charges DECIMAL(10,4), -- From 'Per Shipment Charges'
+                lcl_freight_min DECIMAL(10,4), -- From 'LCL Freight Min'
+                lcl_freight_rate DECIMAL(10,4), -- From 'LCL Freight Rate'
                 
                 -- Destination Charges
-                dest_handling_fee DECIMAL(10,2),
-                dest_documentation DECIMAL(10,2),
-                dest_customs_clearance DECIMAL(10,2),
-                dest_delivery_fee DECIMAL(10,2),
-                dest_other_charges DECIMAL(10,2),
-                dest_charges_currency TEXT DEFAULT 'USD',
-                
-                -- Additional Charges
-                bunker_adjustment_factor DECIMAL(5,2),
-                currency_adjustment_factor DECIMAL(5,2),
-                consolidation_fee DECIMAL(10,2),
-                deconsolidation_fee DECIMAL(10,2),
-                
-                -- Terms and Conditions
-                incoterms TEXT,
-                payment_terms TEXT,
-                free_time_days INTEGER,
-                storage_rate DECIMAL(10,2),
-                special_instructions TEXT,
+                lcl_destination_handling_min DECIMAL(10,4), -- From 'LCL Destination Handling Min'
+                lcl_destination_handling_rate DECIMAL(10,4), -- From 'LCL Destination Handling Rate'
+                dest_document_handover DECIMAL(10,4), -- From 'Dest. Document Handove'
+                total_charges DECIMAL(12,4), -- From 'Total Charges'
                 
                 -- Upload Information
                 file_name TEXT,
@@ -220,21 +202,42 @@ class DGFQuoteTables:
                 uploaded_by TEXT,
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'ACTIVE'
+                status TEXT DEFAULT 'ACTIVE' -- ACTIVE, EXPIRED, SUPERSEDED
             )
         ''')
         
         # Create indexes for better performance
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_air_quotes_route ON dgf_air_quotes(origin_airport_code, destination_airport_code)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_air_quotes_date ON dgf_air_quotes(validity_start, validity_end)')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fcl_quotes_route ON dgf_fcl_quotes(origin_port_code, destination_port_code, container_type)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_fcl_quotes_route ON dgf_fcl_quotes(origin_port_code, destination_port_code)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_fcl_quotes_date ON dgf_fcl_quotes(validity_start, validity_end)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lcl_quotes_route ON dgf_lcl_quotes(origin_port_code, destination_port_code)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_lcl_quotes_date ON dgf_lcl_quotes(validity_start, validity_end)')
         
+        # DGF Users Table - For storing upload user names
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS dgf_upload_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                full_name TEXT UNIQUE NOT NULL,
+                first_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                usage_count INTEGER DEFAULT 1
+            )
+        ''')
+        
+        # Insert default user if not exists
+        cursor.execute('''
+            INSERT OR IGNORE INTO dgf_upload_users (full_name, usage_count) 
+            VALUES ('JOE XIE', 1)
+        ''')
+        
         conn.commit()
         conn.close()
-        logger.info("DGF quote tables created successfully")
+        
+        if force_recreate:
+            logger.info("DGF quote tables recreated successfully")
+        else:
+            logger.info("DGF quote tables created successfully")
     
     def get_table_stats(self):
         """Get statistics for all quote tables."""
@@ -266,6 +269,51 @@ class DGFQuoteTables:
         
         conn.close()
         return stats
+    
+    def get_upload_users(self):
+        """Get list of users for the dropdown, ordered by usage frequency."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT full_name, usage_count 
+            FROM dgf_upload_users 
+            ORDER BY usage_count DESC, last_used DESC
+        ''')
+        users = [row[0] for row in cursor.fetchall()]
+        
+        conn.close()
+        return users
+    
+    def add_or_update_user(self, full_name):
+        """Add a new user or update usage count for existing user."""
+        if not full_name or not full_name.strip():
+            return
+            
+        full_name = full_name.strip()
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Check if user exists
+        cursor.execute('SELECT id, usage_count FROM dgf_upload_users WHERE full_name = ?', (full_name,))
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing user
+            cursor.execute('''
+                UPDATE dgf_upload_users 
+                SET usage_count = usage_count + 1, last_used = CURRENT_TIMESTAMP 
+                WHERE full_name = ?
+            ''', (full_name,))
+        else:
+            # Add new user
+            cursor.execute('''
+                INSERT INTO dgf_upload_users (full_name) 
+                VALUES (?)
+            ''', (full_name,))
+        
+        conn.commit()
+        conn.close()
 
 if __name__ == "__main__":
     # Create the tables

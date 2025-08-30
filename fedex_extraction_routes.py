@@ -15,6 +15,16 @@ import fitz  # PyMuPDF
 import re
 from pathlib import Path
 
+# Authentication decorators
+try:
+    from auth_routes import require_auth, require_auth_api
+except Exception:
+    # Fallback no-op decorators if auth not available
+    def require_auth(f):
+        return f
+    def require_auth_api(f):
+        return f
+
 # Import existing FedEx components
 try:
     from simple_fedex_extractor import SimpleFedExExtractor
@@ -138,7 +148,8 @@ def ensure_upload_folder():
         os.makedirs(UPLOAD_FOLDER)
 
 @fedex_extract_bp.route('/invoice-upload', methods=['GET', 'POST'])
-def invoice_upload():
+@require_auth
+def invoice_upload(user_data=None):
     """FedEx invoice upload with automatic number extraction"""
     
     if request.method == 'POST':
@@ -221,7 +232,8 @@ def invoice_upload():
     return render_template('fedex/invoice_upload.html')
 
 @fedex_extract_bp.route('/extracted-invoices')
-def extracted_invoices():
+@require_auth
+def extracted_invoices(user_data=None):
     """View extracted invoice numbers"""
     try:
         conn = sqlite3.connect('dhl_audit.db')
@@ -251,7 +263,8 @@ def extracted_invoices():
         return render_template('fedex/extracted_invoices.html', invoices=[])
 
 @fedex_extract_bp.route('/api/extract-number', methods=['POST'])
-def extract_number_api():
+@require_auth_api
+def extract_number_api(user_data=None):
     """API endpoint for extracting invoice number from uploaded file"""
     try:
         if 'file' not in request.files:
@@ -295,7 +308,8 @@ def extract_number_api():
         return jsonify({'error': str(e)}), 500
 
 @fedex_extract_bp.route('/api/manual-invoice', methods=['POST'])
-def manual_invoice_api():
+@require_auth_api
+def manual_invoice_api(user_data=None):
     """API endpoint for manually adding invoice numbers"""
     try:
         data = request.get_json()

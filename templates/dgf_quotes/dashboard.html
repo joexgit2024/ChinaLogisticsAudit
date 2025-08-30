@@ -204,7 +204,7 @@
                                     <tr>
                                         <td><small>{{ quote[0] }}</small></td>
                                         <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
-                                        <td><small>{{ "%.2f"|format(quote[3] or 0) }} {{ quote[4] or 'USD' }}/kg</small></td>
+                                        <td><small>${{ "%.2f"|format(quote[3] or 0) }} {{ quote[4] or 'USD' }}/kg</small></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -243,8 +243,8 @@
                                     {% for quote in recent_fcl %}
                                     <tr>
                                         <td><small>{{ quote[0] }}</small></td>
-                                        <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
-                                        <td><small>{{ "%.0f"|format(quote[4] or 0) }} {{ quote[5] or 'USD' }}/{{ quote[3] or 'CTN' }}</small></td>
+                                        <td><small>{{ quote[2] }} → {{ quote[3] }}</small></td>
+                                        <td><small>20': ${{ "%.0f"|format(quote[4] or 0) }} / 40': ${{ "%.0f"|format(quote[5] or 0) }} {{ quote[6] or 'USD' }}</small></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -283,8 +283,8 @@
                                     {% for quote in recent_lcl %}
                                     <tr>
                                         <td><small>{{ quote[0] }}</small></td>
-                                        <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
-                                        <td><small>{{ "%.2f"|format(quote[3] or 0) }} {{ quote[4] or 'USD' }}/CBM</small></td>
+                                        <td><small>{{ quote[2] }} → {{ quote[3] }}</small></td>
+                                        <td><small>${{ "%.0f"|format(quote[4] or 0) }} {{ quote[5] or 'USD' }}/CBM</small></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>

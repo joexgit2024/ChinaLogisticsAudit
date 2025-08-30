@@ -202,136 +202,99 @@
     </div>
 </div>
 
-<!-- Main Functions & Navigation -->
+<!-- Core Processing Modules removed as requested -->
+
+<!-- Data Upload & Management removed as requested -->
+
+<!-- Rate Card Management removed as requested -->
+
+<!-- FedEx Management Section -->
 <div class="row mb-5">
     <div class="col-12">
         <h2 class="text-center mb-4">
-            <i class="fas fa-rocket text-success me-2"></i>Core Processing Modules
+            <i class="fas fa-box-open text-purple me-2"></i>FedEx Invoice Management
         </h2>
+        <p class="text-center text-muted mb-4">End-to-end FedEx invoice processing, batch audit, and insights</p>
     </div>
-    <div class="col-md-6 mb-3">
+    <div class="col-md-3 mb-3">
         <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-tachometer-alt text-primary me-2"></i>EDI Invoice Dashboard</h5>
-                <p class="card-text mb-3">Traditional EDI file processing with invoice summaries and audit statistics</p>
-                <a href="{{ url_for('core.edi_invoice_dashboard') }}" class="btn btn-primary nav-button">View Dashboard</a>
+            <div class="card-body text-center">
+                <h6><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h6>
+                <p class="small mb-3">Overview of FedEx invoices and KPIs</p>
+                <a href="/fedex" class="btn btn-outline-primary nav-button">Open</a>
             </div>
         </div>
     </div>
-    <div class="col-md-6 mb-3">
+    <div class="col-md-3 mb-3">
         <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-search-dollar text-warning me-2"></i>Enhanced Audit Engine</h5>
-                <p class="card-text mb-3">Advanced audit analysis with fuzzy matching and detailed variance reporting</p>
-                <a href="{{ url_for('enhanced_audit.enhanced_audit_dashboard') }}" class="btn btn-warning nav-button">Start Audit</a>
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-invoice me-2"></i>Invoices</h6>
+                <p class="small mb-3">Browse and filter detailed FedEx invoices</p>
+                <a href="/fedex/invoices" class="btn btn-outline-primary nav-button">View</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-tasks me-2"></i>Batch Audit</h6>
+                <p class="small mb-3">Run batch audit and export results</p>
+                <a href="/fedex/batch-audit" class="btn btn-outline-primary nav-button">Open</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h6><i class="fas fa-file-upload me-2"></i>Invoice Upload</h6>
+                <p class="small mb-3">Upload PDFs and auto-extract invoice numbers</p>
+                <a href="/fedex/invoice-upload" class="btn btn-outline-primary nav-button">Upload</a>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Data Upload & Management -->
+<!-- DGF Air & Sea Section -->
 <div class="row mb-5">
     <div class="col-12">
         <h2 class="text-center mb-4">
-            <i class="fas fa-upload text-info me-2"></i>Data Upload & Management
+            <i class="fas fa-globe-asia text-success me-2"></i>DGF Air & Sea Freight
         </h2>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-file-code me-2"></i>EDI File Upload</h6>
-                <p class="small mb-3">Upload X12 EDI files for traditional processing</p>
-                <a href="{{ url_for('core.upload_file') }}" class="btn btn-outline-primary nav-button">Upload EDI</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-file-pdf me-2"></i>PDF Invoice Upload</h6>
-                <p class="small mb-3">Upload PDF invoices for AI-powered processing</p>
-                <a href="{{ url_for('advanced_pdf.upload_pdf') }}" class="btn btn-outline-danger nav-button">Upload PDFs</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <h6><i class="fas fa-calendar-check me-2"></i>YTD Data Upload</h6>
-                <p class="small mb-3">Upload year-to-date invoice batches for bulk processing</p>
-                <a href="{{ url_for('dhl_ytd.upload_ytd_file') }}" class="btn btn-outline-success nav-button">Upload YTD</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Rate Management -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-4">
-            <i class="fas fa-dollar-sign text-secondary me-2"></i>Rate Card Management
-        </h2>
-    </div>
-    <div class="col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-plane text-info me-2"></i>Air Freight Rates</h5>
-                <p class="card-text mb-3">Manage air freight rate cards with origin-destination pricing</p>
-                <a href="{{ url_for('rate_card.air_rates') }}" class="btn btn-info nav-button">Air Rates</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6 mb-3">
-        <div class="card">
-            <div class="card-body">
-                <h5><i class="fas fa-ship text-primary me-2"></i>Ocean Freight Rates</h5>
-                <p class="card-text mb-3">Manage ocean FCL/LCL rate cards and container pricing</p>
-                <a href="{{ url_for('ocean_rate.dashboard') }}" class="btn btn-primary nav-button">Ocean Rates</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- YTD Management Section -->
-<div class="row mb-5">
-    <div class="col-12">
-        <h2 class="text-center mb-4">
-            <i class="fas fa-calendar-check text-primary me-2"></i>Year-to-Date DGF Invoices Batch Management
-        </h2>
+        <p class="text-center text-muted mb-4">Spot quotes, invoice ingestion, and audit for Air and Ocean</p>
     </div>
     <div class="col-md-3 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <h6><i class="fas fa-file-upload me-2"></i>Data Management</h6>
-                <p class="small mb-3">Upload and manage YTD invoice data files</p>
-                <a href="{{ url_for('dhl_ytd.upload_ytd_file') }}" class="btn btn-outline-primary nav-button">Upload YTD</a>
+                <h6><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h6>
+                <p class="small mb-3">Summary of quotes, invoices, and audits</p>
+                <a href="/dgf/" class="btn btn-outline-success nav-button">Open</a>
             </div>
         </div>
     </div>
     <div class="col-md-3 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <h6><i class="fas fa-balance-scale me-2"></i>Audit Functions</h6>
-                <p class="small mb-3">Single invoice and batch audit processing</p>
-                <a href="{{ url_for('ytd_batch_audit.ytd_batch_audit_dashboard') }}" class="btn btn-outline-primary nav-button">Batch Audit</a>
+                <h6><i class="fas fa-file-upload me-2"></i>Upload Files</h6>
+                <p class="small mb-3">Import Air and Sea Excel data</p>
+                <a href="/dgf/upload" class="btn btn-outline-success nav-button">Upload</a>
             </div>
         </div>
     </div>
     <div class="col-md-3 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <h6><i class="fas fa-chart-pie me-2"></i>Analytics</h6>
-                <p class="small mb-3">YTD statistics and performance insights</p>
-                <a href="{{ url_for('dhl_ytd.ytd_statistics') }}" class="btn btn-outline-primary nav-button">View Stats</a>
+                <h6><i class="fas fa-file-invoice-dollar me-2"></i>Invoices</h6>
+                <p class="small mb-3">View and filter DGF invoices</p>
+                <a href="/dgf/invoices" class="btn btn-outline-success nav-button">View</a>
             </div>
         </div>
     </div>
     <div class="col-md-3 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <h6><i class="fas fa-chart-bar me-2"></i>Advanced Reports</h6>
-                <p class="small mb-3">Comprehensive reporting and Excel exports</p>
-                <a href="{{ url_for('ytd_reports.reports_dashboard') }}" class="btn btn-outline-info nav-button">View Reports</a>
+                <h6><i class="fas fa-clipboard-check me-2"></i>Audit Results</h6>
+                <p class="small mb-3">Review detailed audit outcomes</p>
+                <a href="/dgf/audit/results" class="btn btn-outline-success nav-button">Open</a>
             </div>
         </div>
     </div>

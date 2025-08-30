@@ -885,7 +885,7 @@ def invoices_stats_api(user_data=None):
 # =====================================================
 
 @fedex_invoice_bp.route('/fedex/batch-audit')
-# @require_auth  # Temporarily disabled for testing
+@require_auth
 def batch_audit_dashboard(user_data=None):
     """Display FedEx batch audit dashboard"""
     
@@ -978,7 +978,8 @@ def batch_audit_dashboard(user_data=None):
                          unaudited_invoices=unaudited_invoices)
 
 @fedex_invoice_bp.route('/fedex/batch-audit/status')
-def get_batch_audit_status():
+@require_auth_api
+def get_batch_audit_status(user_data=None):
     """Get current FedEx batch audit status (API endpoint)"""
     conn = sqlite3.connect('fedex_audit.db')
     cursor = conn.cursor()

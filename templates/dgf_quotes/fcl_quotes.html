@@ -164,24 +164,27 @@
                                     <div>
                                         <strong>{{ quote[2] or 'N/A' }}</strong> 
                                         <i class="fas fa-ship mx-1 text-muted"></i> 
-                                        <strong>{{ quote[5] or 'N/A' }}</strong>
+                                        <strong>{{ quote[3] or 'N/A' }}</strong>
                                     </div>
                                     <small class="text-muted">
-                                        {{ quote[1] or '' }} → {{ quote[4] or '' }}
+                                        {{ quote[1] or '' }}
                                     </small>
                                 </td>
                                 <td>
-                                    <span class="container-badge">{{ quote[7] or 'N/A' }}</span>
-                                </td>
-                                <td>
-                                    <strong>{{ "{:,.0f}"|format(quote[8] or 0) }}</strong> {{ quote[9] or 'USD' }}
-                                    <br><small class="text-muted">Per container</small>
-                                </td>
-                                <td>
-                                    {% if quote[10] and quote[11] %}
                                     <div>
-                                        <small><strong>From:</strong> {{ quote[10] }}</small><br>
-                                        <small><strong>To:</strong> {{ quote[11] }}</small>
+                                        <span class="container-badge">20': ${{ "%.0f"|format((quote[4]|float) if quote[4] else 0) }}</span><br>
+                                        <span class="container-badge">40': ${{ "%.0f"|format((quote[5]|float) if quote[5] else 0) }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <strong>{{ "%.0f"|format((quote[9]|float) if quote[9] else 0) }}</strong> {{ quote[6] or 'USD' }}
+                                    <br><small class="text-muted">Total charges</small>
+                                </td>
+                                <td>
+                                    {% if quote[7] and quote[8] %}
+                                    <div>
+                                        <small><strong>From:</strong> {{ quote[7] }}</small><br>
+                                        <small><strong>To:</strong> {{ quote[8] }}</small>
                                     </div>
                                     {% else %}
                                     <span class="text-muted">Not specified</span>
@@ -253,22 +256,52 @@
 {% block scripts %}
     <script>
         function viewQuoteDetails(quoteType, quoteId) {
-            fetch(`{{ url_for('dgf_quotes.get_quote_details', quote_type='PLACEHOLDER', quote_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', quoteType).replace('PLACEHOLDER', quoteId))
+            fetch(`{{ url_for('dgf_quotes.get_quote_details', quote_type='PLACEHOLDER', quote_id='PLACEHOLDER') }}`
+                    .replace('PLACEHOLDER', quoteType)
+                    .replace('PLACEHOLDER', quoteId))
                 .then(response => response.json())
                 .then(data => {
                     if (data.quote) {
+                        const q = data.quote; // SELECT * row from dgf_fcl_quotes
+                        const origin = q[7] || 'N/A';
+                        const dest = q[8] || 'N/A';
+                        const oCode = q[9] || '';
+                        const dCode = q[10] || '';
+                        const vStart = q[5] || '';
+                        const vEnd = q[6] || '';
+                        const cur = q[17] || 'USD';
+                        const rate20 = q[23] || 0;
+                        const rate40 = q[24] || 0;
+                        const total = q[27] || 0;
+                        const incoterms = q[14] || 'N/A';
+                        const ttime = q[15] || 'N/A';
+                        const status = q[34] || 'N/A';
+
+                        const fmt0 = v => {
+                            const n = Number(v);
+                            return isNaN(n) ? '0' : n.toLocaleString(undefined, {maximumFractionDigits: 0});
+                        };
+                        const fmt2 = v => {
+                            const n = Number(v);
+                            return isNaN(n) ? '0.00' : n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        };
+
                         document.getElementById('quoteDetailsBody').innerHTML = `
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6>Route Information</h6>
-                                    <p><strong>Origin Port:</strong> ${data.quote[1] || 'N/A'}</p>
-                                    <p><strong>Destination Port:</strong> ${data.quote[4] || 'N/A'}</p>
-                                    <p><strong>Container Type:</strong> ${data.quote[7] || 'N/A'}</p>
+                                    <p><strong>Origin Port:</strong> ${origin}${oCode ? ` (${oCode})` : ''}</p>
+                                    <p><strong>Destination Port:</strong> ${dest}${dCode ? ` (${dCode})` : ''}</p>
+                                    <p><strong>Validity:</strong> ${vStart}${vEnd ? ` - ${vEnd}` : ''}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <h6>Rate Information</h6>
-                                    <p><strong>Rate:</strong> ${data.quote[8] || 'N/A'} ${data.quote[9] || 'USD'}/container</p>
-                                    <p><strong>Status:</strong> ${data.quote[12] || 'N/A'}</p>
+                                    <p><strong>20':</strong> ${fmt0(rate20)} ${cur}/container</p>
+                                    <p><strong>40':</strong> ${fmt0(rate40)} ${cur}/container</p>
+                                    <p><strong>Total Charges:</strong> ${fmt0(total)} ${cur}</p>
+                                    <p><strong>Incoterms:</strong> ${incoterms}</p>
+                                    <p><strong>Transit Time:</strong> ${ttime}</p>
+                                    <p><strong>Status:</strong> ${status}</p>
                                 </div>
                             </div>
                         `;

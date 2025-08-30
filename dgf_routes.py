@@ -14,8 +14,18 @@ import sqlite3
 
 dgf_bp = Blueprint('dgf', __name__, url_prefix='/dgf')
 
+# Authentication
+try:
+    from auth_routes import require_auth, require_auth_api
+except Exception:
+    def require_auth(f):
+        return f
+    def require_auth_api(f):
+        return f
+
 @dgf_bp.route('/')
-def dashboard():
+@require_auth
+def dashboard(user_data=None):
     """DGF audit dashboard."""
     try:
         audit_system = DGFAuditSystem()
@@ -91,7 +101,8 @@ def dashboard():
                              recent_audits=[], audit_summary=None)
 
 @dgf_bp.route('/upload', methods=['GET', 'POST'])
-def upload_files():
+@require_auth
+def upload_files(user_data=None):
     """Upload DGF air and sea freight files."""
     if request.method == 'POST':
         try:
@@ -125,7 +136,8 @@ def upload_files():
     return render_template('dgf/upload.html')
 
 @dgf_bp.route('/quotes')
-def view_quotes():
+@require_auth
+def view_quotes(user_data=None):
     """View DGF spot quotes."""
     try:
         mode = request.args.get('mode', 'ALL')
@@ -169,7 +181,8 @@ def view_quotes():
         return render_template('dgf/quotes.html', quotes=[], selected_mode='ALL')
 
 @dgf_bp.route('/invoices')
-def view_invoices():
+@require_auth
+def view_invoices(user_data=None):
     """View DGF invoices."""
     try:
         mode = request.args.get('mode', 'ALL')
@@ -234,7 +247,8 @@ def view_invoices():
                              selected_status='ALL')
 
 @dgf_bp.route('/audit/run', methods=['POST'])
-def run_audit():
+@require_auth_api
+def run_audit(user_data=None):
     """Run audit on all invoices."""
     try:
         audit_system = DGFAuditSystem()
@@ -253,7 +267,8 @@ def run_audit():
         }), 500
 
 @dgf_bp.route('/audit/invoice/<int:invoice_id>')
-def audit_single_invoice(invoice_id):
+@require_auth_api
+def audit_single_invoice(invoice_id, user_data=None):
     """Audit a single invoice."""
     try:
         audit_system = DGFAuditSystem()
@@ -277,7 +292,8 @@ def audit_single_invoice(invoice_id):
         }), 500
 
 @dgf_bp.route('/audit/results')
-def view_audit_results():
+@require_auth
+def view_audit_results(user_data=None):
     """View detailed audit results."""
     try:
         mode = request.args.get('mode', 'ALL')
@@ -338,7 +354,8 @@ def view_audit_results():
                              selected_status='ALL')
 
 @dgf_bp.route('/reports/generate')
-def generate_report():
+@require_auth
+def generate_report(user_data=None):
     """Generate and download audit report."""
     try:
         audit_system = DGFAuditSystem()
@@ -353,7 +370,8 @@ def generate_report():
         return redirect(url_for('dgf.dashboard'))
 
 @dgf_bp.route('/api/stats')
-def get_stats():
+@require_auth_api
+def get_stats(user_data=None):
     """Get audit statistics for dashboard charts."""
     try:
         conn = sqlite3.connect('dhl_audit.db')

@@ -149,20 +149,23 @@
                                     <div>
                                         <strong>{{ quote[2] or 'N/A' }}</strong> 
                                         <i class="fas fa-ship mx-1 text-muted"></i> 
-                                        <strong>{{ quote[5] or 'N/A' }}</strong>
+                                        <strong>{{ quote[3] or 'N/A' }}</strong>
                                     </div>
                                     <small class="text-muted">
-                                        {{ quote[1] or '' }} → {{ quote[4] or '' }}
+                                        {{ quote[1] or '' }}
                                     </small>
                                 </td>
                                 <td class="rate-info">
-                                    {% if quote[7] %}
-                                    <div><strong>{{ "%.2f"|format(quote[7]) }}</strong> {{ quote[9] or 'USD' }}/CBM</div>
+                                    {% set freight_rate = quote[4] if quote[4] and quote[4] != 0 else 0 %}
+                                    {% set total_charges = quote[8] if quote[8] and quote[8] != 0 else 0 %}
+                                    
+                                    {% if freight_rate > 0 %}
+                                    <div><strong>{{ "%.2f"|format(freight_rate|float) }}</strong> {{ quote[5] or 'USD' }}/CBM</div>
                                     {% endif %}
-                                    {% if quote[8] %}
-                                    <div><strong>{{ "%.2f"|format(quote[8]) }}</strong> {{ quote[9] or 'USD' }}/TON</div>
+                                    {% if total_charges > 0 %}
+                                    <div><strong>Total: {{ "%.2f"|format(total_charges|float) }}</strong> {{ quote[5] or 'USD' }}</div>
                                     {% endif %}
-                                    {% if not quote[7] and not quote[8] %}
+                                    {% if freight_rate == 0 and total_charges == 0 %}
                                     <span class="text-muted">No rates specified</span>
                                     {% endif %}
                                 </td>
@@ -170,26 +173,26 @@
                                     <span class="badge bg-light text-dark">W/M</span>
                                 </td>
                                 <td>
-                                    {% if quote[10] and quote[11] %}
+                                    {% if quote[6] and quote[7] %}
                                     <div>
-                                        <small><strong>From:</strong> {{ quote[10] }}</small><br>
-                                        <small><strong>To:</strong> {{ quote[11] }}</small>
+                                        <small><strong>From:</strong> {{ quote[6] }}</small><br>
+                                        <small><strong>To:</strong> {{ quote[7] }}</small>
                                     </div>
                                     {% else %}
                                     <span class="text-muted">Not specified</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if quote[12] == 'ACTIVE' %}
-                                    <span class="badge bg-success status-badge">{{ quote[12] }}</span>
-                                    {% elif quote[12] == 'EXPIRED' %}
-                                    <span class="badge bg-warning status-badge">{{ quote[12] }}</span>
+                                    {% if quote[11] == 'ACTIVE' %}
+                                    <span class="badge bg-success status-badge">{{ quote[11] }}</span>
+                                    {% elif quote[11] == 'EXPIRED' %}
+                                    <span class="badge bg-warning status-badge">{{ quote[11] }}</span>
                                     {% else %}
-                                    <span class="badge bg-secondary status-badge">{{ quote[12] or 'UNKNOWN' }}</span>
+                                    <span class="badge bg-secondary status-badge">{{ quote[11] or 'UNKNOWN' }}</span>
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <small>{{ quote[13].split(' ')[0] if quote[13] else 'N/A' }}</small>
+                                    <small>{{ quote[12].split(' ')[0] if quote[12] else 'N/A' }}</small>
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
@@ -245,22 +248,46 @@
 {% block scripts %}
     <script>
         function viewQuoteDetails(quoteType, quoteId) {
-            fetch(`{{ url_for('dgf_quotes.get_quote_details', quote_type='PLACEHOLDER', quote_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', quoteType).replace('PLACEHOLDER', quoteId))
+            fetch(`{{ url_for('dgf_quotes.get_quote_details', quote_type='PLACEHOLDER', quote_id='PLACEHOLDER') }}`
+                    .replace('PLACEHOLDER', quoteType)
+                    .replace('PLACEHOLDER', quoteId))
                 .then(response => response.json())
                 .then(data => {
                     if (data.quote) {
+                        const q = data.quote; // SELECT * row from dgf_lcl_quotes
+                        const origin = q[7] || 'N/A';
+                        const dest = q[8] || 'N/A';
+                        const oCode = q[9] || '';
+                        const dCode = q[10] || '';
+                        const vStart = q[5] || '';
+                        const vEnd = q[6] || '';
+                        const cur = q[17] || 'USD';
+                        const rate = q[25] || 0; // lcl_freight_rate
+                        const total = q[30] || 0; // total_charges
+                        const incoterms = q[14] || 'N/A';
+                        const ttime = q[15] || 'N/A';
+                        const status = q[35] || 'N/A';
+
+                        const fmt2 = v => {
+                            const n = Number(v);
+                            return isNaN(n) ? '0.00' : n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                        };
+
                         document.getElementById('quoteDetailsBody').innerHTML = `
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6>Route Information</h6>
-                                    <p><strong>Origin Port:</strong> ${data.quote[1] || 'N/A'}</p>
-                                    <p><strong>Destination Port:</strong> ${data.quote[4] || 'N/A'}</p>
+                                    <p><strong>Origin Port:</strong> ${origin}${oCode ? ` (${oCode})` : ''}</p>
+                                    <p><strong>Destination Port:</strong> ${dest}${dCode ? ` (${dCode})` : ''}</p>
+                                    <p><strong>Validity:</strong> ${vStart}${vEnd ? ` - ${vEnd}` : ''}</p>
                                 </div>
                                 <div class="col-md-6">
                                     <h6>Rate Information</h6>
-                                    <p><strong>CBM Rate:</strong> ${data.quote[7] || 'N/A'} ${data.quote[9] || 'USD'}/CBM</p>
-                                    <p><strong>TON Rate:</strong> ${data.quote[8] || 'N/A'} ${data.quote[9] || 'USD'}/TON</p>
-                                    <p><strong>Status:</strong> ${data.quote[12] || 'N/A'}</p>
+                                    <p><strong>CBM Rate:</strong> ${fmt2(rate)} ${cur}/CBM</p>
+                                    <p><strong>Total Charges:</strong> ${fmt2(total)} ${cur}</p>
+                                    <p><strong>Incoterms:</strong> ${incoterms}</p>
+                                    <p><strong>Transit Time:</strong> ${ttime}</p>
+                                    <p><strong>Status:</strong> ${status}</p>
                                 </div>
                             </div>
                         `;

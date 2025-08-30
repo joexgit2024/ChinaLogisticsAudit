@@ -36,7 +36,7 @@ def dashboard():
         
         # Recent AIR quotes
         cursor.execute('''
-            SELECT quote_id, origin_airport_code, destination_airport_code, 
+            SELECT quote_reference_no, origin_airport_code, destination_airport_code, 
                    rate_per_kg, currency, validity_start, validity_end, uploaded_at
             FROM dgf_air_quotes 
             ORDER BY uploaded_at DESC LIMIT 5
@@ -45,8 +45,8 @@ def dashboard():
         
         # Recent FCL quotes
         cursor.execute('''
-            SELECT quote_id, origin_port_code, destination_port_code, 
-                   container_type, rate_per_container, currency, validity_start, validity_end, uploaded_at
+            SELECT quote_reference_no, vendor_name, origin_port_code, destination_port_code, 
+                   freight_rate_20, freight_rate_40, currency, validity_start, validity_end, uploaded_at
             FROM dgf_fcl_quotes 
             ORDER BY uploaded_at DESC LIMIT 5
         ''')
@@ -54,8 +54,8 @@ def dashboard():
         
         # Recent LCL quotes
         cursor.execute('''
-            SELECT quote_id, origin_port_code, destination_port_code, 
-                   rate_per_cbm, currency, validity_start, validity_end, uploaded_at
+            SELECT quote_reference_no, vendor_name, origin_port_code, destination_port_code, 
+                   lcl_freight_rate, currency, validity_start, validity_end, uploaded_at
             FROM dgf_lcl_quotes 
             ORDER BY uploaded_at DESC LIMIT 5
         ''')
@@ -101,8 +101,14 @@ def upload():
                 
                 # Process the file
                 processor = DGFQuoteProcessor()
-                uploaded_by = request.form.get('uploaded_by', 'web_user')
-                results = processor.process_quote_file(file_path, uploaded_by)
+                uploaded_by = request.form.get('uploaded_by', 'JOE XIE')
+                replace_existing = request.form.get('replace_existing') == 'on'
+                
+                # Track user usage
+                tables = DGFQuoteTables(force_recreate=False)
+                tables.add_or_update_user(uploaded_by)
+                
+                results = processor.process_quote_file(file_path, uploaded_by, replace_existing)
                 
                 # Generate success/error messages
                 total_success = sum(r['success'] for r in results.values())
@@ -128,7 +134,24 @@ def upload():
         except Exception as e:
             flash(f'Error processing file: {str(e)}', 'error')
     
-    return render_template('dgf_quotes/upload.html')
+    # Get users list for dropdown
+    try:
+        tables = DGFQuoteTables(force_recreate=False)
+        users = tables.get_upload_users()
+    except Exception as e:
+        users = ['JOE XIE']  # Fallback
+    
+    return render_template('dgf_quotes/upload.html', users=users)
+
+@dgf_quotes_bp.route('/api/users')
+def get_users_api():
+    """API endpoint to get list of upload users for dynamic updates."""
+    try:
+        tables = DGFQuoteTables(force_recreate=False)
+        users = tables.get_upload_users()
+        return jsonify({'users': users, 'default': 'JOE XIE'})
+    except Exception as e:
+        return jsonify({'error': str(e), 'users': ['JOE XIE'], 'default': 'JOE XIE'}), 500
 
 @dgf_quotes_bp.route('/air')
 def air_quotes():
@@ -151,22 +174,22 @@ def air_quotes():
             params.append(status)
         
         if origin:
-            where_conditions.append('(origin_country LIKE ? OR origin_city LIKE ? OR origin_airport_code LIKE ?)')
+            where_conditions.append('(origin_country LIKE ? OR origin LIKE ? OR origin_airport_code LIKE ?)')
             params.extend([f'%{origin}%', f'%{origin}%', f'%{origin}%'])
         
         if destination:
-            where_conditions.append('(destination_country LIKE ? OR destination_city LIKE ? OR destination_airport_code LIKE ?)')
+            where_conditions.append('(destination_country LIKE ? OR destination LIKE ? OR destination_airport_code LIKE ?)')
             params.extend([f'%{destination}%', f'%{destination}%', f'%{destination}%'])
         
-        query = f'''
-            SELECT quote_id, origin_country, origin_city, origin_airport_code,
-                   destination_country, destination_city, destination_airport_code,
+        query = '''
+            SELECT quote_reference_no, origin_country, origin, origin_airport_code,
+                   destination_country, destination, destination_airport_code,
                    rate_per_kg, currency, validity_start, validity_end, status, uploaded_at
             FROM dgf_air_quotes
-            WHERE {' AND '.join(where_conditions)}
+            WHERE {}
             ORDER BY uploaded_at DESC
             LIMIT 100
-        '''
+        '''.format(' AND '.join(where_conditions))
         
         cursor.execute(query, params)
         quotes = cursor.fetchall()
@@ -202,7 +225,7 @@ def fcl_quotes():
         status = request.args.get('status', 'ACTIVE')
         origin = request.args.get('origin', '')
         destination = request.args.get('destination', '')
-        container_type = request.args.get('container_type', '')
+        vendor = request.args.get('vendor', '')
         
         # Build query
         where_conditions = ['1=1']
@@ -213,26 +236,27 @@ def fcl_quotes():
             params.append(status)
         
         if origin:
-            where_conditions.append('(origin_country LIKE ? OR origin_port LIKE ? OR origin_port_code LIKE ?)')
+            where_conditions.append('(origin LIKE ? OR origin_country LIKE ? OR origin_port_code LIKE ?)')
             params.extend([f'%{origin}%', f'%{origin}%', f'%{origin}%'])
         
         if destination:
-            where_conditions.append('(destination_country LIKE ? OR destination_port LIKE ? OR destination_port_code LIKE ?)')
+            where_conditions.append('(destination LIKE ? OR destination_country LIKE ? OR destination_port_code LIKE ?)')
             params.extend([f'%{destination}%', f'%{destination}%', f'%{destination}%'])
         
-        if container_type:
-            where_conditions.append('container_type LIKE ?')
-            params.append(f'%{container_type}%')
+        if vendor:
+            where_conditions.append('vendor_name LIKE ?')
+            params.append(f'%{vendor}%')
         
-        query = f'''
-            SELECT quote_id, origin_country, origin_port, origin_port_code,
-                   destination_country, destination_port, destination_port_code,
-                   container_type, rate_per_container, currency, validity_start, validity_end, status, uploaded_at
+        query = '''
+            SELECT quote_reference_no, vendor_name, origin, destination,
+                   freight_rate_20, freight_rate_40, currency, 
+                   validity_start, validity_end, total_charges, 
+                   transit_time, incoterms, status, uploaded_at
             FROM dgf_fcl_quotes
-            WHERE {' AND '.join(where_conditions)}
+            WHERE {}
             ORDER BY uploaded_at DESC
             LIMIT 100
-        '''
+        '''.format(' AND '.join(where_conditions))
         
         cursor.execute(query, params)
         quotes = cursor.fetchall()
@@ -244,9 +268,9 @@ def fcl_quotes():
         cursor.execute('SELECT COUNT(*) FROM dgf_fcl_quotes')
         total_count = cursor.fetchone()[0]
         
-        # Get container types for filter
-        cursor.execute('SELECT DISTINCT container_type FROM dgf_fcl_quotes WHERE container_type IS NOT NULL ORDER BY container_type')
-        container_types = [row[0] for row in cursor.fetchall()]
+        # Get vendors for filter
+        cursor.execute('SELECT DISTINCT vendor_name FROM dgf_fcl_quotes WHERE vendor_name IS NOT NULL ORDER BY vendor_name')
+        vendors = [row[0] for row in cursor.fetchall()]
         
         conn.close()
         
@@ -254,13 +278,13 @@ def fcl_quotes():
                              quotes=quotes,
                              active_count=active_count,
                              total_count=total_count,
-                             container_types=container_types,
-                             filters={'status': status, 'origin': origin, 'destination': destination, 'container_type': container_type})
+                             vendors=vendors,
+                             filters={'status': status, 'origin': origin, 'destination': destination, 'vendor': vendor})
     
     except Exception as e:
         flash(f'Error loading FCL quotes: {str(e)}', 'error')
         return render_template('dgf_quotes/fcl_quotes.html',
-                             quotes=[], active_count=0, total_count=0, container_types=[], filters={})
+                             quotes=[], active_count=0, total_count=0, vendors=[], filters={})
 
 @dgf_quotes_bp.route('/lcl')
 def lcl_quotes():
@@ -273,6 +297,7 @@ def lcl_quotes():
         status = request.args.get('status', 'ACTIVE')
         origin = request.args.get('origin', '')
         destination = request.args.get('destination', '')
+        vendor = request.args.get('vendor', '')
         
         # Build query
         where_conditions = ['1=1']
@@ -283,22 +308,26 @@ def lcl_quotes():
             params.append(status)
         
         if origin:
-            where_conditions.append('(origin_country LIKE ? OR origin_port LIKE ? OR origin_port_code LIKE ?)')
+            where_conditions.append('(origin LIKE ? OR origin_country LIKE ? OR origin_port_code LIKE ?)')
             params.extend([f'%{origin}%', f'%{origin}%', f'%{origin}%'])
         
         if destination:
-            where_conditions.append('(destination_country LIKE ? OR destination_port LIKE ? OR destination_port_code LIKE ?)')
+            where_conditions.append('(destination LIKE ? OR destination_country LIKE ? OR destination_port_code LIKE ?)')
             params.extend([f'%{destination}%', f'%{destination}%', f'%{destination}%'])
         
-        query = f'''
-            SELECT quote_id, origin_country, origin_port, origin_port_code,
-                   destination_country, destination_port, destination_port_code,
-                   rate_per_cbm, rate_per_ton, currency, validity_start, validity_end, status, uploaded_at
+        if vendor:
+            where_conditions.append('vendor_name LIKE ?')
+            params.append(f'%{vendor}%')
+        
+        query = '''
+            SELECT quote_reference_no, vendor_name, origin, destination,
+                   lcl_freight_rate, currency, validity_start, validity_end, 
+                   total_charges, transit_time, incoterms, status, uploaded_at
             FROM dgf_lcl_quotes
-            WHERE {' AND '.join(where_conditions)}
+            WHERE {}
             ORDER BY uploaded_at DESC
             LIMIT 100
-        '''
+        '''.format(' AND '.join(where_conditions))
         
         cursor.execute(query, params)
         quotes = cursor.fetchall()
@@ -310,18 +339,23 @@ def lcl_quotes():
         cursor.execute('SELECT COUNT(*) FROM dgf_lcl_quotes')
         total_count = cursor.fetchone()[0]
         
+        # Get vendors for filter
+        cursor.execute('SELECT DISTINCT vendor_name FROM dgf_lcl_quotes WHERE vendor_name IS NOT NULL ORDER BY vendor_name')
+        vendors = [row[0] for row in cursor.fetchall()]
+        
         conn.close()
         
         return render_template('dgf_quotes/lcl_quotes.html',
                              quotes=quotes,
                              active_count=active_count,
                              total_count=total_count,
-                             filters={'status': status, 'origin': origin, 'destination': destination})
+                             vendors=vendors,
+                             filters={'status': status, 'origin': origin, 'destination': destination, 'vendor': vendor})
     
     except Exception as e:
         flash(f'Error loading LCL quotes: {str(e)}', 'error')
         return render_template('dgf_quotes/lcl_quotes.html',
-                             quotes=[], active_count=0, total_count=0, filters={})
+                             quotes=[], active_count=0, total_count=0, vendors=[], filters={})
 
 @dgf_quotes_bp.route('/api/quote/<quote_type>/<quote_id>')
 def get_quote_details(quote_type, quote_id):
@@ -331,11 +365,11 @@ def get_quote_details(quote_type, quote_id):
         cursor = conn.cursor()
         
         if quote_type == 'air':
-            cursor.execute('SELECT * FROM dgf_air_quotes WHERE quote_id = ?', (quote_id,))
+            cursor.execute('SELECT * FROM dgf_air_quotes WHERE quote_reference_no = ?', (quote_id,))
         elif quote_type == 'fcl':
-            cursor.execute('SELECT * FROM dgf_fcl_quotes WHERE quote_id = ?', (quote_id,))
+            cursor.execute('SELECT * FROM dgf_fcl_quotes WHERE quote_reference_no = ?', (quote_id,))
         elif quote_type == 'lcl':
-            cursor.execute('SELECT * FROM dgf_lcl_quotes WHERE quote_id = ?', (quote_id,))
+            cursor.execute('SELECT * FROM dgf_lcl_quotes WHERE quote_reference_no = ?', (quote_id,))
         else:
             return jsonify({'error': 'Invalid quote type'}), 400
         
@@ -392,8 +426,8 @@ def export_quotes(quote_type):
         flash(f'Error exporting quotes: {str(e)}', 'error')
         return redirect(url_for('dgf_quotes.dashboard'))
 
-# Initialize tables when the blueprint is imported
+# Initialize tables when the blueprint is imported (without recreating existing tables)
 try:
-    DGFQuoteTables()
+    DGFQuoteTables(force_recreate=False)
 except Exception as e:
     print(f"Warning: Could not initialize DGF quote tables: {str(e)}")

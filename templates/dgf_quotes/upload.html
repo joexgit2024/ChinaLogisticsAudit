@@ -51,6 +51,31 @@
             content: "DHL";
             font-weight: 900;
         }
+        
+        /* User input enhancements */
+        .user-input-container {
+            position: relative;
+        }
+        
+        .user-suggestion {
+            background-color: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        
+        .name-validation-tip {
+            color: #6c757d;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+        
+        .input-group-text i {
+            color: #6c757d;
+        }
+        
     </style>
     <div class="container py-2">
 
@@ -65,9 +90,26 @@
                     <div class="card-body">
                         <form method="POST" enctype="multipart/form-data" id="uploadForm">
                             <div class="mb-3">
-                                <label for="uploaded_by" class="form-label">Uploaded By</label>
-                                <input type="text" class="form-control" id="uploaded_by" name="uploaded_by" 
-                                       placeholder="Enter your name or ID" required>
+                                <label for="uploaded_by" class="form-label">
+                                    Uploaded By <small class="text-muted">(Please use full name: First Name Last Name)</small>
+                                </label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="uploaded_by" name="uploaded_by" 
+                                           value="JOE XIE" list="usersList" 
+                                           placeholder="Enter your full name (e.g., John Smith)" required>
+                                    <datalist id="usersList">
+                                        {% for user in users %}
+                                        <option value="{{ user }}">{{ user }}</option>
+                                        {% endfor %}
+                                    </datalist>
+                                    <span class="input-group-text">
+                                        <i class="fas fa-user" title="Use your full name for tracking"></i>
+                                    </span>
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Start typing or select from dropdown. New names will be added for future use.
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -91,10 +133,14 @@
 
                             <div class="mb-3">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="replaceExisting" name="replace_existing">
+                                    <input class="form-check-input" type="checkbox" id="replaceExisting" name="replace_existing" checked>
                                     <label class="form-check-label" for="replaceExisting">
-                                        Replace existing quotes with same quote IDs
+                                        Replace existing quotes with same quote reference numbers
                                     </label>
+                                    <div class="form-text">
+                                        When checked, quotes with matching quote reference numbers will be updated. 
+                                        When unchecked, duplicate quote reference numbers will be skipped.
+                                    </div>
                                 </div>
                             </div>
 
@@ -150,13 +196,13 @@
                                 <div id="airColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
                                     <div class="accordion-body">
                                         <small>
-                                            • quote_id<br>
-                                            • origin_airport_code<br>
-                                            • destination_airport_code<br>
-                                            • rate_per_kg<br>
-                                            • currency<br>
-                                            • validity_start<br>
-                                            • validity_end
+                                            • Quote Reference No.<br>
+                                            • Origin (airport with code)<br>
+                                            • Destination (airport with code)<br>
+                                            • DTP Freight Cost<br>
+                                            • Currency<br>
+                                            • Validity Period<br>
+                                            • Transit Time
                                         </small>
                                     </div>
                                 </div>
@@ -171,14 +217,13 @@
                                 <div id="fclColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
                                     <div class="accordion-body">
                                         <small>
-                                            • quote_id<br>
-                                            • origin_port_code<br>
-                                            • destination_port_code<br>
-                                            • container_type<br>
-                                            • rate_per_container<br>
-                                            • currency<br>
-                                            • validity_start<br>
-                                            • validity_end
+                                            • Quote Reference No.<br>
+                                            • Origin (port with code)<br>
+                                            • Destination (port with code)<br>
+                                            • Freight Rate (20' and 40')<br>
+                                            • Currency<br>
+                                            • Validity Period<br>
+                                            • Transit Time
                                         </small>
                                     </div>
                                 </div>
@@ -193,14 +238,13 @@
                                 <div id="lclColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
                                     <div class="accordion-body">
                                         <small>
-                                            • quote_id<br>
-                                            • origin_port_code<br>
-                                            • destination_port_code<br>
-                                            • rate_per_cbm<br>
-                                            • rate_per_ton<br>
-                                            • currency<br>
-                                            • validity_start<br>
-                                            • validity_end
+                                            • Quote Reference No.<br>
+                                            • Origin (port with code)<br>
+                                            • Destination (port with code)<br>
+                                            • LCL Freight Rate<br>
+                                            • Currency<br>
+                                            • Validity Period<br>
+                                            • Transit Time
                                         </small>
                                     </div>
                                 </div>
@@ -285,6 +329,57 @@
         document.getElementById('uploadForm').addEventListener('submit', function(e) {
             uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
             uploadBtn.disabled = true;
+            
+            // Validate uploaded_by field
+            const uploadedBy = document.getElementById('uploaded_by').value.trim();
+            if (!uploadedBy) {
+                e.preventDefault();
+                alert('Please enter your full name');
+                uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Process Quotes';
+                uploadBtn.disabled = false;
+                return;
+            }
+            
+            // Check if it looks like a full name (has at least two words)
+            const nameParts = uploadedBy.split(' ').filter(part => part.length > 0);
+            if (nameParts.length < 2) {
+                const confirmUpload = confirm('It looks like you entered only one name. We recommend using your full name (First Name Last Name) for better tracking. Continue anyway?');
+                if (!confirmUpload) {
+                    e.preventDefault();
+                    uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Process Quotes';
+                    uploadBtn.disabled = false;
+                    return;
+                }
+            }
         });
+        
+        // User name input enhancements
+        const uploadedByInput = document.getElementById('uploaded_by');
+        
+        // Auto-capitalize first letter of each word
+        uploadedByInput.addEventListener('input', function(e) {
+            const words = e.target.value.split(' ');
+            const capitalizedWords = words.map(word => {
+                if (word.length === 0) return word;
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+            });
+            e.target.value = capitalizedWords.join(' ');
+        });
+        
+        // Clear button functionality
+        const clearNameBtn = document.createElement('button');
+        clearNameBtn.type = 'button';
+        clearNameBtn.className = 'btn btn-outline-secondary btn-sm ms-2';
+        clearNameBtn.innerHTML = '<i class="fas fa-times"></i>';
+        clearNameBtn.title = 'Clear name field';
+        clearNameBtn.onclick = function() {
+            uploadedByInput.value = '';
+            uploadedByInput.focus();
+        };
+        
+        // Add clear button after the input group
+        const inputGroup = uploadedByInput.closest('.input-group');
+        inputGroup.parentNode.insertBefore(clearNameBtn, inputGroup.nextSibling);
+        
     </script>
 {% endblock %}
