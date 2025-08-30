@@ -1,0 +1,290 @@
+{% extends 'base.html' %}
+{% block title %}Upload DGF Quotes{% endblock %}
+{% block content %}
+    <style>
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+            background-color: #f8f9fa;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .file-info {
+            background: #e9ecef;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .template-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        /* DHL Global Forwarding Icon */
+        .dhl-global-forwarding-icon {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFCC00 0%, #FFD700 100%);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            font-size: 9px;
+            color: #D40511;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            border: 1px solid #D40511;
+            letter-spacing: 0.2px;
+            position: relative;
+            vertical-align: middle;
+        }
+        .dhl-global-forwarding-icon::before {
+            content: "DHL";
+            font-weight: 900;
+        }
+    </style>
+    <div class="container py-2">
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-upload me-2"></i>Upload DGF Quotes File
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                            <div class="mb-3">
+                                <label for="uploaded_by" class="form-label">Uploaded By</label>
+                                <input type="text" class="form-control" id="uploaded_by" name="uploaded_by" 
+                                       placeholder="Enter your name or ID" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="quote_file" class="form-label">Select Quote File</label>
+                                <div class="upload-area" id="uploadArea">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5>Drop your Excel file here or click to browse</h5>
+                                    <p class="text-muted">Supported formats: .xlsx, .xls</p>
+                                    <input type="file" class="form-control d-none" id="quote_file" name="quote_file" 
+                                           accept=".xlsx,.xls" required>
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('quote_file').click()">
+                                        <i class="fas fa-folder-open me-2"></i>Browse Files
+                                    </button>
+                                </div>
+                                <div id="fileInfo" class="file-info d-none">
+                                    <i class="fas fa-file-excel text-success me-2"></i>
+                                    <span id="fileName"></span>
+                                    <span id="fileSize" class="text-muted ms-2"></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="replaceExisting" name="replace_existing">
+                                    <label class="form-check-label" for="replaceExisting">
+                                        Replace existing quotes with same quote IDs
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" id="uploadBtn" disabled>
+                                    <i class="fas fa-upload me-2"></i>Upload and Process Quotes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <!-- File Format Guide -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>File Format Requirements
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>File Structure:</strong></p>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-plane text-info me-2"></i>AIR sheet: Air freight quotes</li>
+                            <li><i class="fas fa-shipping-fast text-success me-2"></i>FCL sheet: Full container load quotes</li>
+                            <li><i class="fas fa-boxes text-warning me-2"></i>LCL sheet: Less than container load quotes</li>
+                        </ul>
+                        <p><strong>Supported Formats:</strong></p>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Excel 2007+ (.xlsx)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Excel 97-2003 (.xls)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Column Mapping Guide -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-table me-2"></i>Required Columns
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion" id="columnGuide">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="airHeader">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#airColumns" aria-expanded="false">
+                                        <i class="fas fa-plane text-info me-2"></i>AIR Quotes
+                                    </button>
+                                </h2>
+                                <div id="airColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
+                                    <div class="accordion-body">
+                                        <small>
+                                            • quote_id<br>
+                                            • origin_airport_code<br>
+                                            • destination_airport_code<br>
+                                            • rate_per_kg<br>
+                                            • currency<br>
+                                            • validity_start<br>
+                                            • validity_end
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="fclHeader">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#fclColumns" aria-expanded="false">
+                                        <i class="fas fa-shipping-fast text-success me-2"></i>FCL Quotes
+                                    </button>
+                                </h2>
+                                <div id="fclColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
+                                    <div class="accordion-body">
+                                        <small>
+                                            • quote_id<br>
+                                            • origin_port_code<br>
+                                            • destination_port_code<br>
+                                            • container_type<br>
+                                            • rate_per_container<br>
+                                            • currency<br>
+                                            • validity_start<br>
+                                            • validity_end
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="lclHeader">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                            data-bs-target="#lclColumns" aria-expanded="false">
+                                        <i class="fas fa-boxes text-warning me-2"></i>LCL Quotes
+                                    </button>
+                                </h2>
+                                <div id="lclColumns" class="accordion-collapse collapse" data-bs-parent="#columnGuide">
+                                    <div class="accordion-body">
+                                        <small>
+                                            • quote_id<br>
+                                            • origin_port_code<br>
+                                            • destination_port_code<br>
+                                            • rate_per_cbm<br>
+                                            • rate_per_ton<br>
+                                            • currency<br>
+                                            • validity_start<br>
+                                            • validity_end
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Processing Information -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cogs me-2"></i>Processing Information
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Automatic sheet detection</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Data validation</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Duplicate detection</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Error reporting</li>
+                        </ul>
+                        <div class="alert alert-info">
+                            <small>
+                                <i class="fas fa-info-circle me-1"></i>
+                                Processing may take a few moments for large files.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('quote_file');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const uploadBtn = document.getElementById('uploadBtn');
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                updateFileInfo(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                updateFileInfo(e.target.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            fileName.textContent = file.name;
+            fileSize.textContent = `(${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            fileInfo.classList.remove('d-none');
+            uploadBtn.disabled = false;
+        }
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Processing...';
+            uploadBtn.disabled = true;
+        });
+    </script>
+{% endblock %}

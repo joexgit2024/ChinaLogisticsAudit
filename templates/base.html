@@ -550,7 +550,7 @@
                     {% endif %}
                     
                     <nav class="nav flex-column">
-                        <a class="nav-link {% if request.endpoint == 'core.index' %}active{% endif %}" href="{{ url_for('core.index') }}">>
+                        <a class="nav-link {% if request.endpoint == 'core.index' %}active{% endif %}" href="{{ url_for('core.index') }}">
                             <i class="fas fa-home me-2"></i> <span>Home</span>
                         </a>
                         <!-- FedEx Dropdown -->
@@ -764,44 +764,72 @@
                             </ul>
                         </div>
                         
-                        <!-- DGF Air & Sea Freight Dropdown -->
+                        <!-- DGF (DHL Global Forwarding) Dropdown -->
                         <div class="dropdown" id="dgfDropdownContainer">
                             <a class="nav-link dropdown-toggle {% if request.path.startswith('/dgf') %}active{% endif %}"
                                href="#" role="button" id="dgfDropdown" 
                                aria-expanded="false" 
                                aria-haspopup="true"
-                               aria-label="DGF Audit Menu">
-                                <span class="dhl-global-forwarding-icon me-2"></span> <span>DGF Air & Sea</span>
+                               aria-label="DGF Menu">
+                                <span class="dhl-global-forwarding-icon me-2"></span> <span>DGF</span>
                             </a>
                             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="dgfDropdown" role="menu">
                                 <li><h6 class="dropdown-header"><i class="fas fa-tachometer-alt me-1"></i> <span>Dashboard & Overview</span></h6></li>
-                                <li><a class="dropdown-item {% if request.path == '/dgf' %}active{% endif %}" href="/dgf" role="menuitem">
-                                    <i class="fas fa-chart-bar me-2"></i> <span>DGF Dashboard</span>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes' %}active{% endif %}" href="/dgf-quotes" role="menuitem">
+                                    <i class="fas fa-chart-pie me-2"></i> <span>DGF Dashboard</span>
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><h6 class="dropdown-header"><i class="fas fa-upload me-1"></i> <span>Data Management</span></h6></li>
-                                <li><a class="dropdown-item {% if request.path == '/dgf/upload' %}active{% endif %}" href="/dgf/upload" role="menuitem">
-                                    <i class="fas fa-file-upload me-2"></i> <span>Upload Excel Files</span>
+                                <li><h6 class="dropdown-header"><i class="fas fa-tags me-1"></i> <span>Spot Quotes</span></h6></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes' %}active{% endif %}" href="/dgf-quotes" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>Quote Dashboard</span>
                                 </a></li>
-                                <li><a class="dropdown-item {% if request.path == '/dgf/quotes' %}active{% endif %}" href="/dgf/quotes" role="menuitem">
-                                    <i class="fas fa-tags me-2"></i> <span>Spot Quotes</span>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes/upload' %}active{% endif %}" href="/dgf-quotes/upload" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload Quote Files</span>
                                 </a></li>
-                                <li><a class="dropdown-item {% if request.path == '/dgf/invoices' %}active{% endif %}" href="/dgf/invoices" role="menuitem">
-                                    <i class="fas fa-file-invoice me-2"></i> <span>View Invoices</span>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes/air' %}active{% endif %}" href="/dgf-quotes/air" role="menuitem">
+                                    <i class="fas fa-plane me-2"></i> <span>AIR Quotes</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes/fcl' %}active{% endif %}" href="/dgf-quotes/fcl" role="menuitem">
+                                    <i class="fas fa-shipping-fast me-2"></i> <span>FCL Quotes</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-quotes/lcl' %}active{% endif %}" href="/dgf-quotes/lcl" role="menuitem">
+                                    <i class="fas fa-boxes me-2"></i> <span>LCL Quotes</span>
+                                </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header"><i class="fas fa-file-invoice me-1"></i> <span>Invoices</span></h6></li>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-chart-bar me-2"></i> <span>Invoice Dashboard</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-file-upload me-2"></i> <span>Upload Invoices</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-list me-2"></i> <span>View Invoices</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>
-                                <li><a class="dropdown-item {% if request.path == '/dgf/audit/results' %}active{% endif %}" href="/dgf/audit/results" role="menuitem">
-                                    <i class="fas fa-chart-line me-2"></i> <span>Audit Results</span>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-chart-line me-2"></i> <span>Audit Dashboard</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
                                 </a></li>
-                                <li><a class="dropdown-item" href="#" onclick="runDGFAudit(); return false;" role="menuitem">
+                                <li><a class="dropdown-item" href="#" role="menuitem">
                                     <i class="fas fa-play me-2"></i> <span>Run Audit</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
                                 </a></li>
-                                <li><a class="dropdown-item" href="/dgf/reports/generate" role="menuitem">
-                                    <i class="fas fa-download me-2"></i> <span>Export Report</span>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-table me-2"></i> <span>Audit Results</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                    <i class="fas fa-file-export me-2"></i> <span>Export Reports</span>
+                                    <small class="text-muted d-block">Coming Soon</small>
                                 </a></li>
                             </ul>
                         </div>
+                        
                         
                         <!-- LLM Processing Dropdown -->
                         <div class="dropdown" id="llmDropdownContainer">
@@ -909,9 +937,9 @@
             // Initialize dropdown states
             dropdowns.forEach(dropdownId => {
                 const container = document.getElementById(dropdownId);
+                if (!container) return;
                 const toggle = container.querySelector('.dropdown-toggle');
-                
-                if (!container || !toggle) return;
+                if (!toggle) return;
                 
                 // Set initial state
                 toggle.setAttribute('aria-expanded', 'false');
@@ -1001,8 +1029,8 @@
                 
                 dropdowns.forEach(dropdownId => {
                     const container = document.getElementById(dropdownId);
+                    if (!container) return;
                     const toggle = container.querySelector('.dropdown-toggle');
-                    
                     if (container && !container.contains(e.target)) {
                         container.classList.remove('show');
                         if (toggle) toggle.setAttribute('aria-expanded', 'false');
@@ -1013,8 +1041,8 @@
             // Auto-expand dropdown if current page is within that section
             dropdowns.forEach(dropdownId => {
                 const container = document.getElementById(dropdownId);
+                if (!container) return;
                 const toggle = container.querySelector('.dropdown-toggle');
-                
                 if (container && toggle && toggle.classList.contains('active')) {
                     container.classList.add('show');
                     toggle.setAttribute('aria-expanded', 'true');

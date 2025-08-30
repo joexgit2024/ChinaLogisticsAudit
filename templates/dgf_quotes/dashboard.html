@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+{% block title %}DGF Quotes Dashboard{% endblock %}
+{% block content %}
+    <style>
+        .stat-card {
+            border-left: 4px solid #007bff;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .air-card { border-left-color: #17a2b8; }
+        .fcl-card { border-left-color: #28a745; }
+        .lcl-card { border-left-color: #ffc107; }
+        .quote-table th {
+            background-color: #f8f9fa;
+            border-top: none;
+        }
+        .navbar-brand {
+            font-weight: 600;
+        }
+        /* DHL Global Forwarding Icon */
+        .dhl-global-forwarding-icon {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFCC00 0%, #FFD700 100%);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            font-size: 9px;
+            color: #D40511;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            border: 1px solid #D40511;
+            letter-spacing: 0.2px;
+            position: relative;
+            vertical-align: middle;
+        }
+        .dhl-global-forwarding-icon::before {
+            content: "DHL";
+            font-weight: 900;
+        }
+    </style>
+    <div class="container-fluid py-2">
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card stat-card air-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title text-info">
+                                    <i class="fas fa-plane me-2"></i>AIR Quotes
+                                </h5>
+                                <h3 class="mb-0">{{ summary.air.active if summary.air else 0 }}</h3>
+                                <small class="text-muted">Active / {{ summary.air.total if summary.air else 0 }} Total</small>
+                            </div>
+                            <div class="text-end">
+                                <a href="{{ url_for('dgf_quotes.air_quotes') }}" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>View All
+                                </a>
+                                <a href="{{ url_for('dgf_quotes.export_quotes', quote_type='air') }}" class="btn btn-outline-secondary btn-sm mt-1">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </a>
+                            </div>
+                        </div>
+                        {% if summary.air and summary.air.earliest_validity %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                Valid: {{ summary.air.earliest_validity }} to {{ summary.air.latest_validity }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card stat-card fcl-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title text-success">
+                                    <i class="fas fa-shipping-fast me-2"></i>FCL Quotes
+                                </h5>
+                                <h3 class="mb-0">{{ summary.fcl.active if summary.fcl else 0 }}</h3>
+                                <small class="text-muted">Active / {{ summary.fcl.total if summary.fcl else 0 }} Total</small>
+                            </div>
+                            <div class="text-end">
+                                <a href="{{ url_for('dgf_quotes.fcl_quotes') }}" class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-eye me-1"></i>View All
+                                </a>
+                                <a href="{{ url_for('dgf_quotes.export_quotes', quote_type='fcl') }}" class="btn btn-outline-secondary btn-sm mt-1">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </a>
+                            </div>
+                        </div>
+                        {% if summary.fcl and summary.fcl.earliest_validity %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                Valid: {{ summary.fcl.earliest_validity }} to {{ summary.fcl.latest_validity }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card stat-card lcl-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="card-title text-warning">
+                                    <i class="fas fa-boxes me-2"></i>LCL Quotes
+                                </h5>
+                                <h3 class="mb-0">{{ summary.lcl.active if summary.lcl else 0 }}</h3>
+                                <small class="text-muted">Active / {{ summary.lcl.total if summary.lcl else 0 }} Total</small>
+                            </div>
+                            <div class="text-end">
+                                <a href="{{ url_for('dgf_quotes.lcl_quotes') }}" class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-eye me-1"></i>View All
+                                </a>
+                                <a href="{{ url_for('dgf_quotes.export_quotes', quote_type='lcl') }}" class="btn btn-outline-secondary btn-sm mt-1">
+                                    <i class="fas fa-download me-1"></i>Export
+                                </a>
+                            </div>
+                        </div>
+                        {% if summary.lcl and summary.lcl.earliest_validity %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                Valid: {{ summary.lcl.earliest_validity }} to {{ summary.lcl.latest_validity }}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>Quick Actions
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <a href="{{ url_for('dgf_quotes.upload') }}" class="btn btn-primary w-100 mb-2">
+                                    <i class="fas fa-upload me-2"></i>Upload New Quotes
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ url_for('dgf_quotes.air_quotes') }}" class="btn btn-outline-info w-100 mb-2">
+                                    <i class="fas fa-plane me-2"></i>Manage AIR Quotes
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ url_for('dgf_quotes.fcl_quotes') }}" class="btn btn-outline-success w-100 mb-2">
+                                    <i class="fas fa-shipping-fast me-2"></i>Manage FCL Quotes
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{{ url_for('dgf_quotes.lcl_quotes') }}" class="btn btn-outline-warning w-100 mb-2">
+                                    <i class="fas fa-boxes me-2"></i>Manage LCL Quotes
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Quotes -->
+        <div class="row">
+            <!-- Recent AIR Quotes -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-info">
+                            <i class="fas fa-plane me-2"></i>Recent AIR Quotes
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if recent_air %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Route</th>
+                                        <th>Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for quote in recent_air %}
+                                    <tr>
+                                        <td><small>{{ quote[0] }}</small></td>
+                                        <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
+                                        <td><small>{{ "%.2f"|format(quote[3] or 0) }} {{ quote[4] or 'USD' }}/kg</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No AIR quotes yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent FCL Quotes -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-success">
+                            <i class="fas fa-shipping-fast me-2"></i>Recent FCL Quotes
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if recent_fcl %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Route</th>
+                                        <th>Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for quote in recent_fcl %}
+                                    <tr>
+                                        <td><small>{{ quote[0] }}</small></td>
+                                        <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
+                                        <td><small>{{ "%.0f"|format(quote[4] or 0) }} {{ quote[5] or 'USD' }}/{{ quote[3] or 'CTN' }}</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No FCL quotes yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent LCL Quotes -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0 text-warning">
+                            <i class="fas fa-boxes me-2"></i>Recent LCL Quotes
+                        </h6>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if recent_lcl %}
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Route</th>
+                                        <th>Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for quote in recent_lcl %}
+                                    <tr>
+                                        <td><small>{{ quote[0] }}</small></td>
+                                        <td><small>{{ quote[1] }} → {{ quote[2] }}</small></td>
+                                        <td><small>{{ "%.2f"|format(quote[3] or 0) }} {{ quote[4] or 'USD' }}/CBM</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p>No LCL quotes yet</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        // Auto-refresh stats every 30 seconds
+        setInterval(function() {
+            fetch('{{ url_for("dgf_quotes.get_stats") }}')
+                .then(response => response.json())
+                .then(data => {
+                    // Update stats if needed
+                    console.log('Stats updated:', data);
+                })
+                .catch(error => console.log('Error updating stats:', error));
+        }, 30000);
+    </script>
+{% endblock %}
