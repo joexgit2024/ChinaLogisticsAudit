@@ -797,17 +797,17 @@
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header"><i class="fas fa-file-invoice me-1"></i> <span>Invoices</span></h6></li>
-                                <li><a class="dropdown-item" href="#" role="menuitem">
-                                    <i class="fas fa-chart-bar me-2"></i> <span>Invoice Dashboard</span>
-                                    <small class="text-muted d-block">Coming Soon</small>
-                                </a></li>
-                                <li><a class="dropdown-item" href="#" role="menuitem">
+                                <li><a class="dropdown-item {% if request.path == '/dgf-invoices/upload' %}active{% endif %}" href="/dgf-invoices/upload" role="menuitem">
                                     <i class="fas fa-file-upload me-2"></i> <span>Upload Invoices</span>
-                                    <small class="text-muted d-block">Coming Soon</small>
                                 </a></li>
-                                <li><a class="dropdown-item" href="#" role="menuitem">
-                                    <i class="fas fa-list me-2"></i> <span>View Invoices</span>
-                                    <small class="text-muted d-block">Coming Soon</small>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-invoices/air' %}active{% endif %}" href="/dgf-invoices/air" role="menuitem">
+                                    <i class="fas fa-list me-2"></i> <span>Air Invoices</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-invoices/fcl' %}active{% endif %}" href="/dgf-invoices/fcl" role="menuitem">
+                                    <i class="fas fa-ship me-2"></i> <span>SEA FCL Invoices</span>
+                                </a></li>
+                                <li><a class="dropdown-item {% if request.path == '/dgf-invoices/lcl' %}active{% endif %}" href="/dgf-invoices/lcl" role="menuitem">
+                                    <i class="fas fa-water me-2"></i> <span>SEA LCL Invoices</span>
                                 </a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><h6 class="dropdown-header"><i class="fas fa-search-dollar me-1"></i> <span>Audit Functions</span></h6></li>

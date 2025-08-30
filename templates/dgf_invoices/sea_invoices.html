@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<style>
+  .quote-table th { position: sticky; top:0; z-index:10; background:#f8f9fa; }
+</style>
+<div class="container-fluid py-2">
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card text-center"><div class="card-body"><h4 class="text-warning">{{ active_count }}</h4><small class="text-muted">Active Invoices</small></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center"><div class="card-body"><h4 class="text-muted">{{ total_count }}</h4><small class="text-muted">Total Invoices</small></div></div>
+    </div>
+  </div>
+
+  <div class="filter-card p-3 bg-light rounded mb-3">
+    <form class="row g-2">
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" name="status">
+          <option value="">All</option>
+          <option value="ACTIVE" {{ 'selected' if filters.status=='ACTIVE' }}>ACTIVE</option>
+          <option value="EXPIRED" {{ 'selected' if filters.status=='EXPIRED' }}>EXPIRED</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Quote ID</label>
+        <input class="form-control" name="quote" value="{{ filters.quote or '' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">HBL Number</label>
+        <input class="form-control" name="hbl" value="{{ filters.hbl or '' }}">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" type="submit"><i class="fas fa-search me-1"></i>Filter</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-ship me-2"></i>{{ title }}</h5>
+      <a class="btn btn-warning btn-sm" href="{{ url_for('dgf_invoices.upload') }}"><i class="fas fa-upload me-1"></i>Upload</a>
+    </div>
+    <div class="card-body p-0">
+      {% if invoices %}
+      <div class="table-responsive" style="max-height:600px;">
+        <table class="table table-hover quote-table mb-0">
+          <thead>
+            <tr>
+              <th>Lane ID</th>
+              <th>Quote ID</th>
+              <th>HBL</th>
+              <th>Arrival</th>
+              <th>Origin</th>
+              <th>Pieces</th>
+              <th>Weights</th>
+              <th>Charges</th>
+              <th>Total (CNY)</th>
+              <th>Status</th>
+              <th>Uploaded</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td><strong>{{ inv[0] }}</strong></td>
+              <td>{{ inv[1] or '—' }}</td>
+              <td>{{ inv[2] or '—' }}</td>
+              <td><small>{{ inv[3] or '—' }}</small></td>
+              <td><small>{{ inv[4] or '' }} / {{ inv[5] or '' }}</small><br><small>{{ inv[9] or '' }}</small></td>
+              <td>{{ inv[6]|int if inv[6] else 0 }}</td>
+              <td><small>GW: {{ '%.2f'|format((inv[7] or 0)|float) }} / CW: {{ '%.2f'|format((inv[8] or 0)|float) }}</small></td>
+              <td><small>Freight: {{ '%.2f'|format((inv[10] or 0)|float) }} {{ inv[11] or '' }}; Dest: {{ '%.2f'|format((inv[13] or 0)|float) }} {{ inv[14] or '' }}</small></td>
+              <td><strong>{{ '%.2f'|format((inv[16] or 0)|float) }}</strong></td>
+              <td>
+                {% if inv[17]=='ACTIVE' %}<span class="badge bg-success">ACTIVE</span>
+                {% elif inv[17]=='EXPIRED' %}<span class="badge bg-warning">EXPIRED</span>
+                {% else %}<span class="badge bg-secondary">{{ inv[17] or '—' }}</span>{% endif %}
+              </td>
+              <td><small>{{ inv[18].split(' ')[0] if inv[18] else '' }}</small></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No invoices found</h5>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+// If we later add actions, here is a helper to view by laneId with the given api base (fcl/lcl)
+function viewSeaInvoice(mode, laneId) {
+  const api = mode === 'fcl' ? 'fcl' : 'lcl';
+  fetch(`/dgf-invoices/api/${api}/${encodeURIComponent(laneId)}`)
+    .then(r=>r.json()).then(d=>{
+      if(!d.invoice){ alert('Not found'); return; }
+      console.log(d.invoice);
+    });
+}
+</script>
+{% endblock %}

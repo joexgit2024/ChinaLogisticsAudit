@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Upload DGF Air Invoices{% endblock %}
+{% block content %}
+<div class="container-fluid py-2">
+  <div class="card">
+    <div class="card-header"><i class="fas fa-file-invoice me-2"></i>Upload DGF Air Invoices</div>
+  <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        <div class="row g-3">
+          <div class="col-md-6">
+      <label class="form-label">Invoice Excel File (Air or Sea)</label>
+            <div id="dropZone" class="drop-zone text-muted" tabindex="0" aria-label="Drag and drop Excel file here or click to choose">
+              <div class="d-flex align-items-center justify-content-center" style="gap:.5rem;">
+                <i class="fas fa-cloud-upload-alt fa-lg"></i>
+                <span>Drag & drop .xlsx or .xls here, or click to choose</span>
+              </div>
+            </div>
+            <input class="form-control d-none" type="file" id="invoice_file" name="invoice_file" accept=".xlsx,.xls" required>
+            <small id="fileName" class="text-muted"></small>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Mode</label>
+            <select class="form-select" name="mode">
+              <option value="air">AIR</option>
+              <option value="fcl">SEA FCL</option>
+              <option value="lcl">SEA LCL</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Uploaded By</label>
+            <input class="form-control" name="uploaded_by" value="JOE XIE" placeholder="Full name">
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="replace_existing" name="replace_existing" checked>
+              <label class="form-check-label" for="replace_existing">Replace existing (by Lane ID)</label>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3">
+          <button class="btn btn-warning" type="submit"><i class="fas fa-upload me-1"></i>Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const dz = document.getElementById('dropZone');
+  const input = document.getElementById('invoice_file');
+  const nameEl = document.getElementById('fileName');
+  if(!dz || !input) return;
+
+  function showName(file){
+    if(!file) { nameEl.textContent=''; return; }
+    nameEl.textContent = `Selected: ${file.name}`;
+  }
+
+  function isExcel(file){
+    if(!file || !file.name) return false;
+    const n = file.name.toLowerCase();
+    return n.endsWith('.xlsx') || n.endsWith('.xls');
+  }
+
+  dz.addEventListener('click', ()=> input.click());
+  dz.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); input.click(); }});
+
+  ;['dragenter','dragover'].forEach(evt=> dz.addEventListener(evt, (e)=>{
+    e.preventDefault(); e.stopPropagation(); dz.classList.add('dragging');
+  }));
+  ;['dragleave','dragend','drop'].forEach(evt=> dz.addEventListener(evt, (e)=>{
+    if(evt!=='drop'){ dz.classList.remove('dragging'); }
+  }));
+  dz.addEventListener('drop', (e)=>{
+    e.preventDefault(); e.stopPropagation(); dz.classList.remove('dragging');
+    const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+    if(!files || files.length===0) return;
+    const file = files[0];
+    if(!isExcel(file)) { alert('Please drop an Excel file (.xlsx or .xls).'); return; }
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    showName(file);
+  });
+
+  input.addEventListener('change', ()=>{
+    const f = input.files && input.files[0];
+    if(f && !isExcel(f)) { alert('Please select an Excel file (.xlsx or .xls).'); input.value=''; showName(null); return; }
+    showName(f);
+  });
+})();
+</script>
+<style>
+.drop-zone{
+  border: 2px dashed rgba(0,0,0,0.2);
+  border-radius: 8px;
+  padding: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+.drop-zone.dragging{ border-color: #0d6efd; background: rgba(13,110,253,0.05); color:#0d6efd; }
+.theme-dark .drop-zone{ border-color: rgba(255,255,255,0.25); color: #bdbdbd; }
+.theme-dark .drop-zone.dragging{ border-color:#ffd700; background: rgba(255,215,0,0.08); color:#ffd700; }
+</style>
+{% endblock %}

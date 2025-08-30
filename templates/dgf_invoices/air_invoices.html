@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}DGF Air Invoices{% endblock %}
+{% block content %}
+<style>
+  .quote-table th { position: sticky; top:0; z-index:10; background:#f8f9fa; }
+</style>
+<div class="container-fluid py-2">
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="card text-center"><div class="card-body"><h4 class="text-warning">{{ active_count }}</h4><small class="text-muted">Active Invoices</small></div></div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center"><div class="card-body"><h4 class="text-muted">{{ total_count }}</h4><small class="text-muted">Total Invoices</small></div></div>
+    </div>
+  </div>
+
+  <div class="filter-card p-3 bg-light rounded mb-3">
+    <form class="row g-2">
+      <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select class="form-select" name="status">
+          <option value="">All</option>
+          <option value="ACTIVE" {{ 'selected' if filters.status=='ACTIVE' }}>ACTIVE</option>
+          <option value="EXPIRED" {{ 'selected' if filters.status=='EXPIRED' }}>EXPIRED</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Quote ID</label>
+        <input class="form-control" name="quote" value="{{ filters.quote or '' }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">HBL Number</label>
+        <input class="form-control" name="hbl" value="{{ filters.hbl or '' }}">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button class="btn btn-success w-100" type="submit"><i class="fas fa-search me-1"></i>Filter</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Air Invoices</h5>
+      <a class="btn btn-warning btn-sm" href="{{ url_for('dgf_invoices.upload') }}"><i class="fas fa-upload me-1"></i>Upload</a>
+    </div>
+    <div class="card-body p-0">
+      {% if invoices %}
+      <div class="table-responsive" style="max-height:600px;">
+        <table class="table table-hover quote-table mb-0">
+          <thead>
+            <tr>
+              <th>Lane ID</th>
+              <th>Quote ID</th>
+              <th>HBL</th>
+              <th>Arrival</th>
+              <th>Origin</th>
+              <th>Pieces</th>
+              <th>Weights</th>
+              <th>Charges</th>
+              <th>Total (CNY)</th>
+              <th>Status</th>
+              <th>Uploaded</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+  
+    <!-- Edit Modal -->
+    <div class="modal fade" id="invEditModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form method="post" action="{{ url_for('dgf_invoices.update_air_invoice') }}">
+            <div class="modal-header">
+              <h5 class="modal-title">Edit Invoice</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <input type="hidden" name="lane_id" id="edit_lane_id">
+              <input type="hidden" name="quote_id" id="edit_quote_id">
+              <input type="hidden" name="hbl_number" id="edit_hbl">
+              <div class="row g-2">
+                <div class="col-12">
+                  <label class="form-label">Lane ID</label>
+                  <div class="form-control" id="edit_lane_preview" readonly></div>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Terms</label>
+                  <input class="form-control" name="terms" id="edit_terms">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Status</label>
+                  <select class="form-select" name="status" id="edit_status">
+                    <option>ACTIVE</option>
+                    <option>EXPIRED</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Origin Currency</label>
+                  <input class="form-control" name="origin_currency" id="edit_origin_currency">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Origin FX Rate</label>
+                  <input class="form-control" name="origin_fx_rate" id="edit_origin_fx">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Destination Charges</label>
+                  <input class="form-control" name="destination_charges" id="edit_dest_charges">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Destination Currency</label>
+                  <input class="form-control" name="destination_currency" id="edit_dest_currency">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Destination FX Rate</label>
+                  <input class="form-control" name="destination_fx_rate" id="edit_dest_fx">
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Total (CNY)</label>
+                  <input class="form-control" name="total_cny" id="edit_total_cny">
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button class="btn btn-primary" type="submit">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+              <td><strong>{{ inv[0] }}</strong></td>
+              <td>{{ inv[1] or '—' }}</td>
+              <td>{{ inv[2] or '—' }}</td>
+              <td><small>{{ inv[3] or '—' }}</small></td>
+              <td><small>{{ inv[4] or '' }} / {{ inv[5] or '' }}</small><br><small>{{ inv[9] or '' }}</small></td>
+              <td>{{ inv[6]|int if inv[6] else 0 }}</td>
+              <td><small>GW: {{ '%.2f'|format((inv[7] or 0)|float) }} / CW: {{ '%.2f'|format((inv[8] or 0)|float) }}</small></td>
+              <td><small>Freight: {{ '%.2f'|format((inv[10] or 0)|float) }} {{ inv[11] or '' }}; Dest: {{ '%.2f'|format((inv[13] or 0)|float) }} {{ inv[14] or '' }}</small></td>
+              <td><strong>{{ '%.2f'|format((inv[16] or 0)|float) }}</strong></td>
+              <td>
+                {% if inv[17]=='ACTIVE' %}<span class="badge bg-success">ACTIVE</span>
+                {% elif inv[17]=='EXPIRED' %}<span class="badge bg-warning">EXPIRED</span>
+                {% else %}<span class="badge bg-secondary">{{ inv[17] or '—' }}</span>{% endif %}
+              </td>
+              <td><small>{{ inv[18].split(' ')[0] if inv[18] else '' }}</small></td>
+              <td class="d-flex gap-1">
+                <button class="btn btn-outline-success btn-sm" title="View" onclick="viewInvoice('{{ inv[0] }}')"><i class="fas fa-eye"></i></button>
+                <button class="btn btn-outline-primary btn-sm" title="Edit" onclick="editInvoice('{{ inv[0] }}')"><i class="fas fa-edit"></i></button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">No invoices found</h5>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal fade" id="invModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Invoice Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="invBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function viewInvoice(laneId) {
+  fetch(`{{ url_for('dgf_invoices.air_invoice_details', lane_id='L') }}`.replace('L', laneId))
+    .then(r=>r.json()).then(d=>{
+      if(!d.invoice){ alert('Not found'); return; }
+      const q=d.invoice;
+  const fmt=v=>{ const n=Number(v); return isNaN(n)?'0.00':n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  // After schema change: [0]id,[1]lane_id,[2]quote_id,[3]actual_arrival_date,[4]hbl_number,[5]pieces,[6]gross_weight,[7]chargeable_weight,
+  // [8]terms,[9]origin_country,[10]origin_port,[11]freight,[12]origin_currency,[13]origin_fx_rate,
+  // [14]destination_charges,[15]destination_currency,[16]destination_fx_rate,[17]total_cny,[18]file_name,
+  // [19]sheet_name,[20]row_number,[21]uploaded_by,[22]uploaded_at,[23]status
+      document.getElementById('invBody').innerHTML = `
+        <div class="row">
+          <div class="col-md-6">
+            <h6>Shipment</h6>
+    <p><strong>Lane ID:</strong> ${q[1]||''}</p>
+    <p><strong>Quote ID:</strong> ${q[2]||''}</p>
+    <p><strong>HBL:</strong> ${q[4]||''}</p>
+    <p><strong>Arrival:</strong> ${q[3]||''}</p>
+    <p><strong>Origin:</strong> ${(q[9]||'') + ' / ' + (q[10]||'')}</p>
+    <p><strong>Pieces:</strong> ${q[5]||''}</p>
+    <p><strong>Weights:</strong> GW ${fmt(q[6])} / CW ${fmt(q[7])}</p>
+          </div>
+          <div class="col-md-6">
+            <h6>Charges</h6>
+    <p><strong>Freight:</strong> ${fmt(q[11])} ${q[12]||''} @ FX ${q[13]||''}</p>
+    <p><strong>Destination Charges:</strong> ${fmt(q[14])} ${q[15]||''} @ FX ${q[16]||''}</p>
+    <p><strong>Total (CNY):</strong> ${fmt(q[17])}</p>
+          </div>
+        </div>`;
+      new bootstrap.Modal(document.getElementById('invModal')).show();
+    });
+}
+
+function editInvoice(laneId) {
+  fetch(`{{ url_for('dgf_invoices.air_invoice_details', lane_id='L') }}`.replace('L', laneId))
+    .then(r=>r.json()).then(d=>{
+      if(!d.invoice){ alert('Not found'); return; }
+      const q=d.invoice;
+      document.getElementById('edit_lane_id').value = q[1] || '';
+      document.getElementById('edit_lane_preview').textContent = q[1] || '';
+      document.getElementById('edit_terms').value = q[8] || '';
+      document.getElementById('edit_status').value = q[23] || 'ACTIVE';
+      document.getElementById('edit_origin_currency').value = q[12] || '';
+      document.getElementById('edit_origin_fx').value = q[13] || '';
+      document.getElementById('edit_dest_charges').value = q[14] || '';
+      document.getElementById('edit_dest_currency').value = q[15] || '';
+      document.getElementById('edit_dest_fx').value = q[16] || '';
+      document.getElementById('edit_total_cny').value = q[17] || '';
+      new bootstrap.Modal(document.getElementById('invEditModal')).show();
+    });
+}
+</script>
+{% endblock %}

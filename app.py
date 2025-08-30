@@ -116,6 +116,14 @@ try:
 except ImportError as e:
     print(f"Warning: Could not import DGF Quotes routes: {e}")
 
+# Register DGF Invoices blueprint
+try:
+    from dgf_invoices_routes import dgf_invoices_bp
+    app.register_blueprint(dgf_invoices_bp)
+    print("DGF Invoices routes registered successfully")
+except ImportError as e:
+    print(f"Warning: Could not import DGF Invoices routes: {e}")
+
 # Register FedEx blueprint
 try:
     from fedex_routes import fedex_bp
